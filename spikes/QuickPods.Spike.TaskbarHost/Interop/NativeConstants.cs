@@ -8,6 +8,11 @@ internal static class NativeConstants
     internal const int GwlStyle = -16;
     internal const int GwlExtendedStyle = -20;
     internal const uint GetAncestorParent = 1;
+    internal const uint GetAncestorRoot = 2;
+    internal const uint GetWindowOwner = 4;
+    internal const uint MonitorDefaultToNearest = 2;
+    internal const int MonitorDpiTypeEffective = 0;
+    internal const uint DwmWindowAttributeCloaked = 14;
 
     internal const long WindowStyleChild = 0x40000000L;
     internal const long WindowStyleClipSiblings = 0x04000000L;
@@ -15,6 +20,7 @@ internal static class NativeConstants
     internal const long WindowStyleVisible = 0x10000000L;
 
     internal const long WindowExtendedStyleToolWindow = 0x00000080L;
+    internal const long WindowExtendedStyleTopmost = 0x00000008L;
     internal const long WindowExtendedStyleLayered = 0x00080000L;
     internal const long WindowExtendedStyleNoActivate = 0x08000000L;
 

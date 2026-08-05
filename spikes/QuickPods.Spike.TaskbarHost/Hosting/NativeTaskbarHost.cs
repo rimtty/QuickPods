@@ -63,7 +63,23 @@ internal sealed class NativeTaskbarHost : IDisposable
         nint parentHandle,
         PixelRect screenBounds,
         NativeParentStyleMode styleMode) =>
-        CreateCore(parentHandle, screenBounds, styleMode, requirePerMonitorV2: true);
+        CreateCore(
+            parentHandle,
+            screenBounds,
+            styleMode,
+            requirePerMonitorV2: true,
+            showAfterVerification: true);
+
+    internal NativeHostCreationSnapshot CreateHidden(
+        nint parentHandle,
+        PixelRect screenBounds,
+        NativeParentStyleMode styleMode) =>
+        CreateCore(
+            parentHandle,
+            screenBounds,
+            styleMode,
+            requirePerMonitorV2: true,
+            showAfterVerification: false);
 
     /// <summary>
     /// Exercises native parenting under the test runner's known, stable DPI
@@ -74,13 +90,34 @@ internal sealed class NativeTaskbarHost : IDisposable
         nint parentHandle,
         PixelRect screenBounds,
         NativeParentStyleMode styleMode) =>
-        CreateCore(parentHandle, screenBounds, styleMode, requirePerMonitorV2: false);
+        CreateCore(
+            parentHandle,
+            screenBounds,
+            styleMode,
+            requirePerMonitorV2: false,
+            showAfterVerification: true);
+
+    /// <summary>
+    /// Exercises hidden native preparation under the test runner's known,
+    /// stable DPI context. Live taskbar code must use <see cref="CreateHidden"/>.
+    /// </summary>
+    internal NativeHostCreationSnapshot CreateHiddenForStableDpiTestParent(
+        nint parentHandle,
+        PixelRect screenBounds,
+        NativeParentStyleMode styleMode) =>
+        CreateCore(
+            parentHandle,
+            screenBounds,
+            styleMode,
+            requirePerMonitorV2: false,
+            showAfterVerification: false);
 
     private NativeHostCreationSnapshot CreateCore(
         nint parentHandle,
         PixelRect screenBounds,
         NativeParentStyleMode styleMode,
-        bool requirePerMonitorV2)
+        bool requirePerMonitorV2,
+        bool showAfterVerification)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         if (!OperatingSystem.IsWindows())
@@ -188,7 +225,21 @@ internal sealed class NativeTaskbarHost : IDisposable
             expectedStyleMode = styleMode;
             expectedDpiAwareness = afterParenting;
             expectedParentDpi = parentDpi;
-            Show();
+            if (showAfterVerification)
+            {
+                Show();
+            }
+            else
+            {
+                ThrowIfLayoutInvalidationPending();
+                ValidateAttachedWindow();
+                if (NativeMethods.IsWindowVisible(windowHandle))
+                {
+                    throw new InvalidOperationException(
+                        "The native host became visible while it was being prepared for promotion.");
+                }
+            }
+
             _ = NativeMethods.InvalidateRect(windowHandle, nint.Zero, false);
 
             return new(
@@ -289,6 +340,74 @@ internal sealed class NativeTaskbarHost : IDisposable
         {
             ValidateAttachedWindow();
             return NativeMethods.IsWindowVisible(windowHandle);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Determines whether an already-visible native surface can be retained
+    /// while top-level taskbar discovery is temporarily incomplete. Unlike
+    /// the general attachment probe, continuity requires that no hard Shell
+    /// invalidation is pending and that both the verified parent and view
+    /// remain visible across stable attachment checks.
+    /// </summary>
+    internal bool IsCurrentContinuityStable()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        EnsureOwningThread();
+
+        try
+        {
+            ValidateVisibleContinuitySnapshot();
+            ValidateVisibleContinuitySnapshot();
+            return true;
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
+        {
+            return false;
+        }
+    }
+
+    internal static bool AreDwmContinuitySurfacesVisible(
+        nint parentHandle,
+        nint viewHandle)
+    {
+        if (!OperatingSystem.IsWindows() ||
+            parentHandle == nint.Zero ||
+            viewHandle == nint.Zero)
+        {
+            return false;
+        }
+
+        try
+        {
+            return NativeMethods.DwmIsCompositionEnabled(out bool compositionEnabled) == 0 &&
+                compositionEnabled &&
+                TryReadUncloaked(parentHandle) &&
+                TryReadUncloaked(viewHandle);
+        }
+        catch (Exception exception) when (
+            exception is DllNotFoundException or
+            EntryPointNotFoundException or
+            BadImageFormatException)
+        {
+            return false;
+        }
+    }
+
+    internal bool IsCurrentAttachmentValidWhileHidden()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        EnsureOwningThread();
+
+        try
+        {
+            ThrowIfLayoutInvalidationPending();
+            ValidateAttachedWindow();
+            return !NativeMethods.IsWindowVisible(windowHandle);
         }
         catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
         {
@@ -793,6 +912,14 @@ internal sealed class NativeTaskbarHost : IDisposable
             throw new InvalidOperationException("The native host or its expected parent is no longer a live HWND.");
         }
 
+        if (NativeMethods.GetAncestor(
+                expectedParentHandle,
+                NativeConstants.GetAncestorRoot) != expectedParentHandle)
+        {
+            throw new NativeLayoutInvalidatedException(
+                "The verified taskbar parent is no longer a top-level window.");
+        }
+
         if (NativeMethods.GetAncestor(windowHandle, NativeConstants.GetAncestorParent) != expectedParentHandle)
         {
             throw new InvalidOperationException("The native host is no longer attached to its verified parent.");
@@ -828,6 +955,36 @@ internal sealed class NativeTaskbarHost : IDisposable
             throw new InvalidOperationException(
                 "The native host DPI context changed after placement verification.");
         }
+    }
+
+    private void ValidateVisibleContinuitySnapshot()
+    {
+        ThrowIfLayoutInvalidationPending();
+        ValidateAttachedWindow();
+        if (!NativeMethods.IsWindowVisible(expectedParentHandle) ||
+            !NativeMethods.IsWindowVisible(windowHandle))
+        {
+            throw new NativeLayoutInvalidatedException(
+                "The verified taskbar parent and native host must both remain visible for native continuity.");
+        }
+
+        if (!AreDwmContinuitySurfacesVisible(expectedParentHandle, windowHandle))
+        {
+            throw new NativeLayoutInvalidatedException(
+                "DWM composition and uncloaked taskbar surfaces are required for native continuity.");
+        }
+
+        ThrowIfLayoutInvalidationPending();
+    }
+
+    private static bool TryReadUncloaked(nint window)
+    {
+        int result = NativeMethods.DwmGetWindowAttribute(
+            window,
+            NativeConstants.DwmWindowAttributeCloaked,
+            out uint cloaked,
+            sizeof(uint));
+        return result == 0 && cloaked == 0;
     }
 
     private void ReleaseInstanceHandle()

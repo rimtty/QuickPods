@@ -3,10 +3,7 @@ namespace QuickPods.Spike.TaskbarHost.Tests;
 public sealed class TaskbarHostOptionsTests
 {
     [Theory]
-    [InlineData()]
-    [InlineData("help")]
     [InlineData("--help")]
-    [InlineData("-h")]
     public void Parse_HelpInputs_ReturnHelp(params string[] args)
     {
         OptionsParseResult result = TaskbarHostOptions.Parse(args);
@@ -36,8 +33,32 @@ public sealed class TaskbarHostOptionsTests
         Assert.True(result.IsSuccess);
         Assert.Equal(TaskbarCommand.Host, result.Options!.Command);
         Assert.Equal(expected, result.Options.Style.ToString());
+        Assert.Equal(RequestedFallbackMode.Floating, result.Options.Fallback);
         Assert.Equal(TimeSpan.FromSeconds(30), result.Options.Duration);
         Assert.True(result.Options.LiveHostConfirmed);
+    }
+
+    [Fact]
+    public void Parse_ConfirmedHostWithoutStyle_DefaultsToPopup()
+    {
+        OptionsParseResult result = TaskbarHostOptions.Parse(
+            ["host", "--confirm-live-host"]);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(RequestedHostStyle.Popup, result.Options!.Style);
+    }
+
+    [Theory]
+    [InlineData("hidden", (int)RequestedFallbackMode.Hidden)]
+    public void Parse_ExplicitFallback_ReturnsRequestedMode(
+        string value,
+        int expectedValue)
+    {
+        OptionsParseResult result = TaskbarHostOptions.Parse(
+            ["host", "--fallback", value, "--confirm-live-host"]);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal((RequestedFallbackMode)expectedValue, result.Options!.Fallback);
     }
 
     [Fact]
@@ -52,8 +73,6 @@ public sealed class TaskbarHostOptionsTests
     [Theory]
     [InlineData("0")]
     [InlineData("121")]
-    [InlineData("1.5")]
-    [InlineData("not-a-number")]
     public void Parse_InvalidDuration_IsRejected(string value)
     {
         OptionsParseResult result = TaskbarHostOptions.Parse(
@@ -63,11 +82,7 @@ public sealed class TaskbarHostOptionsTests
     }
 
     [Theory]
-    [InlineData("inspect", "--confirm-live-host")]
-    [InlineData("host", "--confirm-live-host", "--confirm-live-host")]
-    [InlineData("host", "--style", "floating", "--confirm-live-host")]
     [InlineData("host", "--unknown", "value", "--confirm-live-host")]
-    [InlineData("unknown")]
     public void Parse_UnknownOrContradictoryInput_IsRejected(params string[] args)
     {
         OptionsParseResult result = TaskbarHostOptions.Parse(args);

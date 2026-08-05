@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.ExceptionServices;
 using System.Runtime.Versioning;
 using System.Windows.Automation;
 
@@ -94,6 +95,10 @@ internal sealed class TaskbarAutomationWatcher : IDisposable
         return true;
     }
 
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "Watcher shutdown must still join its MTA and release the command queue after a subscription failure.")]
     public void Dispose()
     {
         if (disposed)
@@ -102,13 +107,48 @@ internal sealed class TaskbarAutomationWatcher : IDisposable
         }
 
         disposed = true;
-        SendCore(WatcherCommandKind.Stop, nint.Zero);
-        if (!worker.Join(OperationTimeout))
+        Exception? shutdownFailure = null;
+        try
         {
-            throw new TimeoutException("The UI Automation watcher MTA did not stop in time.");
+            SendCore(WatcherCommandKind.Stop, nint.Zero);
+        }
+        catch (Exception exception)
+        {
+            shutdownFailure = exception;
+            try
+            {
+                commands.CompleteAdding();
+            }
+            catch (Exception completionException)
+            {
+                shutdownFailure = CombineShutdownFailures(
+                    shutdownFailure,
+                    completionException);
+            }
         }
 
-        commands.Dispose();
+        if (!worker.Join(OperationTimeout))
+        {
+            var timeout = new TimeoutException(
+                "The UI Automation watcher MTA did not stop in time.");
+            shutdownFailure = CombineShutdownFailures(shutdownFailure, timeout);
+        }
+        else
+        {
+            try
+            {
+                commands.Dispose();
+            }
+            catch (Exception exception)
+            {
+                shutdownFailure = CombineShutdownFailures(shutdownFailure, exception);
+            }
+        }
+
+        if (shutdownFailure is not null)
+        {
+            ExceptionDispatchInfo.Capture(shutdownFailure).Throw();
+        }
     }
 
     private void Send(WatcherCommandKind kind, nint handle)
@@ -214,6 +254,16 @@ internal sealed class TaskbarAutomationWatcher : IDisposable
     {
         task.WaitAsync(OperationTimeout).GetAwaiter().GetResult();
     }
+
+    private static Exception CombineShutdownFailures(
+        Exception? existing,
+        Exception next) =>
+        existing is null
+            ? next
+            : new AggregateException(
+                "Multiple UI Automation watcher shutdown operations failed.",
+                existing,
+                next);
 
     private enum WatcherCommandKind
     {

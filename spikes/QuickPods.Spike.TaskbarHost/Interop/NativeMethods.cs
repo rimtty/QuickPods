@@ -55,6 +55,12 @@ internal static class NativeMethods
     internal static extern nint GetParent(nint child);
 
     [DllImport("user32.dll", ExactSpelling = true)]
+    internal static extern nint GetWindow(nint window, uint command);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "FindWindowW", SetLastError = true)]
+    internal static extern nint FindWindow(string? className, string? windowName);
+
+    [DllImport("user32.dll", ExactSpelling = true)]
     internal static extern nint GetAncestor(nint window, uint flags);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "DefWindowProcW")]
@@ -177,8 +183,29 @@ internal static class NativeMethods
     [DllImport("user32.dll", ExactSpelling = true)]
     internal static extern uint GetDpiForWindow(nint window);
 
+    [DllImport("user32.dll", ExactSpelling = true)]
+    internal static extern nint MonitorFromRect(ref NativeRect rectangle, uint flags);
+
     [DllImport("shcore.dll", ExactSpelling = true)]
     internal static extern int GetProcessDpiAwareness(nint process, out int awareness);
+
+    [DllImport("shcore.dll", ExactSpelling = true)]
+    internal static extern int GetDpiForMonitor(
+        nint monitor,
+        int dpiType,
+        out uint dpiX,
+        out uint dpiY);
+
+    [DllImport("dwmapi.dll", ExactSpelling = true)]
+    internal static extern int DwmIsCompositionEnabled(
+        [MarshalAs(UnmanagedType.Bool)] out bool enabled);
+
+    [DllImport("dwmapi.dll", ExactSpelling = true)]
+    internal static extern int DwmGetWindowAttribute(
+        nint window,
+        uint attribute,
+        out uint value,
+        uint valueSize);
 
     [DllImport("gdi32.dll", ExactSpelling = true, SetLastError = true)]
     internal static extern nint CreateSolidBrush(uint color);

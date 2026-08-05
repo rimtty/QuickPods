@@ -65,3 +65,12 @@ internal readonly record struct NativeHostCreationSnapshot(
     long ExtendedStyle,
     NativeDpiAwarenessMeasurement BeforeParentingDpi,
     NativeDpiAwarenessMeasurement AfterParentingDpi);
+
+internal readonly record struct NativeFloatingHostCreationSnapshot(
+    nint WindowHandle,
+    PixelRect RequestedScreenBounds,
+    PixelRect ActualScreenBounds,
+    uint ExpectedDpi,
+    long Style,
+    long ExtendedStyle,
+    NativeDpiAwarenessMeasurement DpiAwareness);
