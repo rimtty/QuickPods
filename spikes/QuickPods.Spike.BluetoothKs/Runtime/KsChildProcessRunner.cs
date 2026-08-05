@@ -115,8 +115,8 @@ internal sealed class KsChildProcessRunner : IKsChildProcessRunner
                 process.StandardInput.Close();
             }
 
-            Task timeout = Task.Delay(_timeout, CancellationToken.None);
-            Task cancelled = Task.Delay(
+            var timeout = Task.Delay(_timeout, CancellationToken.None);
+            var cancelled = Task.Delay(
                 System.Threading.Timeout.InfiniteTimeSpan,
                 cancellationToken);
             Task completed = await Task.WhenAny(
@@ -178,7 +178,7 @@ internal sealed class KsChildProcessRunner : IKsChildProcessRunner
 
             try
             {
-                KsChildResponse response = KsChildResponse.Deserialize(
+                var response = KsChildResponse.Deserialize(
                     output.Trim(),
                     requestNonce,
                     invocation.TargetHash,

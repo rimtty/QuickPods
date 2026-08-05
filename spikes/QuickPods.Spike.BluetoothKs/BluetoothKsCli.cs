@@ -19,7 +19,7 @@ internal static class BluetoothKsCli
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(error);
 
-        BluetoothKsOptions? options = ParseOptions(arguments, output, error);
+        BluetoothKsOptions? options = ParseOptions(arguments, error);
         if (options is null)
         {
             return 2;
@@ -190,7 +190,6 @@ internal static class BluetoothKsCli
 
     private static BluetoothKsOptions? ParseOptions(
         IReadOnlyList<string> arguments,
-        TextWriter output,
         TextWriter error)
     {
         try
@@ -223,11 +222,10 @@ internal static class BluetoothKsCli
             return null;
         }
 
-        string[] renderCandidates = target.Candidates
+        string[] renderCandidates = [.. target.Candidates
             .Where(candidate => candidate.SourceFlow == NativeDataFlow.Render)
             .Select(candidate => candidate.AdapterDeviceId)
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
+            .Distinct(StringComparer.Ordinal)];
         if (renderCandidates.Length != 1)
         {
             error.WriteLine(

@@ -8,7 +8,7 @@
 | ブランチ | `codex/phase-0b-bluetooth-ks-spike` |
 | .NET | SDK `10.0.302` / Runtime `10.0.10` |
 | Release build | Pass、警告0、エラー0 |
-| 自動試験 | Pass、Bluetooth KS 56件 + solution smoke 1件 |
+| 自動試験 | Pass、Bluetooth KS 58件 + solution smoke 1件 |
 | format / diff check | Pass |
 | 読み取り専用inventory | Pass |
 | KS Basic Support | Pending（未実行） |
@@ -33,6 +33,7 @@
 - 所有権へ影響する探索fault、または同じAdapterをContainerへ帰属できないsnapshotではKS子プロセスを開始しない。
 - Basic Supportの片方でも非対応ならReconnect／Disconnectを発行しない。
 - KS HRESULTが失敗の場合、MMDeviceが期待状態へ変化しても成功扱いしない。
+- 操作後の観測に所有権faultまたはContainer未帰属Adapterがあれば、残存EndpointがUnpluggedでも`Unknown`へ倒す。
 - 操作前から目的状態だった試行は`AlreadyInDesiredState`とし、有効成功へ数えない。
 - 同一Containerの操作は完全直列化し、古いgenerationの結果を破棄する。
 - machine-wide固定名のcross-process Mutexにより全診断コマンドを直列化し、2つの実行プロセスを競合させた場合は2つ目が固定名Jobへ合流する前に拒否される。

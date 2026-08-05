@@ -10,7 +10,7 @@ internal sealed class MtaBluetoothKsDiscovery : IBluetoothKsDiscovery, IDisposab
 
     internal MtaBluetoothKsDiscovery(string? sessionToken = null)
     {
-        var hasher = sessionToken is null
+        IdentifierHasher hasher = sessionToken is null
             ? new IdentifierHasher()
             : IdentifierHasher.FromSessionToken(sessionToken);
         _service = new BluetoothKsDiscoveryService(hasher);

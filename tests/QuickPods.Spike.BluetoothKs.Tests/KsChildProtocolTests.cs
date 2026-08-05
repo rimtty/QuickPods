@@ -19,7 +19,7 @@ public sealed class KsChildProtocolTests
             Nonce,
             TargetHash,
             KsChildOperation.BasicSupportReconnect);
-        KsChildResponse observed = KsChildResponse.Deserialize(
+        var observed = KsChildResponse.Deserialize(
             json,
             Nonce,
             TargetHash,

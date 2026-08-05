@@ -30,22 +30,15 @@ internal struct PropVariant
 /// <summary>
 /// Managed layout of the Windows KS <c>KSPROPERTY</c> structure.
 /// </summary>
+/// <remarks>
+/// Initializes a KS property descriptor. This structure does not execute a request.
+/// </remarks>
 [StructLayout(LayoutKind.Sequential)]
-public readonly struct KsProperty
+public readonly struct KsProperty(Guid set, uint id, uint flags)
 {
-    /// <summary>
-    /// Initializes a KS property descriptor. This structure does not execute a request.
-    /// </summary>
-    public KsProperty(Guid set, uint id, uint flags)
-    {
-        SetValue = set;
-        IdValue = id;
-        FlagsValue = flags;
-    }
-
-    internal readonly Guid SetValue;
-    internal readonly uint IdValue;
-    internal readonly uint FlagsValue;
+    internal readonly Guid SetValue = set;
+    internal readonly uint IdValue = id;
+    internal readonly uint FlagsValue = flags;
 
     /// <summary>Gets the KS property-set identifier.</summary>
     public Guid Set => SetValue;

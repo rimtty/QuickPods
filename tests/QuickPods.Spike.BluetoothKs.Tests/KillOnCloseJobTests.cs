@@ -10,7 +10,7 @@ public sealed class KillOnCloseJobTests
     public void NamedCreateRefusesToJoinAnExistingJob()
     {
         string jobName = $@"Global\QuickPods.BluetoothKs.Tests.{Guid.NewGuid():N}";
-        using KillOnCloseJob first = KillOnCloseJob.Create(jobName);
+        using var first = KillOnCloseJob.Create(jobName);
 
         InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
             () => KillOnCloseJob.Create(jobName));
@@ -65,7 +65,7 @@ public sealed class KillOnCloseJobTests
 
             if (descendantProcessId is int processId && IsProcessRunning(processId))
             {
-                using Process descendant = Process.GetProcessById(processId);
+                using var descendant = Process.GetProcessById(processId);
                 descendant.Kill(entireProcessTree: true);
                 await descendant.WaitForExitAsync(CancellationToken.None);
             }
@@ -99,7 +99,7 @@ public sealed class KillOnCloseJobTests
     {
         try
         {
-            using Process process = Process.GetProcessById(processId);
+            using var process = Process.GetProcessById(processId);
             return !process.HasExited;
         }
         catch (ArgumentException)

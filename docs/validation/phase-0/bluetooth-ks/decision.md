@@ -51,7 +51,7 @@ KS要求のHRESULTが成功しても、実際の接続・切断成功とはみ�
 | 検証項目 | 結果 | 備考 |
 |---|---|---|
 | 読み取り専用探索 | Pass | AirPods Container、Render/Capture、connector 0候補をreport-scoped aliasで識別 |
-| 自動安全試験 | Pass | Bluetooth KS 56件、solution smoke 1件 |
+| 自動安全試験 | Pass | Bluetooth KS 58件、solution smoke 1件 |
 | Reconnect Basic Support | Pending | 未実行 |
 | Disconnect Basic Support | Pending | 未実行 |
 | 接続10回 | Pending | 0回実行 |

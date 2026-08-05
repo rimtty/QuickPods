@@ -13,7 +13,7 @@ public sealed class IsolatedCommandProtocolTests
         var request = new IsolatedCommandRequest(Nonce, ["inventory"]);
         string json = request.Serialize(Authorization);
 
-        IsolatedCommandRequest accepted =
+        var accepted =
             IsolatedCommandRequest.DeserializeAndValidate(
                 json,
                 Authorization,

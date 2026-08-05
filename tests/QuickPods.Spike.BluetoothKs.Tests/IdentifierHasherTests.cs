@@ -9,7 +9,7 @@ public sealed class IdentifierHasherTests
     {
         const string source = "private-device-identifier";
         var firstReport = new IdentifierHasher();
-        IdentifierHasher resumedReport = IdentifierHasher.FromSessionToken(
+        var resumedReport = IdentifierHasher.FromSessionToken(
             firstReport.SessionToken);
 
         string first = firstReport.Hash(source);

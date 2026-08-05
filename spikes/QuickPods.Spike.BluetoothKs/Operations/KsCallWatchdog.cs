@@ -12,16 +12,11 @@ public sealed record KsCallWatchdogResult(
     KsCallWatchdogStatus Status,
     int? HResult);
 
-public sealed class KsCallWatchdog
+public sealed class KsCallWatchdog(IOperationClock? clock = null)
 {
     public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(6);
 
-    private readonly IOperationClock _clock;
-
-    public KsCallWatchdog(IOperationClock? clock = null)
-    {
-        _clock = clock ?? SystemOperationClock.Instance;
-    }
+    private readonly IOperationClock _clock = clock ?? SystemOperationClock.Instance;
 
     public async Task<KsCallWatchdogResult> WaitAsync(
         Task<int> callCompletion,

@@ -9,7 +9,7 @@ public sealed class BluetoothKsOptionsTests
     [Fact]
     public void InventoryIsReadOnlyAndAcceptsNoOperationConfirmation()
     {
-        BluetoothKsOptions options = BluetoothKsOptions.Parse(["inventory"]);
+        var options = BluetoothKsOptions.Parse(["inventory"]);
 
         Assert.Equal(BluetoothKsCommand.Inventory, options.Command);
         Assert.Throws<ArgumentException>(() =>
@@ -28,7 +28,7 @@ public sealed class BluetoothKsOptionsTests
             BluetoothKsOptions.Parse(
                 ["probe", "--session", SessionToken, "--target", TargetHash]));
 
-        BluetoothKsOptions options = BluetoothKsOptions.Parse(
+        var options = BluetoothKsOptions.Parse(
         [
             "probe",
             "--session",
@@ -60,7 +60,7 @@ public sealed class BluetoothKsOptionsTests
             "--confirm-playback-stopped",
         ];
 
-        BluetoothKsOptions options = BluetoothKsOptions.Parse(required);
+        var options = BluetoothKsOptions.Parse(required);
 
         Assert.Equal(TargetHash, options.ConfirmedTargetHash);
         Assert.True(options.KsOperationConfirmed);

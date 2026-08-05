@@ -19,7 +19,7 @@ internal static partial class ParentProcessVerifier
                 return false;
             }
 
-            using Process parent = Process.GetProcessById(checked((int)parentProcessId.Value));
+            using var parent = Process.GetProcessById(checked((int)parentProcessId.Value));
             string? parentPath = parent.MainModule?.FileName;
             string? currentPath = Environment.ProcessPath;
             return parentPath is not null &&

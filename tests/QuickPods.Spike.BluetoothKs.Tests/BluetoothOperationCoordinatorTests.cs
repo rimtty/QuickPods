@@ -320,7 +320,7 @@ public sealed class BluetoothOperationCoordinatorTests
 
 internal sealed class ManualOperationClock : IOperationClock
 {
-    private readonly object _sync = new();
+    private readonly Lock _sync = new();
     private readonly List<ScheduledDelay> _delays = [];
     private long _timestamp;
 
@@ -382,10 +382,9 @@ internal sealed class ManualOperationClock : IOperationClock
         lock (_sync)
         {
             _timestamp = checked(_timestamp + amount.Ticks);
-            due = _delays
+            due = [.. _delays
                 .Where(delay => delay.DueTimestamp <= _timestamp && !delay.Completion.Task.IsCompleted)
-                .Select(delay => delay.Completion)
-                .ToList();
+                .Select(delay => delay.Completion)];
         }
 
         foreach (TaskCompletionSource completion in due)

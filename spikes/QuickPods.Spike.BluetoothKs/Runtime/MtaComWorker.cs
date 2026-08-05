@@ -150,13 +150,7 @@ internal sealed partial class MtaComWorker : IDisposable
     }
 }
 
-internal sealed class ComInitializationException : InvalidOperationException
+internal sealed class ComInitializationException(int nativeHResult) : InvalidOperationException($"CoInitializeEx failed with HRESULT 0x{nativeHResult:X8}.")
 {
-    public ComInitializationException(int nativeHResult)
-        : base($"CoInitializeEx failed with HRESULT 0x{nativeHResult:X8}.")
-    {
-        NativeHResult = nativeHResult;
-    }
-
-    public int NativeHResult { get; }
+    public int NativeHResult { get; } = nativeHResult;
 }

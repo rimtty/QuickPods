@@ -2,7 +2,7 @@
 
 ## ステータス
 
-**Partial** — 読み取り専用探索、56件の自動試験、watchdogシミュレーションはPass。KS Basic Supportと実機の接続・切断は、操作者による再生停止確認前のためPendingである。
+**Partial** — 読み取り専用探索、58件の自動試験、watchdogシミュレーションはPass。KS Basic Supportと実機の接続・切断は、操作者による再生停止確認前のためPendingである。
 
 この文書の`Pass`は、KS要求が受理されたことではなく、期限内に対象オーディオEndpointの実状態が期待どおり変化したことを意味する。空欄や未観測結果を成功として扱わない。
 
@@ -47,6 +47,7 @@
 | BTKS-CON-001 | 接続 | 到達可能かつ切断状態からReconnectを有効10回実施 | 10回中9回以上、各15秒以内に`DEVICE_STATE_ACTIVE`を確認 | 接続試行表 | Pending |
 | BTKS-DIS-001 | 切断 | 接続状態からDisconnectを有効10回実施 | 10回中9回以上、各15秒以内に非Activeを確認 | 切断試行表 | Pending |
 | BTKS-OBS-001 | 成功判定 | KS要求成功後も実状態を監視 | 実状態不変を成功表示した件数が0 | 要求結果と観測結果の対照表 | Pending |
+| BTKS-OBS-002 | 成功判定 | 所有権faultまたはContainer未帰属Adapterを含む状態観測を模擬 | 残存EndpointがUnpluggedでも`Disconnected`とせず`Unknown`へ倒す | state-observer自動試験 | Pass（自動） |
 | BTKS-SER-001 | 直列化 | 同一プロセスの操作中に追加要求を発生させる | 2件目を開始せず、同時KS要求が0 | generation／lane自動試験 | Pass（自動） |
 | BTKS-SER-002 | 直列化 | 2つのSpike実行プロセスからmachine-wide固定名Mutexを同時取得 | 1つ目だけが取得し、2つ目は固定名Jobへ合流せず隔離コマンド開始前に拒否される | 2プロセス統合試験 | Pass（自動） |
 | BTKS-SER-003 | 直列化 | Mutex所有プロセスの異常終了と待機cancelを模擬 | 放棄／cancelされた試行はoperation delegateを実行せず、前Job回収後の別試行だけを許可する | abandonment／cancel自動試験 | Pass（自動） |

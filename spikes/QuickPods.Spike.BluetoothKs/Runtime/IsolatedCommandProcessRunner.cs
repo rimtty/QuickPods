@@ -81,8 +81,8 @@ internal sealed class IsolatedCommandProcessRunner
                 process.StandardInput.Close();
             }
 
-            Task timeoutTask = Task.Delay(timeout, CancellationToken.None);
-            Task cancelled = Task.Delay(
+            var timeoutTask = Task.Delay(timeout, CancellationToken.None);
+            var cancelled = Task.Delay(
                 System.Threading.Timeout.InfiniteTimeSpan,
                 cancellationToken);
             Task completed = await Task.WhenAny(
@@ -128,7 +128,7 @@ internal sealed class IsolatedCommandProcessRunner
 
             try
             {
-                IsolatedCommandResponse response = IsolatedCommandResponse.Deserialize(
+                var response = IsolatedCommandResponse.Deserialize(
                     output.Trim(),
                     requestNonce);
                 return new IsolatedCommandRunResult(

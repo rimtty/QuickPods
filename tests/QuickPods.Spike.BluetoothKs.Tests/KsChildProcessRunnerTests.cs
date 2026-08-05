@@ -61,7 +61,7 @@ public sealed class KsChildProcessRunnerTests
     {
         try
         {
-            using Process process = Process.GetProcessById(processId);
+            using var process = Process.GetProcessById(processId);
             return !process.HasExited;
         }
         catch (ArgumentException)

@@ -57,7 +57,7 @@ internal static class KsChildEntryPoint
         IMMDeviceEnumerator? enumerator = null;
         IMMDevice? device = null;
         object? activatedInterface = null;
-        using ComApartmentScope apartment = ComApartmentScope.EnterMultithreaded();
+        using var apartment = ComApartmentScope.EnterMultithreaded();
         try
         {
             enumerator = (IMMDeviceEnumerator)(object)new MMDeviceEnumeratorComObject();

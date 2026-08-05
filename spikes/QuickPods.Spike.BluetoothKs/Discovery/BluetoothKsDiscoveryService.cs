@@ -19,7 +19,7 @@ internal sealed class BluetoothKsDiscoveryService(IdentifierHasher hasher) : IBl
 
     public BluetoothKsDiscoveryResult Discover()
     {
-        using ComApartmentScope apartment = ComApartmentScope.EnterMultithreaded();
+        using var apartment = ComApartmentScope.EnterMultithreaded();
         var faults = new List<DiscoveryFault>();
         var rawEndpoints = new List<RawEndpoint>();
         IMMDeviceEnumerator? enumerator = null;
@@ -269,7 +269,7 @@ internal sealed class BluetoothKsDiscoveryService(IdentifierHasher hasher) : IBl
             ComObject.Release(activatedInterface);
         }
 
-        return adapterIds.ToArray();
+        return [.. adapterIds];
     }
 
     private BluetoothKsDiscoveryResult BuildResult(
@@ -278,27 +278,25 @@ internal sealed class BluetoothKsDiscoveryService(IdentifierHasher hasher) : IBl
     {
         var groups = new List<BluetoothDeviceGroup>();
         var targets = new Dictionary<string, RawKsTarget>(StringComparer.Ordinal);
-        string[] unassignedAdapterDeviceIds = endpoints
+        string[] unassignedAdapterDeviceIds = [.. endpoints
             .Where(endpoint => endpoint.ContainerId is null)
             .SelectMany(endpoint => endpoint.AdapterDeviceIds)
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
+            .Distinct(StringComparer.Ordinal)];
 
         foreach (IGrouping<Guid, RawEndpoint> container in endpoints
             .Where(endpoint => endpoint.ContainerId is not null)
             .GroupBy(endpoint => endpoint.ContainerId!.Value))
         {
-            RawEndpoint[] containerEndpoints = container.ToArray();
+            RawEndpoint[] containerEndpoints = [.. container];
             string containerHash = hasher.Hash(container.Key.ToString("D"));
-            SanitizedAudioEndpoint[] sanitizedEndpoints = containerEndpoints
+            SanitizedAudioEndpoint[] sanitizedEndpoints = [.. containerEndpoints
                 .Select(endpoint => new SanitizedAudioEndpoint(
                     hasher.Hash(endpoint.EndpointId),
                     DeviceLabelSanitizer.Classify(endpoint.FriendlyName),
                     endpoint.Flow,
                     endpoint.State))
-                .OrderBy(endpoint => endpoint.EndpointHash, StringComparer.Ordinal)
-                .ToArray();
-            SanitizedKsFilterCandidate[] candidates = containerEndpoints
+                .OrderBy(endpoint => endpoint.EndpointHash, StringComparer.Ordinal)];
+            SanitizedKsFilterCandidate[] candidates = [.. containerEndpoints
                 .SelectMany(endpoint => endpoint.AdapterDeviceIds.Select(adapterId => new
                 {
                     AdapterId = adapterId,
@@ -313,8 +311,7 @@ internal sealed class BluetoothKsDiscoveryService(IdentifierHasher hasher) : IBl
                     candidate.First().SourceEndpointHash,
                     candidate.Key.SourceFlow,
                     "not-probed"))
-                .OrderBy(candidate => candidate.FilterHash, StringComparer.Ordinal)
-                .ToArray();
+                .OrderBy(candidate => candidate.FilterHash, StringComparer.Ordinal)];
             string label = sanitizedEndpoints.Any(endpoint => endpoint.Label == "AirPods audio")
                 ? "AirPods audio"
                 : sanitizedEndpoints.Any(endpoint => endpoint.Label == "Bluetooth audio")
@@ -328,18 +325,17 @@ internal sealed class BluetoothKsDiscoveryService(IdentifierHasher hasher) : IBl
                 candidates));
             targets.Add(containerHash, new RawKsTarget(
                 containerHash,
-                containerEndpoints
+                [.. containerEndpoints
                     .SelectMany(endpoint => endpoint.AdapterDeviceIds.Select(adapterId =>
                         new RawKsCandidate(adapterId, endpoint.Flow)))
-                    .Distinct(new RawKsCandidateComparer())
-                    .ToArray()));
+                    .Distinct(new RawKsCandidateComparer())]));
         }
 
         return new BluetoothKsDiscoveryResult(
             new BluetoothKsInventory(
                 hasher.SessionToken,
-                groups.OrderBy(group => group.ContainerHash, StringComparer.Ordinal).ToArray(),
-                faults.ToArray()),
+                [.. groups.OrderBy(group => group.ContainerHash, StringComparer.Ordinal)],
+                [.. faults]),
             targets,
             unassignedAdapterDeviceIds);
     }
@@ -389,17 +385,10 @@ internal sealed class BluetoothKsDiscoveryService(IdentifierHasher hasher) : IBl
                 value.SourceFlow);
     }
 
-    private sealed class NativeCallException : InvalidOperationException
+    private sealed class NativeCallException(string operation, int nativeHResult) : InvalidOperationException($"{operation} failed with HRESULT 0x{nativeHResult:X8}.")
     {
-        public NativeCallException(string operation, int nativeHResult)
-            : base($"{operation} failed with HRESULT 0x{nativeHResult:X8}.")
-        {
-            Operation = operation;
-            NativeHResult = nativeHResult;
-        }
+        public string Operation { get; } = operation;
 
-        public string Operation { get; }
-
-        public int NativeHResult { get; }
+        public int NativeHResult { get; } = nativeHResult;
     }
 }

@@ -213,7 +213,7 @@ public sealed class BluetoothKsCliSafetyTests
     {
         BluetoothKsDiscoveryResult complete = ResultWithTarget(
             RenderCandidate("adapter-render"));
-        var result = complete with
+        BluetoothKsDiscoveryResult result = complete with
         {
             Inventory = complete.Inventory with
             {

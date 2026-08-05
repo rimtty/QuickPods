@@ -58,7 +58,9 @@ internal sealed class DiscoveryBluetoothStateObserver(
                 candidate.ContainerHash,
                 containerKey,
                 StringComparison.Ordinal));
-        bool enumerationComplete = group is not null || result.Inventory.Faults.Count == 0;
+        bool enumerationComplete =
+            !result.Inventory.Faults.Any(fault => fault.AffectsOwnership) &&
+            result.UnassignedAdapterDeviceIds.Count == 0;
         IReadOnlyList<BluetoothEndpointState> endpointStates = group?.Endpoints
             .Where(endpoint => endpoint.Flow == NativeDataFlow.Render)
             .Select(endpoint => MapState(endpoint.State))
@@ -97,13 +99,7 @@ internal sealed class DiscoveryBluetoothStateObserver(
     }
 }
 
-internal sealed class KsChildProcessException : InvalidOperationException
+internal sealed class KsChildProcessException(KsChildRunStatus status) : InvalidOperationException($"The isolated KS child ended with status {status}.")
 {
-    public KsChildProcessException(KsChildRunStatus status)
-        : base($"The isolated KS child ended with status {status}.")
-    {
-        Status = status;
-    }
-
-    public KsChildRunStatus Status { get; }
+    public KsChildRunStatus Status { get; } = status;
 }
