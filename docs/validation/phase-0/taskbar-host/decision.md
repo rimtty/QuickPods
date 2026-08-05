@@ -38,14 +38,14 @@
 | 読み取り専用UIA探索 | **Pass（現在環境）** — 一意なStart、構成どおりのWidgets検出／欠落、fault 0 |
 | 擬似親HWND | **Pass（自動試験）** — attach、親／DPI検証、親消失、通知race、破棄 |
 | UIA watcher／復旧 | **Pass（Phase 0E対象経路）** — 不完全・競合・unsafe時のhide-firstを維持。既存可視hostだけは、完全観測由来anchorとfresh native証明が同一で、`DirectExpected`かつUIA faultが単独`StartButtonMissing`の場合に限り、最後の完全Startとfresh／previous障害物のunionで同じ矩形を継続する。他のfault・identity／parent／bounds／DPI／DWM変化は従来どおりfallback |
-| floating退避／native再昇格 | **Partial Pass（自動合格／手動待ち）** — Settings／Display／DPI時だけ保持geometryを破棄し、1秒cooldown＋500ms以上離れた同一candidate 2回＋watcher fence後にhidden-prepared nativeへ復帰。native作成失敗3回でsession latch。native／floating同時表示は禁止 |
+| floating退避／native再昇格 | **Pass** — Settings／Display／DPI時だけ保持geometryを破棄し、1秒cooldown＋500ms以上離れた同一candidate 2回＋watcher fence後にhidden-prepared nativeへ復帰。100／200% NoFitでfloatingの目視・入力・自然破棄・残留0に合格。native作成失敗3回でsession latchし、native／floating同時表示は禁止 |
 | Phase 0D実機自動試験 | **Pass（DPI 168 / 175%）** — 45秒EXEでStart 12秒／Search 12秒入力、exit 0、残留0。少なくとも1回`External / StructureChanged`から`NativeVisible → FloatingFallback → NativePromoted`を確認。ただしログではStart／Searchのどちらかは特定不能 |
 | 実タスクバーへの`WS_POPUP`表示 | **Pass／採用方式（100／125%およびStart／Search）** — `SetParent`後も`WS_POPUP`を維持。100%の120秒Phase 0E runはFloating遷移0、`DirectExpected`継続成功、wheel 80件、drag完了3件、正常破棄1件。ユーザーはStart／Search双方の表示中もタスクバー内保持とwheel入力成功を確認 |
 | 実タスクバーへの`WS_CHILD`表示 | **比較完了／不採用** — 安定layoutでは表示・入力に合格したが、100%のStart／Search表示中はWindows側の一時状態とQuickPodsの安全判定により3～10秒程度でFloatingへ退避した。`WS_POPUP`だけが要求されたnative continuityを満たしたため最終方式には採用しない |
 | DPI 150% | **Pass（基礎attach／Child入力）** — PMv2／DPI 144を維持し、Childの描画・ドラッグ・ホイール成功。両styleのattachと終了後残留0を確認。採用PopupのStart／Search continuityは残るDPI matrix項目 |
-| DPI 200% | **Partial Pass** — Widgets ONと検索／タスクビュー／Widgets OFFの最小構成がともに`VerifiedNoFit`。最小構成も最大gap 324px < Compact最小380px。フォールバック判断はIssue #11、目視・入力は未確認 |
-| DPI 100／125% | **Pass（試験済みPlace構成）** — 125%両styleと100%検索非表示両style、アイコンのみ／ボックスChildの監視・入力に合格。100% PopupはStart／Search表示中のnative continuityとwheel入力にも合格。100%左揃えはNoFitでFail Closed |
-| Start左揃え | **Partial Pass（100% Fail Closed）** — 検索非表示／Task View OFF／Widgets OFFで探索complete、fault 0、boundsなしの`VerifiedNoFit`。Child／Popupともexit 3、View／Control／プロセス残留0。ネイティブ表示成功ではなくフォールバックが必要な証跡 |
+| DPI 200% | **Pass（NoFit＋floating）** — 左揃え最小構成で`VerifiedNoFit / InsufficientWidth`。floatingのstyle／ownership／DWM／入力自動監査、ユーザー目視、drag 11回、wheel 125件、自然破棄、残留0に合格 |
+| DPI 100／125% | **Pass（Place＋NoFit fallback）** — 125%両styleと100%検索4形式に合格。100% PopupはStart／Search native continuity、100%左揃えはNoFit floatingの目視、drag 9回、wheel 104件、自然破棄、残留0に合格 |
+| Start左揃え | **Pass（100／200% NoFit fallback）** — 検索非表示／Task View OFF／Widgets OFFで探索complete、fault 0、`VerifiedNoFit`。両DPIで推測したnativeを作らず、安全なfloatingの目視・入力・破棄・残留0に合格 |
 | 検索：非表示／アイコンのみ／ボックス | **Pass（100%中央揃え）** — 3形式の安定layoutは`Place / Standard`。Task View／Widgets ON検索ボックスも1088 samplesでhidden／destroyed／rect drift 0、手動確認・残留0に合格 |
 | 検索：アイコン＋ラベル | **Pass（Phase 0E／100% Popup）** — Start／検索の双方を開いたままタスクバー内の同じ位置を維持し、表示中のwheel入力も成功。120秒runでFloating遷移0、正常終了後残留0 |
 | 透過・hit testing | **Partial Pass** — 4 DPIの共通座標に加え、両style各1000 frameのhandle安定性、各200回click jump、透明corner pixel、double-buffer転送を自動試験。残る実画面構成は未確認 |
@@ -55,6 +55,6 @@
 | Child／Popup最終方式 | **PopupPreservedを選定** — Start／Search中のnative continuityを満たした唯一の方式。`WS_CHILD`は明示比較／rollback用に残す |
 | Gate B判断 | Pending |
 
-Issue #12のちらつき、Issue #13のStart／Search native continuity、および採用PopupのExplorer再起動10回は実機確認まで合格した。Popupを最終styleとして一意化し、非ブロッキングのprovenance／race hardeningはIssue #15、Explorer世代ごとのUIA watcher資源寿命はIssue #18で追跡する。Gate Bは、ピン留めアプリ多数のstress、tray churn中のStart保持、および残るDPI／fallback目視項目が未完了のためPendingのままとする。
+Issue #11の100／200% NoFit floating、Issue #12のちらつき、Issue #13のStart／Search native continuity、および採用PopupのExplorer再起動10回は実機確認まで合格した。Popupを最終styleとして一意化し、非ブロッキングのprovenance／race hardeningはIssue #15、Explorer世代ごとのUIA watcher資源寿命はIssue #18で追跡する。Gate Bは、ピン留めアプリ多数のstress、tray churn中のStart保持、および150%採用PopupのStart／Search目視が未完了のためPendingのままとする。
 
 実機host試験はapplication manifestが適用されるEXEまたは`dotnet run`で実施する。DLL直接起動はmanifest非適用のため、DPI／hostの証跡に使用しない。`--duration`はnative／floating／hiddenの遷移でresetせず、セッション開始から単調に測る。

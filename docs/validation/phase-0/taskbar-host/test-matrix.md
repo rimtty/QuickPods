@@ -33,7 +33,7 @@
 |---|---|---|
 | 読み取り専用UIA探索 | Startを一意に取得し、不完全時はUnknown | **Pass（現在環境）** |
 | Start中央 | 安全な空きだけを使用 | **Pass（試験済み構成）** — Widgets ON／OFFと100／125／150／200%で交差0pxまたはNoFitを確認。100% PopupはStart表示中も同じnative位置を保持し、表示中wheel入力に成功 |
-| Start左寄せ | 安全な空きだけを使用 | **Partial Pass（100% Fail Closed）** — 検索非表示／Task View OFF／Widgets OFFの100%で`VerifiedNoFit / InsufficientWidth`。両styleともView／Controlを作らずexit 3、残留0。フォールバックは未確認 |
+| Start左寄せ | 安全な空きだけを使用 | **Pass（100／200% NoFit fallback）** — 検索非表示／Task View OFF／Widgets OFFで`VerifiedNoFit / InsufficientWidth`。100／200%ともfloatingの自動監査、ユーザー目視・入力、自然破棄、残留0に合格 |
 | Widgets ON | 候補レーンを再計算 | **Pass（100%試験済み構成）** — 検索ボックスは`Place / Standard`、1088 samples、手動入力・表示、残留0に合格。アイコン＋ラベルもPopupでStart／Search native continuityとwheel入力に合格 |
 | Widgets OFF | 候補レーンを再計算 | **Partial Pass** — 中央揃え100／125／150%は`Place / Standard`、100%左揃えと200%中央揃えは`VerifiedNoFit`。100%検索非表示／アイコンのみ／ボックスChild、検索非表示Popup、150% Childの目視・入力成功 |
 | 検索：非表示／アイコンのみ／ボックス | 検索を覆わない | **Pass（100%中央揃え）** — 3形式の安定layoutは`Place / Standard`で標準要素との重なり0。検索ボックスはTask View／Widgets ON構成も1088 samples、手動表示・入力、残留0に合格 |
@@ -45,8 +45,8 @@
 | 一時UI表示中の操作 | Start／Searchを開いている間もstripが目視で継続し、入力を受ける | **Pass（wheel）** — 両UI中にwheelでsample volume変更成功。通常状態のclick／dragも同runで成功。click／dragはWindows transient UIを閉じる可能性があるため表示中の必須項目にはしない |
 | 100% icon＋label個別再現 | StartとSearchを個別に開き、native保持と復帰を確認 | **Pass（Popup）** — ユーザー目視、Floating遷移0、正常終了後残留0 |
 | DPI 150% | attach前後でDPI 144を維持し、描画と入力位置が一致 | **Pass（基礎attach／Child入力）** — Childで描画、ドラッグ、ホイールを実機確認し、Child／Popupの自動attachと終了後残留0を確認。Popup採用後のStart／Search continuityは残るDPI matrix項目 |
-| DPI 200% | 安全配置、または安全幅不足ならVerifiedNoFit | **Partial Pass** — Widgets ONと最小構成の双方で`VerifiedNoFit / InsufficientWidth`。最小構成も最大gap 324px < Compact最小380px。Place／フォールバックの目視・入力は未確認（Issue #11） |
-| DPI 100／125% | 描画と入力位置が一致 | **Pass（試験済みPlace構成）** — 125%両styleと100%の検索4形式に合格。100% Popupは一時UI native continuityにも合格。100%左揃えはNoFitでFail Closed |
+| DPI 200% | 安全配置、または安全幅不足ならVerifiedNoFit | **Pass（NoFit＋floating）** — 左揃え・検索非表示・Task View／Widgets OFFで`VerifiedNoFit / InsufficientWidth`。floatingのstyle／ownership／DWM／入力自動監査、ユーザー目視、drag 11回、wheel 125件、自然破棄、残留0に合格（Issue #11） |
+| DPI 100／125% | 描画と入力位置が一致 | **Pass（Place＋NoFit fallback）** — 125%両styleと100%の検索4形式に合格。100% Popupは一時UI native continuity、100%左揃えはNoFit floatingの目視、drag 9回、wheel 104件、自然破棄、残留0に合格 |
 | `WS_POPUP`比較 | 残像・描画負け・入力不良を記録 | **Pass／採用** — 従来の100／125%安定性に加え、100% Start／Search中のnative保持とwheel入力、120秒runのFloating遷移0、正常破棄を確認 |
 | `WS_CHILD`比較 | 残像・描画負け・入力不良を記録 | **比較完了／不採用** — 安定layoutでは合格したがStart／Search中のnative continuityを満たさず、3～10秒程度でFloatingへ退避 |
 | Explorer再起動10回 | 各10秒以内、重複・残骸0 | **Pass（現在環境／採用Popup）** — 10/10回、最大5.395秒。全回で旧View消失、新Explorer世代、View／Control各1、Popup style／実親／DWMを確認し、exit 0、残留0。200% NoFitと150%可視Childの各10回も履歴Pass |
@@ -56,6 +56,6 @@
 
 Explorer再起動はユーザー許可のもとでNoFit構成、可視Child構成、採用Popup構成を各10回実行した。表示倍率とタスクバー設定はユーザーがWindows設定から変更し、Spikeは変更していない。実タスクバーへの可視ホスト表示は、明示確認フラグ付きの時間制限された診断コマンドでだけ実行する。
 
-Issue #12のちらつき、Issue #13のStart／Search native continuity、採用PopupのExplorer再起動10回は実機確認まで合格し、PopupPreservedを採用方式に選定した。provenance／raceのP2強化はIssue #15、UIA watcherのExplorer世代別資源寿命はIssue #18で追跡する。ピン留めアプリ多数、tray churn中のStart保持、および残るDPI／fallback目視項目は未完了であるため、Gate B全体はPendingのままとする。
+Issue #11の100／200% NoFit floating、Issue #12のちらつき、Issue #13のStart／Search native continuity、採用PopupのExplorer再起動10回は実機確認まで合格し、PopupPreservedを採用方式に選定した。provenance／raceのP2強化はIssue #15、UIA watcherのExplorer世代別資源寿命はIssue #18で追跡する。ピン留めアプリ多数、tray churn中のStart保持、および150%採用PopupのStart／Search目視は未完了であるため、Gate B全体はPendingのままとする。
 
 実機host試験はmanifestが適用されるEXEまたは`dotnet run`で行う。DLL直接起動はmanifest非適用のため使用しない。

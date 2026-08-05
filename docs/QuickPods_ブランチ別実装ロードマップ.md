@@ -222,7 +222,7 @@ No-Go時：フローティングを標準表示、通知領域を最終退避先
 |---|---|
 | 基点 | `codex/phase-0c-taskbar-host-spike`からstack。Phase 0Cの安全性を変更せず、復帰UXだけを検証する |
 | 目的 | Start／Search中の`PrimaryTaskbarMissing`、`VerifiedNoFit`、native作成失敗時もプロセスと操作面を維持する |
-| 状態 | **安全fallbackとして完了** — 自動試験と175% EXE実機自動試験に合格。Start／Searchの最終UXはPhase 0Eのnative continuityで検証 |
+| 状態 | **完了** — 自動試験、175%のfallback／promotion、100／200%左揃えNoFitのfloating目視・入力・自然破棄・残留0に合格。Start／Searchの最終UXはPhase 0Eのnative continuityで検証 |
 | フォールバック | 直前の完全検証済みprimary work-area／DPIがある場合だけ、unowned・non-topmost floatingへ即時退避。安全なgeometryがなければ非表示 |
 | geometry失効 | Start／Searchの一時的なprimary欠落では保持し、Settings／Display／DPI変更時だけ破棄 |
 | native復帰 | 1秒cooldown、500ms以上離れた同一candidate 2回、fresh watcher fenceを満たした後、hidden-prepared nativeへ二段階で昇格 |
@@ -230,6 +230,7 @@ No-Go時：フローティングを標準表示、通知領域を最終退避先
 | CLI | `host --style child|popup --fallback floating|hidden --duration ... --confirm-live-host`（既定は`floating`） |
 | 自動検証 | TaskbarHost 301件＋Smoke 1件、Release build 0 warning／0 error、format／diff check合格 |
 | 実機自動検証 | DPI 168（175%）、45秒EXE、Start 12秒／Search 12秒入力、exit 0、残留0。少なくとも1回`External / StructureChanged`から`NativeVisible → FloatingFallback → NativePromoted`を確認 |
+| 実機手動検証 | 100／200%左揃えNoFitでunowned・non-topmost floating、click／drag／wheel、自然破棄、残留0に合格。Issue #11完了条件を満たした |
 | 後続 | 100% icon＋labelのStart／Search個別試験とnative style選定はPhase 0Eで完了。NoFit等の真のunsafe状態では本fallbackを維持 |
 
 実機ホスト検証はapplication manifestが適用されるEXEまたは`dotnet run`で行う。DLLの直接起動はmanifestが適用されないため、DPI／hostの実機証跡として使用しない。Gate Bは上記の手動項目が完了するまでPendingとする。
@@ -250,7 +251,7 @@ No-Go時：フローティングを標準表示、通知領域を最終退避先
 | 実機検証 | 100%・1920×1080の120秒Popup EXE。Start／Search双方でnative保持、Floating遷移0、wheel 80件、drag完了3件、正常破棄、残留0。ユーザー目視・入力確認合格 |
 | Explorer復旧 | 採用Popupで10/10回が10秒以内（最大5.395秒）。旧View消失、新Explorer世代、View／Control各1、Popup style／実親／DWM、exit 0、終了後残留0を確認 |
 | 既知P2 | UIA event watcher再購読でUSER objectがExplorer世代ごとに1増加（10回で22→32）。GDI／HWND inventoryは不変。製品化前の隔離方式をIssue #18で追跡し、Phase 0Eの単体テストは再拡張しない |
-| 残件 | ピン留め多数、tray churn中Start保持、残るDPI／fallback目視。完了までGate BはPending |
+| 残件 | ピン留め多数、tray churn中Start保持、150%採用PopupのStart／Search目視。完了までGate BはPending |
 
 Start／Search表示中でも、identity、parent、style、bounds、DPI、monitor、DWM、fresh obstacle、watcher generationのいずれかが変化した場合はnativeを保持せず、Phase 0Dのfloating／hidden fallbackへ即時退避する。保持結果を新しいbaselineにはせず、freshでfault 0のUIA成功時だけStart anchorを更新する。
 
@@ -502,4 +503,4 @@ dotnet publish src/QuickPods.TaskbarHost/QuickPods.TaskbarHost.csproj -c Release
 
 ---
 
-資料ベースラインは`main`の初回コミット`1f63aa1`、B1 bootstrapは`5d441e3`として統合済みである。Phase 0CはTaskbarHost 216件＋Smoke 1件、150%可視ChildのExplorer再生成10/10回、200% NoFit再検出10/10回までを履歴として確定し、Start／Search中の`PrimaryTaskbarMissing`ではnativeを安全にhideすることを確認した。Phase 0DはTaskbarHost 301件＋Smoke 1件、175%のStart／Search入力を含むEXEでfloating fallbackとnative promotionを確定した。現在の`codex/phase-0e-native-continuity-spike`は重複整理後のTaskbarHost 183件＋Smoke 1件（整理前368件の50.0%）、Release build 0 warning／0 error、format／diff checkに合格し、100%・1920×1080の120秒Popup EXEでStart／Search双方のnative保持、表示中wheel入力、Floating遷移0、正常破棄、残留0を確認した。`PopupPreserved`を採用方式に選定し、Childは比較／rollback用に残す。採用PopupのExplorer再起動も10/10回・最大5.395秒・重複／残留0で合格した。UIA watcherのExplorer世代別USER object増加はIssue #18で非ブロッキングP2として追跡し、ピン留めアプリ多数、tray churn中Start保持、および残るDPI／fallback目視が未完了のためGate BはPendingである。B2／B3／B4.2の実機Gateが完了するまでB5およびPhase 1へ進めない。
+資料ベースラインは`main`の初回コミット`1f63aa1`、B1 bootstrapは`5d441e3`として統合済みである。Phase 0CはTaskbarHost 216件＋Smoke 1件、150%可視ChildのExplorer再生成10/10回、200% NoFit再検出10/10回までを履歴として確定し、Start／Search中の`PrimaryTaskbarMissing`ではnativeを安全にhideすることを確認した。Phase 0DはTaskbarHost 301件＋Smoke 1件、175%のStart／Search入力を含むEXEでfloating fallbackとnative promotionを確定し、Phase 0Eで100／200%左揃えNoFitのfloating目視・入力・自然破棄・残留0まで合格した。現在の`codex/phase-0e-native-continuity-spike`は重複整理後のTaskbarHost 183件＋Smoke 1件（整理前368件の50.0%）、Release build 0 warning／0 error、format／diff checkに合格し、100%・1920×1080の120秒Popup EXEでStart／Search双方のnative保持、表示中wheel入力、Floating遷移0、正常破棄、残留0を確認した。`PopupPreserved`を採用方式に選定し、Childは比較／rollback用に残す。採用PopupのExplorer再起動も10/10回・最大5.395秒・重複／残留0で合格した。UIA watcherのExplorer世代別USER object増加はIssue #18で非ブロッキングP2として追跡し、ピン留めアプリ多数、tray churn中Start保持、および150%採用PopupのStart／Search目視が未完了のためGate BはPendingである。B2／B3／B4.2の実機Gateが完了するまでB5およびPhase 1へ進めない。

@@ -12,18 +12,18 @@
 | diff check | **Pass** — Phase 0E作業ツリー全体に空白エラーなし |
 | 読み取り専用UIA探索 | **Pass（現在環境）** — Widgets ONではStart／Widgetsを一意に取得し、150%でbutton 30件、100%の検索ボックス／アイコン＋ラベルでbutton 29件・critical child 5件。Widgets OFFでは100%検索非表示でbutton 24件、アイコンのみ／ボックスで各27件、左揃えで26件 |
 | UIA監視・復旧 | **Pass（Phase 0E対象経路）** — hide-first、fresh scan、NoFit再検出、Explorer再生成に加え、Start／Search中の厳格な`DirectExpected`継続を実装。単独`StartButtonMissing`以外、またはtaskbar／host identity、実親、bounds、DPI、monitor、DWM、障害物安全性の不一致では保持しない |
-| floating fallback | **Partial Pass（自動合格／手動待ち）** — unowned・non-topmost、nativeとの同時表示禁止、Settings／Display／DPI時のgeometry破棄、hidden fallbackを自動試験。目視継続とclick／drag／wheelはPending |
+| floating fallback | **Pass（100／200% NoFit実機）** — 両DPIの左揃えNoFitでunowned・non-topmost floatingの目視、click／drag／wheel、自然破棄、残留0に合格。TransientUnknownでも同じ安全fallbackの自動監査に合格 |
 | native promotion | **Pass（自動試験）** — 1秒cooldown、500ms以上離れた同一candidate 2回、watcher fence、hidden-prepared二段階復帰、native作成失敗3回のsession latch |
 | 175%実機自動試験 | **Pass** — DPI 168、45秒EXE、Start 12秒／Search 12秒入力、exit 0、残留0。少なくとも1回`External / StructureChanged`から`NativeVisible → FloatingFallback → NativePromoted`を確認 |
 | 擬似親HWND | **Pass（自動試験）** — attach、実親／PMv2検証、hide/show、親消失、通知race、破棄 |
 | 透過・入力 | **Pass（機構の自動試験）** — color-key、透明corner pixel、共通slider座標、hit target、GDI解放 |
 | `WS_CHILD`可視試験 | **比較完了／不採用** — 安定layoutの監視・入力には合格したが、100%のStart／Search表示中は3～10秒程度でFloatingへ退避し、要求されたnative continuityを満たさなかった |
 | `WS_POPUP`可視試験 | **Pass／採用方式** — 従来の100／125%安定性に加え、Phase 0Eの120秒実機runでStart／Search表示中も同じnative位置を維持。Floating遷移0、wheel 80件、drag完了3件、正常破棄1件。ユーザー目視・入力確認も合格 |
-| 100% | **Pass（試験済みPlace構成）** — 検索非表示、アイコンのみ、ボックス、アイコン＋ラベルの表示・入力・残留確認に合格。PopupはStart／Search表示中もnativeを保持しwheel入力に成功。左揃えNoFitもFail Closed |
+| 100% | **Pass（Place＋NoFit fallback）** — 中央揃えの検索4形式とPopup Start／Search continuityに合格。左揃え・検索非表示・Task View／Widgets OFFは`VerifiedNoFit`となり、floatingの自動監査、ユーザー目視、drag 9回、wheel 104件、自然破棄、残留0に合格 |
 | 検索：非表示／アイコンのみ／ボックス | **Pass（100%中央揃え）** — 3形式の安定layoutは標準要素との重なりなし。アイコンのみ／ボックスのTask View／Widgets OFF Childと、ボックスのTask View／Widgets ON Childは各1088 samplesでhidden／destroyed／rect drift 0 |
 | 検索：アイコン＋ラベル | **Pass（Phase 0E／100% Popup）** — Start／Searchをそれぞれ表示した状態でnative位置を保持し、表示中のwheel入力も成功。ログ上も`DirectExpected`の保持証明が成立し、Floating遷移0 |
 | 125% | **Pass（現在構成）** — `Place / Standard`。Child／Popupの17秒samplingとPopup 150回clickでhidden 0、重複・残留0。ユーザーの連続click-to-jump／ホイールでもちらつきなし。Issue #12はClose済み |
-| 200% | **Pass（Fail Closed）** — Widgets ONと検索／タスクビュー／Widgets OFFの最小構成がともに`VerifiedNoFit / InsufficientWidth`。可視ホストは作成しない |
+| 200% | **Pass（NoFit＋floating）** — 左揃え・検索非表示・Task View／Widgets OFFで`VerifiedNoFit / InsufficientWidth`を再現。floatingのstyle／ownership／DWM／入力を自動監査し、ユーザー目視、drag 11回、wheel 125件、自然破棄、残留0に合格 |
 | Explorer再起動 | **Pass（現在環境／採用Popup）** — 10/10回、最大5.395秒。全回で旧View消失、新Explorer世代、View／Control各1、Popup style／実親／DWMを確認し、exit 0、残留0。200% NoFitと150%可視Childの各10回も履歴Pass |
 | Explorer世代別GUI資源 | **既知P2（Issue #18）** — Popup 10回でUSER 22→32、GDI 10→10。通常HWND 5、message-only HWND 1、クラス構成は全回不変。discovery-onlyは増加0、watcher-onlyで再現し、強制GCでも不変 |
 | 終了後残存 | **Pass（追加観測）** — 実行中View／Control各1、正常終了後は両HWNDとQuickPodsプロセス0 |
@@ -62,6 +62,8 @@ dotnet run --project spikes/QuickPods.Spike.TaskbarHost -c Release --no-build --
 - native作成が3回失敗した場合は、そのセッション中のnative hostingをlatch無効化する。`--duration`はsession開始から単調に測り、native／floating／hidden遷移ではresetしない。
 - DPI 168（175%）でmanifest付きEXEを45秒実行し、Start入力を12秒、Search入力を12秒行った。プロセスはexit 0、終了後残留0で、少なくとも1回`External / StructureChanged`を起点に`NativeVisible → FloatingFallback → NativePromoted`を記録した。
 - サニタイズ済みログは操作名を記録しないため、このPhase 0D runだけではtransitionがStart／Searchのどちらによるものかを特定できなかった。また、自動化はfloatingの目視上の継続とclick／drag／wheelを証明しなかった。100% icon＋labelの個別手動試験は後続Phase 0EでPopup native continuityとして完了した。
+- Phase 0Eの200%・5120px・左揃え・検索非表示・Task View／Widgets OFFでは、complete／fault 0から`VerifiedNoFit / InsufficientWidth`となった。12秒の自動監査はfloating `WS_POPUP`、親／ownerなし、non-topmost、DWM uncloaked、DPI 192、click／drag／wheel、exit 0、残留0に合格した。60秒の手動runもユーザー目視で問題なし、drag開始／完了11／11、move 92件、wheel 125件、floating生成／破棄1／1、fatal 0、残留0だった。
+- 同じ左揃え最小構成を100%へ切り替えると、complete／fault 0、DPI 96で同じ`VerifiedNoFit / InsufficientWidth`を再現した。12秒の自動監査はstyle／ownership／DWM／input、exit 0、残留0に合格し、60秒の手動runもユーザー目視で問題なし、drag開始／完了9／9、move 166件、wheel 104件、floating生成／破棄1／1、fatal 0、残留0だった。
 
 ### Phase 0E native continuityとPopup採用
 
@@ -74,7 +76,7 @@ dotnet run --project spikes/QuickPods.Spike.TaskbarHost -c Release --no-build --
 - `--style`を省略した6秒の境界runは`host-attached style=PopupPreserved`、exit 0、正常破棄、終了後残留0となり、CLI既定化を実プロセスでも確認した。
 - 採用PopupでExplorerを10回再起動した。全回で旧View消失と新しいExplorer世代を確認し、View／Control各1、Popup style、実親、DWM uncloakedを300ms連続で再証明した。全回10秒以内で最大5.395秒、host attach／destroyは各11回、exit 0、重複・孤立・終了後残留0、Explorer 1プロセスだった。
 - 同じ10回でUSER objectは22→32と世代ごとに1増えた一方、GDIは10、通常HWNDは5、message-only HWNDは1、クラス構成は不変だった。discovery-only `3→3`、watcher-only `13→14`、native／floating各20回create／destroyは増加0、強制GCでも不変だったため、managed UIA event subscriptionのprovider世代寿命に限定した。公開cleanup API以上の強制解放は行わず、Issue #18で製品化前の隔離方式を追跡する。このP2の追加診断で単体テストを再拡張しない。
-- Gate B全体は、ピン留めアプリ多数、tray churn中のStart保持、および残るDPI／fallback目視項目が未完了のためPendingとする。
+- Gate B全体は、ピン留めアプリ多数、tray churn中のStart保持、および150%採用PopupのStart／Search目視が未完了のためPendingとする。
 
 ### Phase 0C historical evidence
 
@@ -84,7 +86,7 @@ dotnet run --project spikes/QuickPods.Spike.TaskbarHost -c Release --no-build --
 - UIA watcherは専用MTA thread上で登録・解除を同一threadに限定し、callbackではsender-only cacheの識別メタデータだけを読む。taskbar root配下のproperty changeと、一意なStartの直近ControlView親配下のstructure changeを監視し、subscription epochで旧rootからの遅延callbackを棄却する。既知の非Button senderによるproperty通知だけを除外し、Button、sender種別不明、およびstructure通知は安全側の無効化として維持する。
 - 無効化を受けるとホストを先に隠し、watcher世代で囲ったfresh scanを終えるまで再表示しない。UIA通知を補う5秒Watchdogは、同一identity、native attachment有効、現在矩形safeをfresh scanで確認できた場合は表示を維持し、不完全・競合・unsafe時だけhide-first復旧へ移る。
 - churn guardは連続10秒または30秒内6回でfail closedとする。sparse上限だけは、`External / BoundingRectangleChanged`、同一identity、fresh scanで既存矩形が安全、かつ`ShowVerifiedExisting`となる条件がすべて揃った場合に限り、そのsparse履歴をacknowledgeする。
-- 200%ではWidgets ONに加え、検索／タスクビュー／Widgets OFFの最小構成でも安全幅不足を`VerifiedNoFit / InsufficientWidth`として検出し、Child／Popupともホスト作成前に終了した。最小構成の候補レーン887pxは外部native障害物で分断され、最大gap 324pxがCompact最小380pxを下回った。フォールバック判断はIssue #11で追跡する。
+- 200%ではWidgets ONに加え、検索／タスクビュー／Widgets OFFの最小構成でも安全幅不足を`VerifiedNoFit / InsufficientWidth`として検出し、Child／Popupともホスト作成前に終了した。最小構成の候補レーン887pxは外部native障害物で分断され、最大gap 324pxがCompact最小380pxを下回った。このPhase 0C時点のfallback未実装課題は後続Phase 0D／0Eで解消し、Issue #11をCloseした。
 - 同じ200%／NoFit構成でExplorerを10回再起動した。Shell_TrayWndは約0.24～0.36秒で新しい世代へ切り替わり、UIAを含む完全観測は全回10秒以内（最大3.897秒）に復帰した。全回で同じNoFit判定を再現し、終了後の独立列挙はView／Control HWNDとQuickPodsプロセスがすべて0件だった。
 - Shell_TrayWnd復帰直後の単発観測は一度`TransientUnknown`となったため、Gateの判定は製品policyと同じ250ms再試行・最大10秒で行った。これは不完全観測を成功扱いに変えたものではない。
 - 検索、タスクビュー、WidgetsをOFF、中央揃えにした150%構成では、DPI 144、Start相対X 1325、UIA button 27件、native critical child 5件を取得し、相対矩形`(820, 6, 450, 60)`を`Place / Standard`と判定した。
@@ -131,7 +133,7 @@ dotnet run --project spikes/QuickPods.Spike.TaskbarHost -c Release --no-build --
 
 外部監査は接続、可視性、現Shellとの親子関係、一意性、残留を独立検証したもので、UIA安全領域を再計算してはいない。各cycleの配置安全性はRunner内部のfresh complete scan、`SafeRegionCalculator`の最終交差検証、およびnative側の実bounds／parent／DPI検証を根拠とする。世代ごとの推奨X座標変化は、旧矩形がunsafeなら安全な新矩形へ再生成し、旧矩形がsafeならsticky placementで不要な移動を抑えるpolicyどおりだった。
 
-Childの150%での静止画とドラッグ／ホイール、および125%両方式の入力ログは確認済みで、Issue #12はClose済みである。100%の検索非表示／アイコンのみ／ボックス、およびTask View／Widgets ON検索ボックスは固定HWND監視、入力ログ、ユーザー手動確認、終了後残存0に合格し、100%左揃えNoFitもFail Closedに合格した。Phase 0Eでは100% PopupでStart／Search双方のnative continuityと表示中wheel入力に合格し、PopupPreservedを最終方式に選定した。採用PopupのExplorer再起動10回も機能要件に合格し、UIA watcherの世代別資源寿命はIssue #18へ分離した。ピン留めアプリ多数、tray churn、および残るDPI／fallback目視項目が未完了のため、Gate BをGoとして扱わない。
+Childの150%での静止画とドラッグ／ホイール、および125%両方式の入力ログは確認済みで、Issue #12はClose済みである。100%の検索4形式、Task View／Widgets ON検索ボックス、100／200%左揃えNoFit floatingは自動・手動確認と終了後残留0に合格し、Issue #11の受入条件を満たした。Phase 0Eでは100% PopupでStart／Search双方のnative continuityと表示中wheel入力に合格し、PopupPreservedを最終方式に選定した。採用PopupのExplorer再起動10回も機能要件に合格し、UIA watcherの世代別資源寿命はIssue #18へ分離した。ピン留めアプリ多数、tray churn、および150%採用PopupのStart／Search目視が未完了のため、Gate BをGoとして扱わない。
 
 以下は実画面を含まないサニタイズ済み配置図である。実画面スクリーンショットの代替ではなく、相対座標証跡の確認用とする。
 
