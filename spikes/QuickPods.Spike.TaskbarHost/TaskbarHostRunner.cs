@@ -86,6 +86,8 @@ internal sealed class TaskbarHostRunner
         long automationChurnEpoch = Stopwatch.GetTimestamp();
         long observedAutomationGeneration = automationSignal.Generation;
         bool automationContinuousChurnFailedClosed = false;
+        using var scanDiagnostics = new TaskbarLiveScanDiagnosticCoalescer(
+            Console.Error.WriteLine);
 
         host.LayoutInvalidated += reason =>
         {
@@ -98,7 +100,9 @@ internal sealed class TaskbarHostRunner
         };
         host.Interaction += interaction => ApplySampleInteraction(host, currentBounds, interaction);
 
-        VerifiedLiveLayout? initialLayout = DiscoverVerifiedLayout(host, cancellationToken);
+        LiveLayoutScan initialScan = DiscoverVerifiedLayout(host, cancellationToken);
+        scanDiagnostics.Record(TaskbarLiveScanStage.Initial, initialScan.Signature);
+        VerifiedLiveLayout? initialLayout = initialScan.Layout;
         if (initialLayout is null)
         {
             Console.Error.WriteLine("The live host was not created because the second safety scan was not Place.");
@@ -123,8 +127,13 @@ internal sealed class TaskbarHostRunner
                 }
 
                 long generationBeforeScan = automationSignal.Generation;
-                VerifiedLiveLayout? armedLayout = DiscoverVerifiedLayout(host, cancellationToken);
+                LiveLayoutScan armedScan = DiscoverVerifiedLayout(host, cancellationToken);
                 long generationAfterScan = automationSignal.Generation;
+                bool armedInvalidatedDuringScan = generationBeforeScan != generationAfterScan;
+                scanDiagnostics.Record(
+                    TaskbarLiveScanStage.Armed,
+                    armedScan.Signature.WithInvalidatedDuringScan(armedInvalidatedDuringScan));
+                VerifiedLiveLayout? armedLayout = armedScan.Layout;
                 if (armedLayout is null)
                 {
                     Thread.Sleep(TaskbarRecoveryPolicy.RetryInterval);
@@ -215,7 +224,7 @@ internal sealed class TaskbarHostRunner
                 {
                     long watchdogScanStartTimestamp = Stopwatch.GetTimestamp();
                     long watchdogInvalidationGeneration = invalidationGeneration;
-                    VerifiedLiveLayout? watchdogLayout = DiscoverVerifiedLayout(
+                    LiveLayoutScan watchdogScan = DiscoverVerifiedLayout(
                         host,
                         cancellationToken,
                         () => _ = ConsumeAutomationInvalidation());
@@ -223,6 +232,13 @@ internal sealed class TaskbarHostRunner
                     _ = ConsumeAutomationInvalidation();
                     if (automationContinuousChurnFailedClosed)
                     {
+                        bool invalidatedDuringFailedWatchdogScan =
+                            layoutInvalidated ||
+                            invalidationGeneration != watchdogInvalidationGeneration;
+                        scanDiagnostics.Record(
+                            TaskbarLiveScanStage.Watchdog,
+                            watchdogScan.Signature.WithInvalidatedDuringScan(
+                                invalidatedDuringFailedWatchdogScan));
                         failedClosed = true;
                         break;
                     }
@@ -230,6 +246,11 @@ internal sealed class TaskbarHostRunner
                     bool watchdogInvalidatedDuringScan =
                         layoutInvalidated ||
                         invalidationGeneration != watchdogInvalidationGeneration;
+                    scanDiagnostics.Record(
+                        TaskbarLiveScanStage.Watchdog,
+                        watchdogScan.Signature.WithInvalidatedDuringScan(
+                            watchdogInvalidatedDuringScan));
+                    VerifiedLiveLayout? watchdogLayout = watchdogScan.Layout;
                     bool watchdogCurrentBoundsSafe =
                         watchdogLayout is not null &&
                         SafeRegionCalculator.IsExistingPlacementSafe(
@@ -277,11 +298,13 @@ internal sealed class TaskbarHostRunner
                 {
                     recoveryAttemptCount = checked(recoveryAttemptCount + 1);
                     long scanInvalidationGeneration = invalidationGeneration;
-                    VerifiedLiveLayout? verified = DiscoverVerifiedLayout(host, cancellationToken);
+                    LiveLayoutScan recoveryScan = DiscoverVerifiedLayout(host, cancellationToken);
+                    VerifiedLiveLayout? verified = recoveryScan.Layout;
                     _ = host.PumpMessages();
                     _ = ConsumeAutomationInvalidation();
                     if (automationContinuousChurnFailedClosed)
                     {
+                        RecordRecoveryScanDiagnostic();
                         failedClosed = true;
                         break;
                     }
@@ -300,6 +323,7 @@ internal sealed class TaskbarHostRunner
                         _ = ConsumeAutomationInvalidation();
                         if (automationContinuousChurnFailedClosed)
                         {
+                            RecordRecoveryScanDiagnostic();
                             failedClosed = true;
                             break;
                         }
@@ -307,11 +331,15 @@ internal sealed class TaskbarHostRunner
 
                     if (Stopwatch.GetElapsedTime(startTimestamp) >= options.Duration)
                     {
+                        RecordRecoveryScanDiagnostic();
                         break;
                     }
 
                     bool invalidatedDuringScan =
                         layoutInvalidated || invalidationGeneration != scanInvalidationGeneration;
+                    scanDiagnostics.Record(
+                        TaskbarLiveScanStage.Recovery,
+                        recoveryScan.Signature.WithInvalidatedDuringScan(invalidatedDuringScan));
                     if (invalidatedDuringScan)
                     {
                         host.Hide();
@@ -359,6 +387,7 @@ internal sealed class TaskbarHostRunner
                     }
                     else if (sparseChurnDecision == TaskbarAutomationSparseChurnDecision.FailClosed)
                     {
+                        scanDiagnostics.Flush();
                         Console.Error.WriteLine(
                             "layout-recovery=ui-automation-churn; host remains hidden");
                         failedClosed = true;
@@ -368,7 +397,6 @@ internal sealed class TaskbarHostRunner
                     switch (decision)
                     {
                         case TaskbarRecoveryDecision.RetryHidden:
-                            Console.Error.WriteLine("layout-revalidation=not-place-or-raced; host remains hidden");
                             nextRecoveryAttemptTimestamp = AddDuration(
                                 Stopwatch.GetTimestamp(),
                                 TaskbarRecoveryPolicy.RetryInterval);
@@ -412,6 +440,7 @@ internal sealed class TaskbarHostRunner
 
                             break;
                         case TaskbarRecoveryDecision.FailClosed:
+                            scanDiagnostics.Flush();
                             WriteRecoverySummary("timeout", recreated: false);
                             failedClosed = true;
                             break;
@@ -453,10 +482,22 @@ internal sealed class TaskbarHostRunner
                         recoveryInProgress = false;
                         forceRecreate = false;
                         recoveryAutomationInvalidation = null;
+                        scanDiagnostics.Flush();
                         WriteRecoverySummary("verified", recreated);
                         nextRescanTimestamp = AddDuration(
                             Stopwatch.GetTimestamp(),
                             LayoutRescanInterval);
+                    }
+
+                    void RecordRecoveryScanDiagnostic()
+                    {
+                        bool scanWasInvalidated =
+                            layoutInvalidated ||
+                            invalidationGeneration != scanInvalidationGeneration;
+                        scanDiagnostics.Record(
+                            TaskbarLiveScanStage.Recovery,
+                            recoveryScan.Signature.WithInvalidatedDuringScan(
+                                scanWasInvalidated));
                     }
 
                     void ScheduleRetryAfterNativeRace()
@@ -567,7 +608,7 @@ internal sealed class TaskbarHostRunner
     }
 
     [SupportedOSPlatform("windows")]
-    private static VerifiedLiveLayout? DiscoverVerifiedLayout(
+    private static LiveLayoutScan DiscoverVerifiedLayout(
         NativeTaskbarHost host,
         CancellationToken cancellationToken,
         Action? consumeAutomationInvalidation = null)
@@ -592,23 +633,28 @@ internal sealed class TaskbarHostRunner
         TaskbarPlacementResult placement = SafeRegionCalculator.Calculate(
             observation,
             TaskbarPlacementOptions.Default);
+        var signature = TaskbarLiveScanSignature.Create(
+            discovery,
+            placement);
         if (!discovery.IsComplete ||
             discovery.Snapshot is not TaskbarSnapshot snapshot ||
             observation is not TaskbarLayoutObservation verifiedObservation ||
             placement.Decision != PlacementDecision.Place ||
             placement.Bounds is not PixelRect bounds)
         {
-            return null;
+            return new LiveLayoutScan(null, signature);
         }
 
-        return new VerifiedLiveLayout(
-            new TaskbarHostIdentity(
-                snapshot.TaskbarHandle,
-                snapshot.ExplorerProcessId,
-                snapshot.Dpi,
-                snapshot.Bounds),
-            bounds,
-            verifiedObservation);
+        return new LiveLayoutScan(
+            new VerifiedLiveLayout(
+                new TaskbarHostIdentity(
+                    snapshot.TaskbarHandle,
+                    snapshot.ExplorerProcessId,
+                    snapshot.Dpi,
+                    snapshot.Bounds),
+                bounds,
+                verifiedObservation),
+            signature);
     }
 
     private static void ApplySampleInteraction(
@@ -683,4 +729,8 @@ internal sealed class TaskbarHostRunner
         TaskbarHostIdentity Identity,
         PixelRect Bounds,
         TaskbarLayoutObservation Observation);
+
+    private sealed record LiveLayoutScan(
+        VerifiedLiveLayout? Layout,
+        TaskbarLiveScanSignature Signature);
 }

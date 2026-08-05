@@ -51,9 +51,7 @@ internal sealed class TaskbarDiscoveryService
         }
         catch (Exception)
         {
-            return new TaskbarDiscoveryResult(
-                null,
-                [new TaskbarDiscoveryFault(TaskbarDiscoveryFaultCode.UnexpectedDiscoveryFailure)]);
+            return CreateUnexpectedFailure(ignoredHostMatch: false);
         }
     }
 
@@ -63,26 +61,47 @@ internal sealed class TaskbarDiscoveryService
         CancellationToken cancellationToken)
     {
         Win32TaskbarProbe win32 = Win32TaskbarDiscovery.Discover(ignoredWindowHandle);
-        if (win32.Target is null)
+        try
         {
-            return new TaskbarDiscoveryResult(null, win32.Faults);
+            if (win32.Target is null)
+            {
+                return new TaskbarDiscoveryResult(
+                    null,
+                    win32.Faults,
+                    win32.IgnoredHostMatch);
+            }
+
+            AutomationTaskbarProbe automation = await TaskbarAutomationDiscovery.DiscoverAsync(
+                win32.Target.TaskbarHandle,
+                win32.Target.Bounds,
+                cancellationToken).ConfigureAwait(false);
+
+            TaskbarSnapshot snapshot = new(
+                win32.Target.TaskbarHandle,
+                win32.Target.ExplorerProcessId,
+                win32.Target.Bounds,
+                win32.Target.Dpi,
+                win32.Target.Monitor,
+                win32.Target.CriticalChildren,
+                automation.Buttons);
+            return new TaskbarDiscoveryResult(
+                snapshot,
+                win32.Faults.Concat(automation.Faults),
+                win32.IgnoredHostMatch);
         }
-
-        AutomationTaskbarProbe automation = await TaskbarAutomationDiscovery.DiscoverAsync(
-            win32.Target.TaskbarHandle,
-            win32.Target.Bounds,
-            cancellationToken).ConfigureAwait(false);
-
-        TaskbarSnapshot snapshot = new(
-            win32.Target.TaskbarHandle,
-            win32.Target.ExplorerProcessId,
-            win32.Target.Bounds,
-            win32.Target.Dpi,
-            win32.Target.Monitor,
-            win32.Target.CriticalChildren,
-            automation.Buttons);
-        return new TaskbarDiscoveryResult(
-            snapshot,
-            win32.Faults.Concat(automation.Faults));
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            return CreateUnexpectedFailure(win32.IgnoredHostMatch);
+        }
     }
+
+    internal static TaskbarDiscoveryResult CreateUnexpectedFailure(bool ignoredHostMatch) =>
+        new(
+            null,
+            [new TaskbarDiscoveryFault(TaskbarDiscoveryFaultCode.UnexpectedDiscoveryFailure)],
+            ignoredHostMatch);
 }

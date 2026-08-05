@@ -133,10 +133,12 @@ internal sealed class TaskbarDiscoveryResult
 {
     internal TaskbarDiscoveryResult(
         TaskbarSnapshot? snapshot,
-        IEnumerable<TaskbarDiscoveryFault> faults)
+        IEnumerable<TaskbarDiscoveryFault> faults,
+        bool ignoredHostMatch = false)
     {
         Snapshot = snapshot;
         Faults = new ReadOnlyCollection<TaskbarDiscoveryFault>([.. faults.Distinct()]);
+        IgnoredHostMatch = ignoredHostMatch;
     }
 
     public bool IsComplete => Snapshot is not null && Faults.Count == 0;
@@ -144,4 +146,11 @@ internal sealed class TaskbarDiscoveryResult
     public TaskbarSnapshot? Snapshot { get; }
 
     public IReadOnlyList<TaskbarDiscoveryFault> Faults { get; }
+
+    /// <summary>
+    /// Diagnostic-only evidence that the exact live QuickPods HWND supplied to
+    /// discovery was encountered and excluded from native obstacle enumeration.
+    /// No handle value is retained.
+    /// </summary>
+    public bool IgnoredHostMatch { get; }
 }

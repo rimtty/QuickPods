@@ -50,13 +50,13 @@ internal static class Win32TaskbarDiscovery
         if (primaryTaskbars.Count == 0)
         {
             faults.Add(new TaskbarDiscoveryFault(TaskbarDiscoveryFaultCode.PrimaryTaskbarMissing));
-            return new Win32TaskbarProbe(null, faults);
+            return new Win32TaskbarProbe(null, faults, IgnoredHostMatch: false);
         }
 
         if (primaryTaskbars.Count != 1)
         {
             faults.Add(new TaskbarDiscoveryFault(TaskbarDiscoveryFaultCode.PrimaryTaskbarDuplicate));
-            return new Win32TaskbarProbe(null, faults);
+            return new Win32TaskbarProbe(null, faults, IgnoredHostMatch: false);
         }
 
         nint taskbarHandle = primaryTaskbars[0];
@@ -68,7 +68,7 @@ internal static class Win32TaskbarDiscovery
         if (!TaskbarNativeMethods.GetWindowRect(taskbarHandle, out TaskbarNativeMethods.NativeRect nativeBounds))
         {
             faults.Add(new TaskbarDiscoveryFault(TaskbarDiscoveryFaultCode.TaskbarBoundsUnavailable));
-            return new Win32TaskbarProbe(null, faults);
+            return new Win32TaskbarProbe(null, faults, IgnoredHostMatch: false);
         }
 
         var bounds = nativeBounds.ToPixelRect();
@@ -95,7 +95,7 @@ internal static class Win32TaskbarDiscovery
         if (monitorHandle == 0)
         {
             faults.Add(new TaskbarDiscoveryFault(TaskbarDiscoveryFaultCode.TaskbarMonitorUnavailable));
-            return new Win32TaskbarProbe(null, faults);
+            return new Win32TaskbarProbe(null, faults, IgnoredHostMatch: false);
         }
 
         var nativeMonitor = new TaskbarNativeMethods.NativeMonitorInfo
@@ -105,7 +105,7 @@ internal static class Win32TaskbarDiscovery
         if (!TaskbarNativeMethods.GetMonitorInfo(monitorHandle, ref nativeMonitor))
         {
             faults.Add(new TaskbarDiscoveryFault(TaskbarDiscoveryFaultCode.TaskbarMonitorInfoUnavailable));
-            return new Win32TaskbarProbe(null, faults);
+            return new Win32TaskbarProbe(null, faults, IgnoredHostMatch: false);
         }
 
         bool isPrimary = (nativeMonitor.Flags & TaskbarNativeMethods.MonitorInfoPrimary) != 0;
@@ -132,7 +132,7 @@ internal static class Win32TaskbarDiscovery
         }
 
         TaskbarMonitorSnapshot monitor = new(monitorBounds, monitorWorkArea, isPrimary);
-        IReadOnlyList<CriticalTaskbarChildSnapshot> criticalChildren = DiscoverCriticalChildren(
+        Win32CriticalChildrenProbe criticalChildren = DiscoverCriticalChildren(
             taskbarHandle,
             bounds,
             ignoredWindowHandle,
@@ -144,20 +144,24 @@ internal static class Win32TaskbarDiscovery
             bounds,
             dpi,
             monitor,
-            criticalChildren);
-        return new Win32TaskbarProbe(target, faults);
+            criticalChildren.Children);
+        return new Win32TaskbarProbe(target, faults, criticalChildren.IgnoredHostMatch);
     }
 
-    private static List<CriticalTaskbarChildSnapshot> DiscoverCriticalChildren(
+    private static Win32CriticalChildrenProbe DiscoverCriticalChildren(
         nint taskbarHandle,
         PixelRect taskbarBounds,
         nint ignoredWindowHandle,
         List<TaskbarDiscoveryFault> faults)
     {
         List<CriticalTaskbarChildSnapshot> children = [];
+        bool ignoredHostMatch = false;
         bool VisitChild(nint windowHandle, nint _)
         {
-            if (TaskbarNativeChildPolicy.ShouldIgnore(windowHandle, ignoredWindowHandle))
+            if (TaskbarNativeChildPolicy.ShouldIgnoreAndRecordMatch(
+                    windowHandle,
+                    ignoredWindowHandle,
+                    ref ignoredHostMatch))
             {
                 return true;
             }
@@ -229,7 +233,7 @@ internal static class Win32TaskbarDiscovery
             faults.Add(new TaskbarDiscoveryFault(TaskbarDiscoveryFaultCode.NotificationAreaDuplicate));
         }
 
-        return children;
+        return new Win32CriticalChildrenProbe(children, ignoredHostMatch);
     }
 
     private static bool TryGetClassName(nint windowHandle, out string className)
@@ -257,7 +261,25 @@ internal static class TaskbarNativeChildPolicy
     /// </summary>
     internal static bool ShouldIgnore(nint candidate, nint ignoredWindowHandle) =>
         ignoredWindowHandle != nint.Zero && candidate == ignoredWindowHandle;
+
+    /// <summary>
+    /// Records only whether the exact ignored HWND was encountered. The raw
+    /// value is neither copied into discovery results nor diagnostic output.
+    /// </summary>
+    internal static bool ShouldIgnoreAndRecordMatch(
+        nint candidate,
+        nint ignoredWindowHandle,
+        ref bool ignoredHostMatch)
+    {
+        bool shouldIgnore = ShouldIgnore(candidate, ignoredWindowHandle);
+        ignoredHostMatch |= shouldIgnore;
+        return shouldIgnore;
+    }
 }
+
+internal sealed record Win32CriticalChildrenProbe(
+    IReadOnlyList<CriticalTaskbarChildSnapshot> Children,
+    bool IgnoredHostMatch);
 
 internal sealed class Win32TaskbarTarget
 {
@@ -292,4 +314,5 @@ internal sealed class Win32TaskbarTarget
 
 internal sealed record Win32TaskbarProbe(
     Win32TaskbarTarget? Target,
-    IReadOnlyList<TaskbarDiscoveryFault> Faults);
+    IReadOnlyList<TaskbarDiscoveryFault> Faults,
+    bool IgnoredHostMatch);

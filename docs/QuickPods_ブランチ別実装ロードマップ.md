@@ -185,10 +185,10 @@ No-Go時：Bluetoothボタンは`ms-settings:bluetooth`等のWindows設定ラン
 | 項目 | 内容 |
 |---|---|
 | 目的 | `SetParent`とUI Automationを使ったネイティブ表示のGate Bを判定する |
-| 状態 | **進行中** — Issue #6／#11／#12／Draft PR #10。125%ちらつきはコード修正、自動再試験、ユーザーの連続click／ホイール手動確認に合格し、Issue #12の受入条件を満たした。100%・フォールバックGate・残るlayout・採用方式は未完了 |
+| 状態 | **進行中** — Issue #6／#11／#13、Draft PR #10。Issue #12はClose済み。100%の検索非表示／アイコンのみ／ボックスとTask View／Widgets ON検索ボックスは合格。アイコン＋ラベルのStart／検索一時UI復帰はIssue #13、フローティングフォールバックはIssue #11で継続。ピン留め多数と採用方式も未完了 |
 | Spike | `spikes/QuickPods.Spike.TaskbarHost/` |
 | 実装 | ランドマーク探索、安全領域可視化、raw HWND、透過double-buffer描画、入力、`WS_POPUP`／`WS_CHILD`比較、UIA即時監視、hide-first復旧、stable Watchdog表示継続、churn fail closed |
-| 実機試験 | DPI 100／125／150／200%、Start中央／左寄せ、Widgets ON／OFF、検索3形式、空き不足、Explorer再起動10回 |
+| 実機試験 | DPI 100／125／150／200%、Start中央／左寄せ、Widgets ON／OFF、検索4形式、空き不足、Explorer再起動10回 |
 | 完了成果物 | Spikeコード、配置スクリーンショット、計測結果、採用スタイル、Gate B判断 |
 
 安全な評価順序は次のとおりとする。
@@ -462,4 +462,4 @@ dotnet publish src/QuickPods.TaskbarHost/QuickPods.TaskbarHost.csproj -c Release
 
 ---
 
-資料ベースラインは`main`の初回コミット`1f63aa1`、B1 bootstrapは`5d441e3`として統合済みである。現在の実装対象は`codex/phase-0c-taskbar-host-spike`で、B4はTaskbarHost 209件＋Smoke 1件の自動試験、150%最小構成のChild入力、可視ChildのExplorer再生成10/10回、200% NoFit再検出10/10回まで完了した。125%ちらつきは原因修正後にChild／Popupの可視性samplingとPopup 150回rapid-clickをhidden 0で通過し、ユーザーの連続click-to-jump／ホイール手動確認でもちらつきなしとなったため、Issue #12の受入条件を満たした。100%、残るlayout、200%フォールバック、採用方式が未完了のためGate BはPendingである。B2／B3／B4の実機Gateが完了するまでB5およびPhase 1へ進めない。
+資料ベースラインは`main`の初回コミット`1f63aa1`、B1 bootstrapは`5d441e3`として統合済みである。現在の実装対象は`codex/phase-0c-taskbar-host-spike`で、B4はTaskbarHost 216件＋Smoke 1件、計217件の自動試験、150%可視ChildのExplorer再生成10/10回、200% NoFit再検出10/10回まで完了した。Issue #12はClose済みである。100%の検索非表示／アイコンのみ／ボックスとTask View／Widgets ON検索ボックスは固定HWND監視、入力、表示、終了後残存0に合格し、左揃えNoFitもFail Closedに合格した。一方、Start／Windowsと検索アイコン＋ラベルの一時UIは`PrimaryTaskbarMissing`を再現し、隔離runでは同じhostへ7.796秒／6.757秒で復帰するが、10秒超では既存timeoutに達するためIssue #13で継続する。これは安全なhideが見かけ上クラッシュに見える復帰問題で、renderer／input flickerではない。Issue #11のフローティングフォールバック、Issue #13、ピン留めアプリ多数のstress、採用方式が未完了のためGate BはPendingである。B2／B3／B4の実機Gateが完了するまでB5およびPhase 1へ進めない。

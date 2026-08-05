@@ -7,16 +7,19 @@
 | ブランチ | `codex/phase-0c-taskbar-host-spike` |
 | 検証対象 | 本ブランチのPhase 0C作業ツリー（コミット前検証） |
 | Release build | **Pass** — 0 warning / 0 error |
-| 自動試験 | **Pass** — TaskbarHost 209件、Smoke 1件、計210件 |
+| 自動試験 | **Pass** — TaskbarHost 216件、Smoke 1件、計217件 |
 | format | **Pass** — `--verify-no-changes --severity info` |
 | diff check | **Pass** — Phase 0C作業ツリー全体に空白エラーなし |
-| 読み取り専用UIA探索 | **Pass（現在環境）** — Widgets ONではStart／Widgetsを一意に取得してbutton 30件、Widgets OFFではStart一意・Widgets欠落を取得してbutton 27件。native critical childはいずれも5件 |
-| UIA監視・復旧 | **Pass** — 即時無効化、fresh scan fence、hide-first復旧、churn guard、NoFit再検出、および可視ChildのExplorer再生成10回を確認 |
+| 読み取り専用UIA探索 | **Pass（現在環境）** — Widgets ONではStart／Widgetsを一意に取得し、150%でbutton 30件、100%の検索ボックス／アイコン＋ラベルでbutton 29件・critical child 5件。Widgets OFFでは100%検索非表示でbutton 24件、アイコンのみ／ボックスで各27件、左揃えで26件 |
+| UIA監視・復旧 | **Partial Pass（安全性合格／Issue #13）** — hide-first、fresh scan、NoFit再検出、Explorer再生成は合格。Start／Windowsと検索アイコン＋ラベルの一時UIは`PrimaryTaskbarMissing`を再現し、同じhostへ7.796秒／6.757秒で復帰するが、10秒超では既存timeoutにより安全停止する。復帰UXは未完了 |
 | 擬似親HWND | **Pass（自動試験）** — attach、実親／PMv2検証、hide/show、親消失、通知race、破棄 |
 | 透過・入力 | **Pass（機構の自動試験）** — color-key、透明corner pixel、共通slider座標、hit target、GDI解放 |
-| `WS_CHILD`可視試験 | **Partial Pass** — 30秒の目視、ドラッグ、ホイールに加え、修正後17秒の10ms可視性samplingでhidden 0。連続clickの手動再確認は待機中 |
-| `WS_POPUP`可視試験 | **Partial Pass（Issue #12受入確認）** — 125%の17秒可視性samplingと150回のrapid clickでhidden 0。ユーザーが連続click-to-jumpとホイールを手動確認し、ちらつきなし。残る表示構成は未確認 |
-| 125% | **Partial Pass（Issue #12受入確認）** — `Place / Standard`。Child／Popupの17秒samplingとPopup 150回clickでhidden 0、重複・残留0。ユーザーの連続click-to-jump／ホイールでもちらつきなし。残るレイアウトは未確認 |
+| `WS_CHILD`可視試験 | **Partial Pass（安定layout合格／Issue #13）** — 125%と100%検索非表示、アイコンのみ、ボックスの固定HWND監視に合格。Task View／Widgets ONの検索ボックスも1088 samplesでhidden／destroyed／rect drift 0。アイコン＋ラベルは初期描画・入力が良好だが一時UIからの復帰が未完了 |
+| `WS_POPUP`可視試験 | **Partial Pass（100／125%合格）** — 125%の17秒可視性samplingと150回のrapid click、100%の17秒固定HWND監視でhidden／destroyed／rect drift 0。両倍率のユーザー手動確認でもちらつき・入力・表示に問題なし。Issue #12はClose済みで、最終方式は未選定 |
+| 100% | **Partial Pass（安定layout合格／Issue #13）** — 検索非表示、アイコンのみ、ボックスは表示・入力・残留確認に合格し、左揃えNoFitもFail Closed。アイコン＋ラベルは初期配置・入力に成功するが、Start／検索の一時UIからの復帰が未完了 |
+| 検索：非表示／アイコンのみ／ボックス | **Pass（100%中央揃え）** — 3形式の安定layoutは標準要素との重なりなし。アイコンのみ／ボックスのTask View／Widgets OFF Childと、ボックスのTask View／Widgets ON Childは各1088 samplesでhidden／destroyed／rect drift 0 |
+| 検索：アイコン＋ラベル | **Partial Pass（Defect / Issue #13）** — 初期`Place / Standard`と描画・入力は良好。Start／検索の一時UI中は安全側に非表示となり、同じhostへの復帰に最長7.796秒。10秒超は既存timeoutでFail Closed |
+| 125% | **Pass（現在構成）** — `Place / Standard`。Child／Popupの17秒samplingとPopup 150回clickでhidden 0、重複・残留0。ユーザーの連続click-to-jump／ホイールでもちらつきなし。Issue #12はClose済み |
 | 200% | **Pass（Fail Closed）** — Widgets ONと検索／タスクビュー／Widgets OFFの最小構成がともに`VerifiedNoFit / InsufficientWidth`。可視ホストは作成しない |
 | Explorer再起動 | **Pass（現在環境）** — 200% NoFitと150%可視Childで各10回。可視Childは全回再生成、外部監査で最大4.064秒、重複・timeout・churn fail closed 0 |
 | 終了後残存 | **Pass（追加観測）** — 実行中View／Control各1、正常終了後は両HWNDとQuickPodsプロセス0 |
@@ -52,6 +55,19 @@ dotnet run --project spikes/QuickPods.Spike.TaskbarHost -c Release --no-build --
 - 修正では、既知の非Button senderによるproperty通知だけを除外し、native child探索から現在のlive hostと完全一致するHWNDだけを除外した。Button、未知sender、structure通知、および別HWNDは従来どおりfail closedで扱う。安定したWatchdogは表示を維持し、GDIはcompatible memory DCへ全体描画後に1回の`BitBlt`で転送するdouble bufferへ変更した。同じclamp済み音量値の再設定は再描画しない。
 - 修正後の125% Popupを17秒間10ms間隔で監査し、1104 samples、View最大1、hidden interval 0、visible Watchdog 3回、recovery 0、invalidation 0、残留0を確認した。Childも同条件で1105 samples、View最大1、hidden interval 0、visible Watchdog 3回、recovery 0、invalidation 0、残留0だった。
 - Popupへdirect messageを300件送るrapid-click試験ではclick complete 150回、hidden 0、visible Watchdog 3回、recovery 0、残留0だった。その後、ユーザーが同じ125%構成で連続click-to-jumpとホイールを手動確認し、ちらつきが発生しないことを確認したため、Issue #12の受入条件を満たした。
+- 同じ最小タスクバー設定の100%構成では、読み取り専用探索が`discoveryComplete=true`、`faults=[]`で完了した。タスクバーは3840×48 physical px、DPI 96、Start相対矩形は`(1568, 0, 45, 48)`、UIA button 24件、native critical child 5件で、相対矩形`(190, 4, 300, 40)`を`Place / Standard`と判定した。
+- 100% Popupを17秒間、起動時に確定した同一HWNDで監視し、1087 samples、hidden／destroyed／rect drift 0、最終View 1を確認した。入力ログはinteraction start／complete 49／49、`DragMoved` 593件、`Wheel` 205件、verified-visible Watchdog 23回で、invalidation／recovery／churnは0だった。ユーザーのclick／drag／wheelと表示の手動確認もすべて良好だった。
+- 100% Childも同じ固定HWND方式で17秒間監視し、1089 samples、hidden／destroyed／rect drift 0、最終View 1を確認した。入力ログはinteraction start／complete 50／50、`DragMoved` 506件、`Wheel` 515件、verified-visible Watchdog 11回で、invalidation／recoveryは0だった。ユーザーの手動確認でもちらつき、入力、表示に問題はなかった。
+- 100%のChild／Popupを各6秒で再実行した終了試験は、両方式ともexit 0、fatal 0だった。終了後の独立列挙ではView／Control HWNDとQuickPodsプロセスがすべて0件だった。
+- その後100%のまま、検索非表示、Task View OFF、Widgets OFF、左揃えへ変更した構成を探索した。タスクバーは3840×48 physical px、DPI 96、Start相対矩形は`(0, 0, 45, 48)`、UIA button 26件、native critical child 4件だった。探索は`discoveryComplete=true`、`faults=[]`で完了したが、安全幅不足のためboundsなしの`VerifiedNoFit / InsufficientWidth`となった。
+- この100%左揃え構成でChild／Popupを起動すると、両方式ともホスト作成前にexit 3で終了した。終了後の独立列挙はView／Control HWNDとQuickPodsプロセスがすべて0件であり、推測配置しないFail Closedは期待どおりだった。これはネイティブ表示の成功ではなく、左揃えではフォールバックが必要になる証跡である。
+- 100%のまま中央揃えへ戻し、検索アイコン、Task View OFF、Widgets OFFとした構成では、タスクバー3840×48 physical px、DPI 96、Start相対矩形`(1502, 0, 45, 48)`、UIA button 27件、native critical child 5件、fault 0を取得し、相対矩形`(173, 4, 300, 40)`を`Place / Standard`と判定した。Childの17秒固定HWND監視は1088 samples、hidden／destroyed／rect drift 0だった。入力ログはinteraction start／complete 31／31、move 458件、wheel 285件、Watchdog 11回、invalidation／recovery 0で、終了後のView／Control HWNDとQuickPodsプロセスも0件だった。ユーザーはちらつき、標準要素との重なり、表示、入力のすべてに問題がないことを確認した。
+- 続いて検索ボックス、中央揃え、Task View OFF、Widgets OFFとした100%構成では、Start相対矩形`(1412, 0, 45, 48)`、UIA button 27件、native critical child 5件、fault 0を取得し、相対矩形`(151, 4, 300, 40)`を`Place / Standard`と判定した。Childの17秒固定HWND監視は1088 samples、hidden／destroyed／rect drift 0だった。入力ログはinteraction start／complete 10／10、move 295件、wheel 159件、Watchdog 11回、invalidation／recovery 0で、終了後残留も0件だった。ユーザーの手動確認でもちらつき、重なり、表示、入力のすべてに問題はなかった。
+- Task ViewとWidgetsをONにした100%中央揃えの検索ボックス構成でも、Start相対矩形`(1390, 0, 45, 48)`、Widgets相対矩形`(6, 0, 152, 48)`、UIA button 29件、native critical child 5件、fault 0を取得し、相対矩形`(264, 4, 300, 40)`を`Place / Standard`と判定した。Childの17秒固定HWND監視は1088 samples、hidden／destroyed／rect drift 0だった。入力ログはinteraction start／complete 28／28、move 354件、wheel 70件、Watchdog 11回、invalidation／recovery 0で、ユーザーの表示・入力確認も良好、終了後残留0だった。
+- 同じ100%中央揃えで検索をアイコン＋ラベル、Task ViewとWidgetsをONにした初期探索はcomplete、fault 0だった。Start相対矩形は`(1449, 0, 45, 48)`、Widgetsは`(6, 0, 152, 48)`、UIA button 29件、native critical child 5件で、相対矩形`(1028, 4, 300, 40)`を`Place / Standard`と判定した。初期描画と入力はユーザー目視で良好だった。
+- ただし、Start／Windows一時UIと検索アイコン＋ラベルの検索一時UIは、どちらもタスクバー観測が一時的に`PrimaryTaskbarMissing`となる同じ事象を再現した。再現区間の外部inspectは57/57回が`TransientUnknown / IncompleteObservation`で、Runnerは推測配置せずhostを安全にhideした。隔離した制御runではStartが7.796秒、検索が6.757秒で同じhostへ復帰した一方、観測不能が10秒を超えると既存のFail Closed timeoutに達する。
+- Issue #13の切り分け用に、探索完了、配置decision／reason、fault code、UIA button／native critical child件数、scan中のinvalidation、exact live-host除外一致のboolだけを保持するサニタイズ済みscan signatureを追加した。同一signatureの連続retryは初回と反復回数へ集約し、反復要約を復帰／timeout結果より先に出力する。raw HWND、PID、表示名、Automation ID、座標は出力しない。予期しないUIA側失敗でも、Win32探索済みのhost除外一致boolを失わない。
+- 10秒未満の制御runではプロセスが存続したまま安全にhideし、10秒超ではSpikeが意図したFail Closedとして終了する。renderer／input flickerや予期しない即時クラッシュではないが、ユーザーにはどちらも「落ちた」ように見える復帰UXの問題である。フローティングフォールバック、10秒以内の一貫した復帰方針、および最終方式の判断は未完了である。
 - 音量とBluetoothの状態は読み取りも変更もしていない。Explorer再起動はユーザー許可のGate B試験だけで行い、表示倍率とタスクバー設定はユーザーがWindows設定から変更した。Spike自身はExplorer再起動や設定変更を実行しない。
 
 ### 150%／WS_CHILD可視ホストのExplorer復旧
@@ -73,7 +89,7 @@ dotnet run --project spikes/QuickPods.Spike.TaskbarHost -c Release --no-build --
 
 外部監査は接続、可視性、現Shellとの親子関係、一意性、残留を独立検証したもので、UIA安全領域を再計算してはいない。各cycleの配置安全性はRunner内部のfresh complete scan、`SafeRegionCalculator`の最終交差検証、およびnative側の実bounds／parent／DPI検証を根拠とする。世代ごとの推奨X座標変化は、旧矩形がunsafeなら安全な新矩形へ再生成し、旧矩形がsafeならsticky placementで不要な移動を抑えるpolicyどおりだった。
 
-Childの150%での静止画とドラッグ／ホイール、および125%両方式の入力ログは確認済みである。Issue #12の修正後は125%両方式の可視性samplingとPopup rapid-click自動試験に加え、ユーザーによる125% Popupの連続click-to-jump／ホイール手動確認にもちらつきなしで合格し、Issue #12の受入条件を満たした。DPI 100%、200%のフォールバック表示、Start左寄せ、検索アイコン、検索ボックスの目視、ピン留め多数の空き不足、およびChild／Popupの最終方式選定は未完了であり、Gate BをGoとして扱わない。
+Childの150%での静止画とドラッグ／ホイール、および125%両方式の入力ログは確認済みで、Issue #12はClose済みである。100%の検索非表示／アイコンのみ／ボックス、およびTask View／Widgets ON検索ボックスは固定HWND監視、入力ログ、ユーザー手動確認、終了後残存0に合格し、100%左揃えNoFitもFail Closedに合格した。一方、Start／Windowsと検索アイコン＋ラベルの一時UI復帰はIssue #13で未解決である。Issue #11のフローティングフォールバック、Issue #13、ピン留めアプリ多数のstress、およびChild／Popup最終方式選定が未完了であり、Gate BをGoとして扱わない。
 
 以下は実画面を含まないサニタイズ済み配置図である。実画面スクリーンショットの代替ではなく、相対座標証跡の確認用とする。
 

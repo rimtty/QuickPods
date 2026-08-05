@@ -53,3 +53,43 @@
 この構成で確認されたちらつきは、5秒UIA scan時の既知`ControlType.Pane` bounds通知と、可視ホスト自身をnative探索が`UnknownObstacle`として再列挙するフィードバックによる不要なhide／recoveryが主因だった。修正後は既知の非Button property senderだけを除外し、native探索では実行中hostと完全一致するHWNDだけを除外した。Button、sender種別不明、structure通知、および別HWNDは安全側の無効化／障害物として維持している。副次的なdirect-GDI tearリスクには、memory DCへの全体描画と1回の`BitBlt`によるdouble buffer、および同一clamp済み音量値のno-opを適用した。
 
 修正後の同一125%構成で、Popupを17秒間10ms間隔で監査して1104 samples、Childで1105 samplesを取得した。両方式ともView最大1、hidden interval 0、visible Watchdog 3回、recovery 0、invalidation 0、終了後残留0だった。さらにPopupへ300件のdirect messageを送り、150回のclick完了、hidden 0、visible Watchdog 3回、recovery 0、終了後残留0を確認した。その後、ユーザーが125% Popupの連続click-to-jumpとホイールを手動確認し、ちらつきが発生しないことを確認したため、Issue #12の受入条件を満たした。Gate B全体は残る実機試験があるためPendingである。
+
+## 追加観測：100%中央揃え最小構成
+
+同じタスクバー設定のまま100%へ変更した構成では、タスクバーは3840×48 physical px、DPI 96、Startは相対矩形`(1568, 0, 45, 48)`、UIA button数は24、native critical child観測数は5だった。読み取り専用探索は`discoveryComplete=true`、`faults=[]`で完了し、相対矩形`(190, 4, 300, 40)`を`Place / Standard`と判定した。
+
+Popupは17秒間、起動時に確定した同一HWNDを監視して1087 samplesを取得し、hidden／destroyed／rect drift 0、最終View 1だった。ログはinteraction start／complete 49／49、`DragMoved` 593件、`Wheel` 205件、verified-visible Watchdog 23回で、invalidation／recovery／churnは0だった。Childも同じ固定HWND方式で17秒間監視して1089 samplesを取得し、hidden／destroyed／rect drift 0、最終View 1だった。ログはinteraction start／complete 50／50、`DragMoved` 506件、`Wheel` 515件、verified-visible Watchdog 11回で、invalidation／recoveryは0だった。
+
+ユーザーは両styleのclick、drag、wheel、および表示を手動確認し、ちらつきや表示・入力上の問題がないことを確認した。両styleを各6秒で再実行した終了試験もexit 0、fatal 0で、終了後の独立列挙はView／Control HWNDとQuickPodsプロセスがすべて0件だった。これは現在の100%最小構成の合格を示すもので、未試験のlayoutやフォールバックまで合格とするものではない。Gate B全体はPendingである。
+
+## 追加観測：100%左揃え最小構成
+
+100%のまま検索を非表示、Task ViewとWidgetsをOFF、タスクバーを左揃えにした構成では、タスクバーは3840×48 physical px、DPI 96、Startは相対矩形`(0, 0, 45, 48)`、UIA button数は26、native critical child観測数は4だった。読み取り専用探索は`discoveryComplete=true`、`faults=[]`で完了したが、安全幅不足のため配置boundsを返さず、`VerifiedNoFit / InsufficientWidth`と判定した。
+
+Child／Popupのhost試験はいずれもホストを作成せずexit 3で終了し、終了後の独立列挙はView／Control HWNDとQuickPodsプロセスがすべて0件だった。これは未知状態ではなく、完全な観測から安全幅不足を確定して推測配置しない期待どおりのFail Closed結果である。左揃えでネイティブ表示に成功した証跡ではなく、製品ではフォールバックが必要になる。Gate B全体はPendingである。
+
+## 追加観測：100%中央揃え／検索アイコンのみ
+
+100%で検索をアイコン表示、Task ViewとWidgetsをOFF、タスクバーを中央揃えにした構成では、タスクバーは3840×48 physical px、DPI 96、Startは相対矩形`(1502, 0, 45, 48)`、UIA button数は27、native critical child観測数は5だった。読み取り専用探索はfault 0で完了し、相対矩形`(173, 4, 300, 40)`を`Place / Standard`と判定した。
+
+Childを17秒間、起動時に確定した同一HWNDで監視して1088 samplesを取得し、hidden／destroyed／rect drift 0だった。ログはinteraction start／complete 31／31、move 458件、wheel 285件、Watchdog 11回、invalidation／recovery 0だった。ユーザーはちらつき、標準要素との重なり、表示、入力のすべてに問題がないことを確認した。終了後の独立列挙はView／Control HWNDとQuickPodsプロセスがすべて0件だった。
+
+## 追加観測：100%中央揃え／検索ボックス（Task View／Widgets OFF）
+
+続いて検索をボックス表示にした同じ100%／中央揃え／Task View OFF／Widgets OFF構成では、Startは相対矩形`(1412, 0, 45, 48)`、UIA button数は27、native critical child観測数は5だった。読み取り専用探索はfault 0で完了し、相対矩形`(151, 4, 300, 40)`を`Place / Standard`と判定した。
+
+Childを17秒間、起動時に確定した同一HWNDで監視して1088 samplesを取得し、hidden／destroyed／rect drift 0だった。ログはinteraction start／complete 10／10、move 295件、wheel 159件、Watchdog 11回、invalidation／recovery 0だった。ユーザーの手動確認でもちらつき、重なり、表示、入力にまったく問題はなかった。終了後の独立列挙はView／Control HWNDとQuickPodsプロセスがすべて0件だった。
+
+## 追加観測：100%中央揃え／検索ボックス（Task View／Widgets ON）
+
+Task ViewとWidgetsをONにした検索ボックス構成では、タスクバーは3840×48 physical px、DPI 96、Startは相対矩形`(1390, 0, 45, 48)`、Widgetsは`(6, 0, 152, 48)`、UIA button数は29、native critical child観測数は5だった。読み取り専用探索はfault 0で完了し、相対矩形`(264, 4, 300, 40)`を`Place / Standard`と判定した。
+
+Childを17秒間、起動時に確定した同一HWNDで監視して1088 samplesを取得し、hidden／destroyed／rect drift 0だった。ログはinteraction start／complete 28／28、move 354件、wheel 70件、Watchdog 11回、invalidation／recovery 0だった。ユーザーの表示・入力確認も良好で、終了後のView／Control HWNDとQuickPodsプロセスはすべて0件だった。
+
+## 追加観測：100%中央揃え／検索アイコン＋ラベル（Issue #13）
+
+検索をアイコン＋ラベル表示、Task ViewとWidgetsをONにした構成では、タスクバーは3840×48 physical px、DPI 96、Startは相対矩形`(1449, 0, 45, 48)`、Widgetsは`(6, 0, 152, 48)`、UIA button数は29、native critical child観測数は5だった。初期の読み取り専用探索はcomplete、fault 0で、相対矩形`(1028, 4, 300, 40)`を`Place / Standard`と判定した。初期描画と入力はユーザー目視で良好だった。
+
+Start／Windows一時UIと検索アイコン＋ラベルの検索一時UIを個別に開く制御runでは、どちらも一時的な`PrimaryTaskbarMissing`を再現した。再現区間の外部inspectは57/57回が`TransientUnknown / IncompleteObservation`であり、Runnerは不完全観測中に推測配置せずhostを安全にhideした。その後、Startでは7.796秒、検索では6.757秒で同じhostを再表示した。観測不能が10秒を超えるケースは既存のFail Closed timeoutへ到達して安全停止する。
+
+10秒未満の制御runはhostプロセスが存続したまま安全に一時非表示となるため、renderer／input flickerや予期しない即時クラッシュではない。一方、観測不能が10秒を超えるとSpikeは設計どおり安全停止する。この二つがユーザーには同じ「落ちた」ように見える復帰UXの問題である。Issue #13は未解決であり、Gate B全体もIssue #11のフローティングフォールバック、Issue #13、ピン留めアプリ多数のstress、およびChild／Popup最終方式が残るためPendingである。
