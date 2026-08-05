@@ -41,26 +41,30 @@ public sealed class CrossProcessKsGateTests
     public async Task AbandonedOwnerIsRejectedBeforeANewOperationCanRun()
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        using Process owner = StartGateChild(holdMilliseconds: 5_000);
+        using var ownerAcquired = new ManualResetEventSlim();
+        Mutex? abandonedHandle = null;
         bool operationRan = false;
+        var owner = new Thread(() =>
+        {
+            abandonedHandle = new Mutex(
+                initiallyOwned: false,
+                CrossProcessKsGate.MutexName);
+            _ = abandonedHandle.WaitOne();
+            ownerAcquired.Set();
+        });
+        owner.Start();
         try
         {
-            Assert.Equal(
-                "acquired",
-                await owner.StandardOutput.ReadLineAsync(timeout.Token));
-            Task<CrossProcessKsGateResult<int>> waiter = CrossProcessKsGate.RunAsync(
+            Assert.True(ownerAcquired.Wait(TimeSpan.FromSeconds(5)));
+            Assert.True(owner.Join(TimeSpan.FromSeconds(5)));
+
+            CrossProcessKsGateResult<int> abandoned = await CrossProcessKsGate.RunAsync(
                 () =>
                 {
                     operationRan = true;
                     return 0;
                 },
                 timeout.Token);
-
-            await Task.Delay(TimeSpan.FromMilliseconds(50), timeout.Token);
-            owner.Kill(entireProcessTree: true);
-            await owner.WaitForExitAsync(timeout.Token);
-
-            CrossProcessKsGateResult<int> abandoned = await waiter;
             Assert.Equal(CrossProcessKsGateStatus.Abandoned, abandoned.Status);
             Assert.False(operationRan);
 
@@ -72,11 +76,7 @@ public sealed class CrossProcessKsGateTests
         }
         finally
         {
-            if (!owner.HasExited)
-            {
-                owner.Kill(entireProcessTree: true);
-                await owner.WaitForExitAsync(CancellationToken.None);
-            }
+            abandonedHandle?.Dispose();
         }
     }
 
