@@ -1,3 +1,5 @@
+using QuickPods.Spike.TaskbarHost.Discovery;
+
 namespace QuickPods.Spike.TaskbarHost.Runtime;
 
 /// <summary>
@@ -7,7 +9,10 @@ namespace QuickPods.Spike.TaskbarHost.Runtime;
 /// </summary>
 internal sealed class TaskbarAutomationInvalidationSignal
 {
-    private AcceptedInvalidationState acceptedState = new(0, default);
+    private AcceptedInvalidationState acceptedState = new(
+        0,
+        default,
+        RequiresHideFirst: false);
     private long ignoredWindowHandle;
 
     internal long Generation => Volatile.Read(ref acceptedState).Generation;
@@ -34,12 +39,17 @@ internal sealed class TaskbarAutomationInvalidationSignal
         }
 
         var accepted = new TaskbarAutomationInvalidation(source.Kind, sourceClass);
+        bool requiresHideFirst =
+            !TaskbarNativeContinuityInvalidationPolicy.IsEligibleEvent(accepted);
         AcceptedInvalidationState current;
         AcceptedInvalidationState replacement;
         do
         {
             current = Volatile.Read(ref acceptedState);
-            replacement = new(unchecked(current.Generation + 1), accepted);
+            replacement = new(
+                unchecked(current.Generation + 1),
+                accepted,
+                current.RequiresHideFirst || requiresHideFirst);
         }
         while (!ReferenceEquals(
             Interlocked.CompareExchange(ref acceptedState, replacement, current),
@@ -63,18 +73,25 @@ internal sealed class TaskbarAutomationInvalidationSignal
         }
 
         observedGeneration = current.Generation;
-        invalidation = current.Invalidation;
+        invalidation = current.Invalidation with
+        {
+            RequiresHideFirst = current.RequiresHideFirst,
+        };
+        AcceptedInvalidationState consumed = current with { RequiresHideFirst = false };
+        _ = Interlocked.CompareExchange(ref acceptedState, consumed, current);
         return true;
     }
 
     private sealed record AcceptedInvalidationState(
         long Generation,
-        TaskbarAutomationInvalidation Invalidation);
+        TaskbarAutomationInvalidation Invalidation,
+        bool RequiresHideFirst);
 }
 
 internal readonly record struct TaskbarAutomationInvalidation(
     TaskbarAutomationEventKind Kind,
-    TaskbarAutomationEventSourceClass SourceClass);
+    TaskbarAutomationEventSourceClass SourceClass,
+    bool RequiresHideFirst = false);
 
 internal readonly record struct TaskbarAutomationEventSource(
     int NativeWindowHandle,
@@ -93,6 +110,36 @@ internal enum TaskbarAutomationEventSourceClass
     Unknown,
     Owned,
     External,
+}
+
+/// <summary>
+/// Only a known external structure notification that coincides with the exact
+/// retained taskbar disappearing from top-level enumeration may start a
+/// bounded visible-continuity scan. A verified direct route may also transition
+/// back to the enumerated route without a needless hide. All normal enumerated
+/// structure changes, bounds, offscreen, unknown-source and owned-source
+/// notifications retain the existing hide-first behavior.
+/// </summary>
+internal static class TaskbarNativeContinuityInvalidationPolicy
+{
+    internal static bool IsEligibleEvent(TaskbarAutomationInvalidation invalidation) =>
+        !invalidation.RequiresHideFirst &&
+        invalidation.Kind == TaskbarAutomationEventKind.StructureChanged &&
+        invalidation.SourceClass == TaskbarAutomationEventSourceClass.External;
+
+    internal static bool CanProbeWhileVisible(
+        TaskbarAutomationInvalidation invalidation,
+        TaskbarContinuityRoute preflightRoute,
+        TaskbarContinuityRoute lastVerifiedRoute) =>
+        IsEligibleEvent(invalidation) &&
+        CanRetainVisibleRoute(preflightRoute, lastVerifiedRoute);
+
+    internal static bool CanRetainVisibleRoute(
+        TaskbarContinuityRoute preflightRoute,
+        TaskbarContinuityRoute lastVerifiedRoute) =>
+        preflightRoute == TaskbarContinuityRoute.DirectExpected ||
+            (lastVerifiedRoute == TaskbarContinuityRoute.DirectExpected &&
+                preflightRoute == TaskbarContinuityRoute.EnumeratedExpected);
 }
 
 internal static class TaskbarAutomationArmingFence

@@ -347,6 +347,57 @@ internal sealed class NativeTaskbarHost : IDisposable
         }
     }
 
+    /// <summary>
+    /// Determines whether an already-visible native surface can be retained
+    /// while top-level taskbar discovery is temporarily incomplete. Unlike
+    /// the general attachment probe, continuity requires that no hard Shell
+    /// invalidation is pending and that both the verified parent and view
+    /// remain visible across stable attachment checks.
+    /// </summary>
+    internal bool IsCurrentContinuityStable()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        EnsureOwningThread();
+
+        try
+        {
+            ValidateVisibleContinuitySnapshot();
+            ValidateVisibleContinuitySnapshot();
+            return true;
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
+        {
+            return false;
+        }
+    }
+
+    internal static bool AreDwmContinuitySurfacesVisible(
+        nint parentHandle,
+        nint viewHandle)
+    {
+        if (!OperatingSystem.IsWindows() ||
+            parentHandle == nint.Zero ||
+            viewHandle == nint.Zero)
+        {
+            return false;
+        }
+
+        try
+        {
+            return NativeMethods.DwmIsCompositionEnabled(out bool compositionEnabled) == 0 &&
+                compositionEnabled &&
+                TryReadUncloaked(parentHandle) &&
+                TryReadUncloaked(viewHandle);
+        }
+        catch (Exception exception) when (
+            exception is DllNotFoundException or
+            EntryPointNotFoundException or
+            BadImageFormatException)
+        {
+            return false;
+        }
+    }
+
     internal bool IsCurrentAttachmentValidWhileHidden()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
@@ -904,6 +955,36 @@ internal sealed class NativeTaskbarHost : IDisposable
             throw new InvalidOperationException(
                 "The native host DPI context changed after placement verification.");
         }
+    }
+
+    private void ValidateVisibleContinuitySnapshot()
+    {
+        ThrowIfLayoutInvalidationPending();
+        ValidateAttachedWindow();
+        if (!NativeMethods.IsWindowVisible(expectedParentHandle) ||
+            !NativeMethods.IsWindowVisible(windowHandle))
+        {
+            throw new NativeLayoutInvalidatedException(
+                "The verified taskbar parent and native host must both remain visible for native continuity.");
+        }
+
+        if (!AreDwmContinuitySurfacesVisible(expectedParentHandle, windowHandle))
+        {
+            throw new NativeLayoutInvalidatedException(
+                "DWM composition and uncloaked taskbar surfaces are required for native continuity.");
+        }
+
+        ThrowIfLayoutInvalidationPending();
+    }
+
+    private static bool TryReadUncloaked(nint window)
+    {
+        int result = NativeMethods.DwmGetWindowAttribute(
+            window,
+            NativeConstants.DwmWindowAttributeCloaked,
+            out uint cloaked,
+            sizeof(uint));
+        return result == 0 && cloaked == 0;
     }
 
     private void ReleaseInstanceHandle()

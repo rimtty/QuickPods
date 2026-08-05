@@ -19,6 +19,10 @@ internal sealed class TaskbarHostRunner
 {
     private static readonly TimeSpan LayoutRescanInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan FallbackRescanInterval = TimeSpan.FromMilliseconds(500);
+    private static readonly TimeSpan NativeContinuityRescanInterval =
+        TimeSpan.FromMilliseconds(500);
+    private static readonly TimeSpan NativeContinuityScanTimeout =
+        TimeSpan.FromMilliseconds(500);
     private static readonly TimeSpan AttachmentHealthInterval = TimeSpan.FromMilliseconds(100);
     private static readonly TimeSpan MessagePumpInterval = TimeSpan.FromMilliseconds(10);
 
@@ -102,8 +106,10 @@ internal sealed class TaskbarHostRunner
         bool nativeAttachmentUnavailable = false;
         bool automationLayoutInvalidated = false;
         bool floatingLayoutInvalidated = false;
+        bool nativeContinuityProbeRequested = false;
         NativeLayoutInvalidationReason? nativeInvalidationReason = null;
         TaskbarAutomationInvalidation? automationInvalidation = null;
+        TaskbarContinuityRoute lastContinuityRoute = TaskbarContinuityRoute.None;
         VerifiedLiveLayout? currentNativeLayout = null;
         VerifiedFloatingContext? retainedFloatingContext = null;
         VerifiedFloatingContext? currentFloatingContext = null;
@@ -191,7 +197,7 @@ internal sealed class TaskbarHostRunner
                     nextAttachmentCheckTimestamp = AddDuration(
                         now,
                         AttachmentHealthInterval);
-                    if (!nativeHost.IsCurrentAttachmentValid())
+                    if (!nativeHost.IsCurrentContinuityStable())
                     {
                         nativeAttachmentUnavailable = true;
                         nativeLayoutInvalidated = true;
@@ -207,6 +213,13 @@ internal sealed class TaskbarHostRunner
                         nativeAttachmentUnavailable
                             ? PresentationTransitionReason.NativeAttachmentUnavailable
                             : PresentationTransitionReason.NativeInvalidated);
+                    continue;
+                }
+
+                if (state == TaskbarPresentationState.NativeVisible &&
+                    nativeContinuityProbeRequested)
+                {
+                    RunNativeWatchdogScan(continuityTriggeredByAutomation: true);
                     continue;
                 }
 
@@ -238,7 +251,7 @@ internal sealed class TaskbarHostRunner
                 {
                     if (state == TaskbarPresentationState.NativeVisible)
                     {
-                        RunNativeWatchdogScan();
+                        RunNativeWatchdogScan(continuityTriggeredByAutomation: false);
                     }
                     else
                     {
@@ -311,63 +324,230 @@ internal sealed class TaskbarHostRunner
             return TryCreateNative(armedLayout, generationAfterScan);
         }
 
-        void RunNativeWatchdogScan()
+        void RunNativeWatchdogScan(bool continuityTriggeredByAutomation)
         {
-            ResetInvalidationFlags();
-            long generationBeforeScan = automationSignal.Generation;
-            long invalidationBeforeScan = invalidationGeneration;
-            LiveLayoutScan scan = DiscoverLayout(cancellationToken);
-            long generationAfterScan = automationSignal.Generation;
-            PumpBothHosts();
-            _ = ConsumeAutomationInvalidation();
-            bool invalidatedDuringScan =
-                generationBeforeScan != generationAfterScan ||
-                invalidationBeforeScan != invalidationGeneration ||
+            VerifiedLiveLayout? current = currentNativeLayout;
+            if (current is null || !nativeHost.IsCreated)
+            {
+                EnterFallback(
+                    PlacementDecision.TransientUnknown,
+                    PresentationTransitionReason.WatchdogUnsafe);
+                return;
+            }
+
+            TaskbarAutomationInvalidation? initiatingInvalidation = automationInvalidation;
+            long continuityDeadline = AddDuration(
+                Stopwatch.GetTimestamp(),
+                NativeContinuityScanTimeout);
+            int attempt = 0;
+            while (true)
+            {
+                attempt++;
+                ResetInvalidationFlags();
+                long generationBeforeScan = automationSignal.Generation;
+                long invalidationBeforeScan = invalidationGeneration;
+                TimeSpan scanBudget = RemainingUntil(continuityDeadline);
+                if (scanBudget <= TimeSpan.Zero)
+                {
+                    Console.Error.WriteLine(
+                        $"native-continuity=failed; route=None; reason=TimedOut; " +
+                        $"attempts={attempt - 1}");
+                    EnterFallback(
+                        PlacementDecision.TransientUnknown,
+                        PresentationTransitionReason.WatchdogUnsafe);
+                    return;
+                }
+
+                NativeContinuityLiveScan continuityScan = DiscoverContinuityLayout(
+                    current.ContinuityAnchor,
+                    scanBudget,
+                    cancellationToken);
+                long generationAfterScan = automationSignal.Generation;
+                PumpBothHosts();
+                _ = ConsumeAutomationInvalidation();
+                initiatingInvalidation ??= automationInvalidation;
+                bool invalidatedDuringScan =
+                    generationBeforeScan != generationAfterScan ||
+                    invalidationBeforeScan != invalidationGeneration ||
+                    nativeLayoutInvalidated ||
+                    automationLayoutInvalidated ||
+                    floatingLayoutInvalidated ||
+                    nativeContinuityProbeRequested;
+                LiveLayoutScan? scan = continuityScan.Scan;
+                if (scan is not null)
+                {
+                    scanDiagnostics.Record(
+                        TaskbarLiveScanStage.Watchdog,
+                        scan.Signature.WithInvalidatedDuringScan(invalidatedDuringScan));
+                    RetainFreshFloatingContext(scan, invalidatedDuringScan);
+                }
+
+                if (Elapsed() >= options.Duration)
+                {
+                    return;
+                }
+
+                bool continuityScanUnstable =
+                    invalidatedDuringScan ||
+                    !continuityScan.Result.IsVerified ||
+                    scan is null;
+                if (continuityScanUnstable &&
+                    TryPrepareVisibleContinuityRetry(
+                        current,
+                        continuityDeadline,
+                        out TaskbarContinuityRoute retryRoute))
+                {
+                    if (attempt == 1)
+                    {
+                        Console.Error.WriteLine(
+                            $"native-continuity=retrying; route={retryRoute}; " +
+                            "fixed-deadline=True");
+                    }
+
+                    continue;
+                }
+
+                if (!continuityScan.Result.IsVerified || scan is null)
+                {
+                    Console.Error.WriteLine(
+                        $"native-continuity=failed; route={continuityScan.Result.Route}; " +
+                        $"reason={continuityScan.Result.FailureReason}; attempts={attempt}");
+                    EnterFallback(
+                        PlacementDecision.TransientUnknown,
+                        PresentationTransitionReason.WatchdogUnsafe);
+                    return;
+                }
+
+                VerifiedLiveLayout? verified = scan.Layout;
+                TaskbarLayoutObservation? safetyObservation =
+                    verified is not null &&
+                    (continuityScan.Result.Evidence.RetainedNotificationAreaContinuity ||
+                        continuityScan.Result.Evidence.RetainedStartButtonContinuity)
+                        ? TaskbarLayoutAdapter.CreateConservativeContinuityObservation(
+                            verified.Observation,
+                            current.Observation)
+                        : verified?.Observation;
+                bool currentBoundsSafe =
+                    safetyObservation is not null &&
+                    SafeRegionCalculator.IsExistingPlacementSafe(
+                        safetyObservation,
+                        TaskbarPlacementOptions.Default,
+                        current.Bounds);
+                bool nativeAttachmentValid =
+                    nativeHost.IsCurrentContinuityStable();
+                TaskbarWatchdogDecision decision = TaskbarWatchdogPolicy.Decide(new(
+                    current.Identity,
+                    current.Bounds,
+                    verified?.Identity,
+                    verified?.Bounds,
+                    invalidatedDuringScan,
+                    currentBoundsSafe,
+                    nativeAttachmentValid));
+
+                if (decision == TaskbarWatchdogDecision.KeepVisible && verified is not null)
+                {
+                    currentNativeLayout = current with
+                    {
+                        ContinuityAnchor = verified.ContinuityAnchor,
+                        Observation = safetyObservation!,
+                    };
+                    TaskbarContinuityRoute route = continuityScan.Result.Route;
+                    bool automationTriggered =
+                        continuityTriggeredByAutomation || initiatingInvalidation is not null;
+                    if (route != lastContinuityRoute || automationTriggered || attempt > 1)
+                    {
+                        string trigger =
+                            initiatingInvalidation is TaskbarAutomationInvalidation invalidation
+                                ? $"{invalidation.SourceClass}{invalidation.Kind}"
+                                : "Watchdog";
+                        Console.Error.WriteLine(
+                            $"native-continuity=verified; route={route}; " +
+                            $"trigger={trigger}; attempts={attempt}; current-bounds-safe=True; " +
+                            $"retained-notification-area=" +
+                            $"{continuityScan.Result.Evidence.RetainedNotificationAreaContinuity}; " +
+                            $"retained-start-button=" +
+                            $"{continuityScan.Result.Evidence.RetainedStartButtonContinuity}; " +
+                            $"direct-host-attachment=" +
+                            $"{continuityScan.Result.Evidence.DirectHostAttachmentVerified}");
+                    }
+
+                    lastContinuityRoute = route;
+                    ResetInvalidationFlags();
+                    TimeSpan nextInterval = route == TaskbarContinuityRoute.DirectExpected
+                        ? NativeContinuityRescanInterval
+                        : LayoutRescanInterval;
+                    nextScanTimestamp = AddDuration(
+                        Stopwatch.GetTimestamp(),
+                        nextInterval);
+                    return;
+                }
+
+                EnterFallback(
+                    scan.Placement.Decision,
+                    PresentationTransitionReason.WatchdogUnsafe);
+                return;
+            }
+        }
+
+        bool TryPrepareVisibleContinuityRetry(
+            VerifiedLiveLayout current,
+            long continuityDeadline,
+            out TaskbarContinuityRoute retryRoute)
+        {
+            retryRoute = TaskbarContinuityRoute.None;
+            if (RemainingUntil(continuityDeadline) <= TimeSpan.Zero ||
                 nativeLayoutInvalidated ||
                 automationLayoutInvalidated ||
-                floatingLayoutInvalidated;
-            scanDiagnostics.Record(
-                TaskbarLiveScanStage.Watchdog,
-                scan.Signature.WithInvalidatedDuringScan(invalidatedDuringScan));
-            RetainFreshFloatingContext(scan, invalidatedDuringScan);
-            if (Elapsed() >= options.Duration)
+                floatingLayoutInvalidated ||
+                !nativeHost.IsCreated)
             {
-                return;
+                return false;
             }
 
-            VerifiedLiveLayout? verified = scan.Layout;
-            bool currentBoundsSafe =
-                verified is not null &&
-                currentNativeLayout is not null &&
+            if (!TryVerifyVisibleNativePreflight(current, out Win32TaskbarContinuityProbe? preflight) ||
+                !TaskbarNativeContinuityInvalidationPolicy.CanRetainVisibleRoute(
+                    preflight!.Route,
+                    lastContinuityRoute) ||
+                RemainingUntil(continuityDeadline) <= TimeSpan.Zero)
+            {
+                return false;
+            }
+
+            retryRoute = preflight.Route;
+            return true;
+        }
+
+        bool TryVerifyVisibleNativePreflight(
+            VerifiedLiveLayout current,
+            out Win32TaskbarContinuityProbe? preflight)
+        {
+            preflight = null;
+            long expectedGeneration = observedAutomationGeneration;
+            if (!nativeHost.IsCreated ||
+                automationSignal.Generation != expectedGeneration ||
+                !nativeHost.IsCurrentContinuityStable())
+            {
+                return false;
+            }
+
+            preflight = Win32TaskbarDiscovery.DiscoverAnchored(
+                current.ContinuityAnchor,
+                nativeHost.WindowHandle);
+            TaskbarLayoutObservation? nativeObservation =
+                preflight.Target is Win32TaskbarTarget target
+                    ? TaskbarLayoutAdapter.CreateNativePreflightObservation(
+                        current.Observation,
+                        target.CriticalChildren)
+                    : null;
+            bool currentBoundsNativeSafe =
+                preflight.IsNativeVerified &&
                 SafeRegionCalculator.IsExistingPlacementSafe(
-                    verified.Observation,
+                    nativeObservation,
                     TaskbarPlacementOptions.Default,
-                    currentNativeLayout.Bounds);
-            bool nativeAttachmentValid =
-                nativeHost.IsCreated && nativeHost.IsCurrentAttachmentValid();
-            TaskbarWatchdogDecision decision = TaskbarWatchdogPolicy.Decide(new(
-                currentNativeLayout?.Identity ?? default,
-                currentNativeLayout?.Bounds ?? default,
-                verified?.Identity,
-                verified?.Bounds,
-                invalidatedDuringScan,
-                currentBoundsSafe,
-                nativeAttachmentValid));
-
-            if (decision == TaskbarWatchdogDecision.KeepVisible)
-            {
-                Console.Error.WriteLine(
-                    "layout-watchdog=verified-visible; current-bounds-safe=True");
-                ResetInvalidationFlags();
-                nextScanTimestamp = AddDuration(
-                    Stopwatch.GetTimestamp(),
-                    LayoutRescanInterval);
-                return;
-            }
-
-            EnterFallback(
-                scan.Placement.Decision,
-                PresentationTransitionReason.WatchdogUnsafe);
+                    current.Bounds);
+            return currentBoundsNativeSafe &&
+                automationSignal.Generation == expectedGeneration &&
+                nativeHost.IsCurrentContinuityStable();
         }
 
         void RunFallbackScan()
@@ -779,55 +959,155 @@ internal sealed class TaskbarHostRunner
                     Thread.Sleep(MessagePumpInterval);
                 }
 
-                TaskbarDiscoveryResult discovery = task.GetAwaiter().GetResult();
-                TaskbarLayoutObservation? observation =
-                    TaskbarLayoutAdapter.CreateObservation(discovery);
-                TaskbarPlacementResult placement = SafeRegionCalculator.Calculate(
-                    observation,
-                    TaskbarPlacementOptions.Default);
-                var signature = TaskbarLiveScanSignature.Create(
-                    discovery,
-                    placement);
-                VerifiedLiveLayout? layout = null;
-                VerifiedFloatingContext? floatingContext = null;
-                if (discovery.IsComplete &&
-                    discovery.Snapshot is TaskbarSnapshot snapshot)
-                {
-                    if (snapshot.Monitor.IsPrimary &&
-                        snapshot.Monitor.Bounds.IsValid &&
-                        snapshot.Monitor.WorkArea.IsValid)
-                    {
-                        floatingContext = new(
-                            snapshot.Monitor.Bounds,
-                            snapshot.Monitor.WorkArea,
-                            snapshot.Dpi,
-                            FloatingBounds: null);
-                    }
-
-                    if (observation is TaskbarLayoutObservation verifiedObservation &&
-                        placement.Decision == PlacementDecision.Place &&
-                        placement.Bounds is PixelRect bounds &&
-                        placement.Mode is TaskbarStripMode mode)
-                    {
-                        layout = new(
-                            new TaskbarHostIdentity(
-                                snapshot.TaskbarHandle,
-                                snapshot.ExplorerProcessId,
-                                snapshot.Dpi,
-                                snapshot.Bounds),
-                            bounds,
-                            mode,
-                            verifiedObservation);
-                    }
-                }
-
-                return new(discovery, placement, layout, floatingContext, signature);
+                return CreateLiveLayoutScan(task.GetAwaiter().GetResult());
             }
             catch (OperationCanceledException)
                 when (!token.IsCancellationRequested && deadlineCancellation.IsCancellationRequested)
             {
                 throw new HostDurationElapsedException();
             }
+        }
+
+        NativeContinuityLiveScan DiscoverContinuityLayout(
+            TaskbarContinuityAnchor anchor,
+            TimeSpan maximumDuration,
+            CancellationToken token)
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(
+                maximumDuration,
+                TimeSpan.Zero);
+            TimeSpan remaining = options.Duration - Elapsed();
+            if (remaining <= TimeSpan.Zero)
+            {
+                throw new HostDurationElapsedException();
+            }
+
+            nint ignoredNativeWindow = nativeHost.IsCreated
+                ? nativeHost.WindowHandle
+                : nint.Zero;
+            var discoveryService = new TaskbarDiscoveryService(ignoredNativeWindow);
+            using var deadlineCancellation =
+                CancellationTokenSource.CreateLinkedTokenSource(token);
+            TimeSpan timeout = remaining < maximumDuration
+                ? remaining
+                : maximumDuration;
+            deadlineCancellation.CancelAfter(timeout);
+            Task<TaskbarContinuityDiscoveryResult> task =
+                discoveryService.DiscoverAnchoredAsync(
+                    anchor,
+                    deadlineCancellation.Token);
+            bool invalidatedWhileWaiting = false;
+            try
+            {
+                while (!task.IsCompleted)
+                {
+                    deadlineCancellation.Token.ThrowIfCancellationRequested();
+                    PumpBothHosts();
+                    _ = ConsumeAutomationInvalidation();
+                    if (nativeLayoutInvalidated ||
+                        automationLayoutInvalidated ||
+                        floatingLayoutInvalidated)
+                    {
+                        invalidatedWhileWaiting = true;
+                        if (nativeHost.IsCreated)
+                        {
+                            nativeHost.Hide();
+                        }
+
+                        deadlineCancellation.Cancel();
+                    }
+
+                    Thread.Sleep(MessagePumpInterval);
+                }
+
+                TaskbarContinuityDiscoveryResult result = task.GetAwaiter().GetResult();
+                TaskbarContinuityAnchor nextAnchor = anchor;
+                if (result.IsVerified &&
+                    result.Evidence.AutomationComplete &&
+                    result.Discovery is TaskbarDiscoveryResult completeAutomationDiscovery &&
+                    !anchor.TryWithFreshCompleteAutomation(
+                        completeAutomationDiscovery,
+                        out nextAnchor))
+                {
+                    result = TaskbarContinuityDiscoveryResult.Failed(
+                        result.Evidence,
+                        result.Route,
+                        TaskbarContinuityFailureReason.UnexpectedFailure);
+                }
+
+                LiveLayoutScan? scan = result.IsVerified &&
+                    result.Discovery is TaskbarDiscoveryResult discovery
+                        ? CreateLiveLayoutScan(discovery, nextAnchor)
+                        : null;
+                return new(result, scan);
+            }
+            catch (OperationCanceledException)
+                when (!token.IsCancellationRequested && deadlineCancellation.IsCancellationRequested)
+            {
+                if (Elapsed() >= options.Duration)
+                {
+                    throw new HostDurationElapsedException();
+                }
+
+                var timedOut =
+                    TaskbarContinuityDiscoveryResult.Failed(
+                        default,
+                        TaskbarContinuityRoute.None,
+                        invalidatedWhileWaiting
+                            ? TaskbarContinuityFailureReason.InvalidatedDuringScan
+                            : TaskbarContinuityFailureReason.TimedOut);
+                return new(timedOut, Scan: null);
+            }
+        }
+
+        static LiveLayoutScan CreateLiveLayoutScan(
+            TaskbarDiscoveryResult discovery,
+            TaskbarContinuityAnchor? continuityAnchor = null)
+        {
+            TaskbarLayoutObservation? observation =
+                TaskbarLayoutAdapter.CreateObservation(discovery);
+            TaskbarPlacementResult placement = SafeRegionCalculator.Calculate(
+                observation,
+                TaskbarPlacementOptions.Default);
+            var signature = TaskbarLiveScanSignature.Create(
+                discovery,
+                placement);
+            VerifiedLiveLayout? layout = null;
+            VerifiedFloatingContext? floatingContext = null;
+            if (discovery.IsComplete &&
+                discovery.Snapshot is TaskbarSnapshot snapshot)
+            {
+                if (snapshot.Monitor.IsPrimary &&
+                    snapshot.Monitor.Bounds.IsValid &&
+                    snapshot.Monitor.WorkArea.IsValid)
+                {
+                    floatingContext = new(
+                        snapshot.Monitor.Bounds,
+                        snapshot.Monitor.WorkArea,
+                        snapshot.Dpi,
+                        FloatingBounds: null);
+                }
+
+                if (observation is TaskbarLayoutObservation verifiedObservation &&
+                    placement.Decision == PlacementDecision.Place &&
+                    placement.Bounds is PixelRect bounds &&
+                    placement.Mode is TaskbarStripMode mode)
+                {
+                    layout = new(
+                        new TaskbarHostIdentity(
+                            snapshot.TaskbarHandle,
+                            snapshot.ExplorerProcessId,
+                            snapshot.Dpi,
+                            snapshot.Bounds),
+                        bounds,
+                        mode,
+                        verifiedObservation,
+                        continuityAnchor ??
+                            TaskbarContinuityAnchor.FromCompleteDiscovery(discovery));
+                }
+            }
+
+            return new(discovery, placement, layout, floatingContext, signature);
         }
 
         void RetainFreshFloatingContext(
@@ -848,6 +1128,47 @@ internal sealed class TaskbarHostRunner
                     out TaskbarAutomationInvalidation acceptedInvalidation))
             {
                 return false;
+            }
+
+            VerifiedLiveLayout? current = currentNativeLayout;
+            bool canAttemptContinuityPreflight =
+                state == TaskbarPresentationState.NativeVisible &&
+                current is not null &&
+                nativeHost.IsCreated &&
+                TaskbarNativeContinuityInvalidationPolicy.IsEligibleEvent(
+                    acceptedInvalidation);
+            Win32TaskbarContinuityProbe? nativePreflight = null;
+            bool nativePreflightVerified =
+                canAttemptContinuityPreflight &&
+                TryVerifyVisibleNativePreflight(current!, out nativePreflight);
+            bool canProbeContinuityWhileVisible =
+                nativePreflightVerified &&
+                TaskbarNativeContinuityInvalidationPolicy.CanProbeWhileVisible(
+                    acceptedInvalidation,
+                    nativePreflight!.Route,
+                    lastContinuityRoute);
+            if (canProbeContinuityWhileVisible)
+            {
+                nativeContinuityProbeRequested = true;
+                invalidationGeneration = unchecked(invalidationGeneration + 1);
+                automationInvalidation = acceptedInvalidation;
+                return true;
+            }
+
+            if (state == TaskbarPresentationState.NativeVisible)
+            {
+                string admissionReason = acceptedInvalidation.RequiresHideFirst
+                    ? "BatchRequiresHideFirst"
+                    : !TaskbarNativeContinuityInvalidationPolicy.IsEligibleEvent(
+                        acceptedInvalidation)
+                        ? "EventNotEligible"
+                        : !nativePreflightVerified
+                            ? "NativePreflightRejected"
+                            : "RouteNotEligible";
+                Console.Error.WriteLine(
+                    $"continuity-admission=rejected; " +
+                    $"preflight-route={nativePreflight?.Route ?? TaskbarContinuityRoute.None}; " +
+                    $"reason={admissionReason}");
             }
 
             if (nativeHost.IsCreated)
@@ -936,6 +1257,7 @@ internal sealed class TaskbarHostRunner
             }
 
             currentNativeLayout = null;
+            lastContinuityRoute = TaskbarContinuityRoute.None;
             if (state == TaskbarPresentationState.NativeVisible)
             {
                 activeSurfaceBounds = default;
@@ -1005,6 +1327,7 @@ internal sealed class TaskbarHostRunner
             nativeAttachmentUnavailable = false;
             automationLayoutInvalidated = false;
             floatingLayoutInvalidated = false;
+            nativeContinuityProbeRequested = false;
             nativeInvalidationReason = null;
             automationInvalidation = null;
         }
@@ -1027,7 +1350,8 @@ internal sealed class TaskbarHostRunner
                 automationInvalidation ?? default;
             Console.Error.WriteLine(
                 $"layout-invalidated=UiAutomationChanged; " +
-                $"kind={classification.Kind}; source={classification.SourceClass}");
+                $"kind={classification.Kind}; source={classification.SourceClass}; " +
+                $"batch-hide-first={classification.RequiresHideFirst}");
         }
 
         void SetState(
@@ -1096,11 +1420,20 @@ internal sealed class TaskbarHostRunner
         return checked(timestamp + (long)Math.Ceiling(ticks));
     }
 
+    private static TimeSpan RemainingUntil(long deadlineTimestamp)
+    {
+        long now = Stopwatch.GetTimestamp();
+        return now >= deadlineTimestamp
+            ? TimeSpan.Zero
+            : Stopwatch.GetElapsedTime(now, deadlineTimestamp);
+    }
+
     private sealed record VerifiedLiveLayout(
         TaskbarHostIdentity Identity,
         PixelRect Bounds,
         TaskbarStripMode Mode,
-        TaskbarLayoutObservation Observation)
+        TaskbarLayoutObservation Observation,
+        TaskbarContinuityAnchor ContinuityAnchor)
     {
         internal NativePromotionCandidate ToPromotionCandidate() =>
             new(Identity, Bounds, Mode);
@@ -1118,6 +1451,10 @@ internal sealed class TaskbarHostRunner
         VerifiedLiveLayout? Layout,
         VerifiedFloatingContext? FloatingContext,
         TaskbarLiveScanSignature Signature);
+
+    private sealed record NativeContinuityLiveScan(
+        TaskbarContinuityDiscoveryResult Result,
+        LiveLayoutScan? Scan);
 
     private enum PresentationTransitionReason
     {

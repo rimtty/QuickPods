@@ -1,4 +1,4 @@
-# Phase 0C／0D 検証環境
+# Phase 0C／0D／0E 検証環境
 
 ## 自動取得対象
 
@@ -30,9 +30,34 @@
 | 結果 | exit 0、終了後QuickPodsプロセス残留0 |
 | 遷移証跡 | 少なくとも1回、`External / StructureChanged`から`NativeVisible → FloatingFallback → NativePromoted` |
 
-この試験では、nativeが安全にhideした後、直前の完全検証済みprimary work-area／DPI上のunowned・non-topmost floatingへ退避し、1秒cooldown、500ms以上離れた同一candidate 2回、およびwatcher fenceを経てnativeへ復帰した。Settings／Display／DPI invalidation時だけ保持geometryを破棄する。サニタイズ済みログからは各遷移がStart／Searchのどちらによるものかを特定できず、floatingの目視上の継続と入力も証明しない。100% icon＋labelでStart／Searchを個別に各15秒開く手動試験と、floatingのclick／drag／wheelはPendingである。
+この試験では、nativeが安全にhideした後、直前の完全検証済みprimary work-area／DPI上のunowned・non-topmost floatingへ退避し、1秒cooldown、500ms以上離れた同一candidate 2回、およびwatcher fenceを経てnativeへ復帰した。Settings／Display／DPI invalidation時だけ保持geometryを破棄する。このPhase 0Dログだけでは各遷移がStart／Searchのどちらによるものかを特定できず、floatingの目視上の継続と入力も証明しなかった。100% icon＋labelの個別手動試験は後続Phase 0EでPopup native continuityとして完了した。
 
 実機host検証はEXEまたは`dotnet run`で行う。DLL直接起動ではapplication manifestが適用されないため、DPI／host証跡として使用しない。
+
+## Phase 0E実機観測：100% Popup native continuity
+
+| 項目 | 値 |
+|---|---|
+| 検証日 | 2026-08-05 |
+| ブランチ | `codex/phase-0e-native-continuity-spike`（Phase 0Dからstack） |
+| Windows | Windows 11 Pro 10.0.26200（build 26200） |
+| OS／プロセスarchitecture | x64／x64 |
+| integrity | 非管理者（elevated=false） |
+| .NET SDK | 10.0.302 |
+| Windows Desktop Runtime | 10.0.10 |
+| 画面／DPI | 1920×1080、DPI 96（100%） |
+| タスクバー | 1920×48 physical px、horizontal、中央揃え |
+| タスクバー設定 | 検索アイコン＋ラベル、Task View／Widgets ON |
+| native style | `PopupPreserved`（`SetParent`後も`WS_POPUP`維持） |
+| 起動形態 | application manifestが適用されるEXE |
+| 実行時間 | 120秒 |
+| 一時UI | StartとSearchを個別に表示して保持 |
+| 継続証明 | `DirectExpected`、retained notification area、retained Start、direct host attachment |
+| surface遷移 | `Starting → NativeVisible`のみ。Floating遷移0 |
+| 入力 | wheel 80件、drag完了3件。ユーザーは両一時UI表示中のwheel変更を確認 |
+| 終了 | native正常破棄1件、終了後QuickPodsプロセス残留0 |
+
+ユーザーはStart／Searchの双方で、ウィンドウが開いている間もPopup hostがタスクバー内の同じ位置に残り、wheelでsample volumeを変更できることを確認した。比較したChildは同じ要求を満たさず3～10秒程度でFloatingへ退避したため、PopupPreservedを採用方式に選定した。生HWND、Explorer PID、ウィンドウタイトル、通知内容は保存していない。
 
 ## Phase 0C historical：初回観測 150%（Widgets ON）
 
@@ -114,4 +139,4 @@ Childを17秒間、起動時に確定した同一HWNDで監視して1088 samples
 
 Start／Windows一時UIと検索アイコン＋ラベルの検索一時UIを個別に開く制御runでは、どちらも一時的な`PrimaryTaskbarMissing`を再現した。再現区間の外部inspectは57/57回が`TransientUnknown / IncompleteObservation`であり、Runnerは不完全観測中に推測配置せずhostを安全にhideした。その後、Startでは7.796秒、検索では6.757秒で同じhostを再表示した。観測不能が10秒を超えるケースは既存のFail Closed timeoutへ到達して安全停止する。
 
-Phase 0Cでは、10秒未満の制御runはhostプロセスが存続したまま安全に一時非表示となり、観測不能が10秒を超えるとSpikeは設計どおり安全停止した。この二つがユーザーには同じ「落ちた」ように見える復帰UXの問題だった。これはhistorical behaviorであり、Phase 0Dでは安全なfloatingまたはhidden fallbackへ遷移してセッションを継続する。Gate BはPhase 0Dの手動試験、ピン留めアプリ多数のstress、およびChild／Popup最終方式が残るためPendingである。
+Phase 0Cでは、10秒未満の制御runはhostプロセスが存続したまま安全に一時非表示となり、観測不能が10秒を超えるとSpikeは設計どおり安全停止した。この二つがユーザーには同じ「落ちた」ように見える復帰UXの問題だった。これはhistorical behaviorであり、Phase 0Dでは安全なfloatingまたはhidden fallbackへ遷移してセッションを継続する。Phase 0EではPopup native continuityと最終style選定まで完了したが、採用PopupのExplorer再起動、ピン留め多数、tray churn、および残るDPI／fallback目視があるためGate BはPendingである。

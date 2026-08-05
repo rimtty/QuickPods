@@ -6,7 +6,7 @@ namespace QuickPods.Spike.TaskbarHost.Hosting;
 
 internal static class NativeWindowClassRegistry
 {
-    private const string ViewClassName = "QuickPods.Spike.TaskbarHost.NativeView.v1";
+    internal const string ViewClassName = "QuickPods.Spike.TaskbarHost.NativeView.v1";
     private const string ControlClassName = "QuickPods.Spike.TaskbarHost.Control.v1";
     private const string FloatingViewClassName = "QuickPods.Spike.FloatingStrip.NativeView.v1";
 

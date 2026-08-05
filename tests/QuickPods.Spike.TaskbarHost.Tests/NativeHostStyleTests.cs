@@ -22,4 +22,40 @@ public sealed class NativeHostStyleTests
             NativeConstants.WindowExtendedStyleNoActivate,
             NativeWindowStyles.RequiredExtendedStyle);
     }
+
+    [Theory]
+    [InlineData((int)NativeParentStyleMode.PopupPreserved)]
+    [InlineData((int)NativeParentStyleMode.Child)]
+    public void ParentStyleValidation_AllowsOnlyVisibilityToChange(int modeValue)
+    {
+        var mode = (NativeParentStyleMode)modeValue;
+        long expected = NativeWindowStyles.GetStyle(mode);
+
+        Assert.True(NativeWindowStyles.MatchesParentStyleMode(expected, mode));
+        Assert.True(
+            NativeWindowStyles.MatchesParentStyleMode(
+                expected | NativeConstants.WindowStyleVisible,
+                mode));
+        Assert.False(
+            NativeWindowStyles.MatchesParentStyleMode(
+                expected & ~NativeConstants.WindowStyleClipSiblings,
+                mode));
+        Assert.False(
+            NativeWindowStyles.MatchesParentStyleMode(expected | 0x00040000L, mode));
+    }
+
+    [Fact]
+    public void ExtendedStyleValidation_RejectsMissingOrAdditionalBits()
+    {
+        long expected = NativeWindowStyles.RequiredExtendedStyle;
+
+        Assert.True(NativeWindowStyles.HasRequiredExtendedStyles(expected));
+        Assert.False(
+            NativeWindowStyles.HasRequiredExtendedStyles(
+                expected & ~NativeConstants.WindowExtendedStyleNoActivate));
+        Assert.False(
+            NativeWindowStyles.HasRequiredExtendedStyles(
+                expected | NativeConstants.WindowExtendedStyleTopmost));
+        Assert.False(NativeWindowStyles.HasRequiredExtendedStyles(expected | 0x00040000L));
+    }
 }

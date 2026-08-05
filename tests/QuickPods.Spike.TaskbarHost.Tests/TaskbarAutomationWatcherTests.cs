@@ -40,6 +40,125 @@ public sealed class TaskbarAutomationWatcherTests
                 isPlacementButton));
     }
 
+    [Theory]
+    [InlineData(
+        (int)TaskbarAutomationEventKind.StructureChanged,
+        (int)TaskbarAutomationEventSourceClass.External,
+        (int)TaskbarContinuityRoute.DirectExpected,
+        (int)TaskbarContinuityRoute.None,
+        true)]
+    [InlineData(
+        (int)TaskbarAutomationEventKind.StructureChanged,
+        (int)TaskbarAutomationEventSourceClass.External,
+        (int)TaskbarContinuityRoute.EnumeratedExpected,
+        (int)TaskbarContinuityRoute.DirectExpected,
+        true)]
+    [InlineData(
+        (int)TaskbarAutomationEventKind.StructureChanged,
+        (int)TaskbarAutomationEventSourceClass.External,
+        (int)TaskbarContinuityRoute.EnumeratedExpected,
+        (int)TaskbarContinuityRoute.EnumeratedExpected,
+        false)]
+    [InlineData(
+        (int)TaskbarAutomationEventKind.StructureChanged,
+        (int)TaskbarAutomationEventSourceClass.Unknown,
+        (int)TaskbarContinuityRoute.DirectExpected,
+        (int)TaskbarContinuityRoute.None,
+        false)]
+    [InlineData(
+        (int)TaskbarAutomationEventKind.StructureChanged,
+        (int)TaskbarAutomationEventSourceClass.Owned,
+        (int)TaskbarContinuityRoute.DirectExpected,
+        (int)TaskbarContinuityRoute.None,
+        false)]
+    [InlineData(
+        (int)TaskbarAutomationEventKind.BoundingRectangleChanged,
+        (int)TaskbarAutomationEventSourceClass.External,
+        (int)TaskbarContinuityRoute.DirectExpected,
+        (int)TaskbarContinuityRoute.None,
+        false)]
+    [InlineData(
+        (int)TaskbarAutomationEventKind.IsOffscreenChanged,
+        (int)TaskbarAutomationEventSourceClass.External,
+        (int)TaskbarContinuityRoute.DirectExpected,
+        (int)TaskbarContinuityRoute.None,
+        false)]
+    public void NativeContinuityInvalidationPolicy_AllowsOnlyDirectTransitionStructureChanges(
+        int kindValue,
+        int sourceClassValue,
+        int preflightRouteValue,
+        int lastVerifiedRouteValue,
+        bool expected)
+    {
+        var invalidation = new TaskbarAutomationInvalidation(
+            (TaskbarAutomationEventKind)kindValue,
+            (TaskbarAutomationEventSourceClass)sourceClassValue);
+
+        Assert.Equal(
+            expected,
+            TaskbarNativeContinuityInvalidationPolicy.CanProbeWhileVisible(
+                invalidation,
+                (TaskbarContinuityRoute)preflightRouteValue,
+                (TaskbarContinuityRoute)lastVerifiedRouteValue));
+    }
+
+    [Fact]
+    public void NativeContinuityInvalidationPolicy_RejectsAStickyHideFirstBatch()
+    {
+        var invalidation = new TaskbarAutomationInvalidation(
+            TaskbarAutomationEventKind.StructureChanged,
+            TaskbarAutomationEventSourceClass.External,
+            RequiresHideFirst: true);
+
+        Assert.False(
+            TaskbarNativeContinuityInvalidationPolicy.CanProbeWhileVisible(
+                invalidation,
+                TaskbarContinuityRoute.DirectExpected,
+                TaskbarContinuityRoute.None));
+    }
+
+    [Fact]
+    public void Signal_CoalescingKeepsHideFirstStickyUntilConsumed()
+    {
+        var signal = new TaskbarAutomationInvalidationSignal();
+        long observed = signal.Generation;
+
+        signal.Signal(new(
+            NativeWindowHandle: 100,
+            ProcessId: 200,
+            TaskbarAutomationEventKind.BoundingRectangleChanged));
+        signal.Signal(new(
+            NativeWindowHandle: 100,
+            ProcessId: 200,
+            TaskbarAutomationEventKind.StructureChanged));
+
+        Assert.True(signal.TryConsume(ref observed, out TaskbarAutomationInvalidation batch));
+        Assert.Equal(TaskbarAutomationEventKind.StructureChanged, batch.Kind);
+        Assert.Equal(TaskbarAutomationEventSourceClass.External, batch.SourceClass);
+        Assert.True(batch.RequiresHideFirst);
+
+        signal.Signal(new(
+            NativeWindowHandle: 100,
+            ProcessId: 200,
+            TaskbarAutomationEventKind.StructureChanged));
+
+        Assert.True(signal.TryConsume(ref observed, out TaskbarAutomationInvalidation next));
+        Assert.False(next.RequiresHideFirst);
+
+        signal.Signal(new(
+            NativeWindowHandle: 0,
+            ProcessId: 0,
+            TaskbarAutomationEventKind.StructureChanged));
+        signal.Signal(new(
+            NativeWindowHandle: 100,
+            ProcessId: 200,
+            TaskbarAutomationEventKind.StructureChanged));
+
+        Assert.True(signal.TryConsume(ref observed, out TaskbarAutomationInvalidation mixed));
+        Assert.Equal(TaskbarAutomationEventSourceClass.External, mixed.SourceClass);
+        Assert.True(mixed.RequiresHideFirst);
+    }
+
     [Fact]
     public void Signal_FiltersOwnedVisibilityButNotOwnedBoundsOrUnknownSender()
     {
@@ -64,7 +183,8 @@ public sealed class TaskbarAutomationWatcherTests
         Assert.Equal(
             new(
                 TaskbarAutomationEventKind.BoundingRectangleChanged,
-                TaskbarAutomationEventSourceClass.Owned),
+                TaskbarAutomationEventSourceClass.Owned,
+                RequiresHideFirst: true),
             ownedBounds);
 
         signal.Signal(new(
@@ -76,7 +196,8 @@ public sealed class TaskbarAutomationWatcherTests
         Assert.Equal(
             new(
                 TaskbarAutomationEventKind.StructureChanged,
-                TaskbarAutomationEventSourceClass.Unknown),
+                TaskbarAutomationEventSourceClass.Unknown,
+                RequiresHideFirst: true),
             unknownStructure);
         Assert.False(signal.TryConsume(ref observed));
     }
@@ -124,7 +245,8 @@ public sealed class TaskbarAutomationWatcherTests
         Assert.Equal(
             new(
                 TaskbarAutomationEventKind.IsOffscreenChanged,
-                TaskbarAutomationEventSourceClass.Unknown),
+                TaskbarAutomationEventSourceClass.Unknown,
+                RequiresHideFirst: true),
             accepted);
         Assert.Equal(2, observed);
     }
@@ -188,10 +310,12 @@ public sealed class TaskbarAutomationWatcherTests
         [
             new(
                 TaskbarAutomationEventKind.BoundingRectangleChanged,
-                TaskbarAutomationEventSourceClass.Owned),
+                TaskbarAutomationEventSourceClass.Owned,
+                RequiresHideFirst: true),
             new(
                 TaskbarAutomationEventKind.IsOffscreenChanged,
-                TaskbarAutomationEventSourceClass.External),
+                TaskbarAutomationEventSourceClass.External,
+                RequiresHideFirst: true),
         ];
         Assert.Contains(accepted, validClassifications);
     }

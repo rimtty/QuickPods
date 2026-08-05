@@ -6,7 +6,7 @@
 |---|---|
 | Status | **Pending** |
 | 対象 | GitHub Issue #6 |
-| 対象ブランチ | `codex/phase-0d-floating-fallback-spike`（`codex/phase-0c-taskbar-host-spike`からstack） |
+| 対象ブランチ | `codex/phase-0e-native-continuity-spike`（Phase 0Dからstack） |
 | 判断 | 未判定 |
 | 判断日 | 未定 |
 | 判断者 | 未記入 |
@@ -33,28 +33,28 @@
 
 | 検証項目 | 結果 |
 |---|---|
-| 自動試験／品質Gate | **Pass（Phase 0D）** — TaskbarHost 301件＋Smoke 1件、計302件、Release build 0 warning／0 error、format／diff check合格。Phase 0Cの216件＋1件は履歴値 |
+| 自動試験／品質Gate | **Pass（Phase 0E）** — TaskbarHost 364件＋Smoke 1件、計365件、Release build 0 warning／0 error、format／diff check合格。Phase 0Dの301件＋1件とPhase 0Cの216件＋1件は履歴値 |
 | 純粋な区間・DPI計算 | **Pass** — 境界、負座標、4 DPI、fail-closed、交差0pxを自動試験 |
 | 読み取り専用UIA探索 | **Pass（現在環境）** — 一意なStart、構成どおりのWidgets検出／欠落、fault 0 |
 | 擬似親HWND | **Pass（自動試験）** — attach、親／DPI検証、親消失、通知race、破棄 |
-| UIA watcher／復旧 | **Partial Pass（自動合格／手動待ち）** — 不完全・競合・unsafe時はnativeを先にhideする安全性を維持。Start／検索の`PrimaryTaskbarMissing`では、直前の完全検証済みprimary work-area／DPIが有効ならunowned・non-topmost floatingへ退避し、プロセスを終了しない。Phase 0Cの「10秒超でSpike終了」はhistorical behavior |
+| UIA watcher／復旧 | **Pass（Phase 0E対象経路）** — 不完全・競合・unsafe時のhide-firstを維持。既存可視hostだけは、完全観測由来anchorとfresh native証明が同一で、`DirectExpected`かつUIA faultが単独`StartButtonMissing`の場合に限り、最後の完全Startとfresh／previous障害物のunionで同じ矩形を継続する。他のfault・identity／parent／bounds／DPI／DWM変化は従来どおりfallback |
 | floating退避／native再昇格 | **Partial Pass（自動合格／手動待ち）** — Settings／Display／DPI時だけ保持geometryを破棄し、1秒cooldown＋500ms以上離れた同一candidate 2回＋watcher fence後にhidden-prepared nativeへ復帰。native作成失敗3回でsession latch。native／floating同時表示は禁止 |
 | Phase 0D実機自動試験 | **Pass（DPI 168 / 175%）** — 45秒EXEでStart 12秒／Search 12秒入力、exit 0、残留0。少なくとも1回`External / StructureChanged`から`NativeVisible → FloatingFallback → NativePromoted`を確認。ただしログではStart／Searchのどちらかは特定不能 |
-| 実タスクバーへの`WS_POPUP`表示 | **Partial Pass（100／125%合格）** — 125%の17秒10ms samplingと150回rapid click、100%の17秒固定HWND監視でhidden 0。100%のclick／drag／wheelと表示もユーザー確認で良好。Issue #12はClose済みで、最終方式は未選定 |
-| 実タスクバーへの`WS_CHILD`表示 | **Partial Pass（安定layout合格／Issue #13）** — 125%と100%検索非表示／アイコンのみ／ボックスの監視・手動確認に合格。Task View／Widgets ON検索ボックスも1088 samplesでhidden 0。アイコン＋ラベルの一時UI復帰と最終方式は未完了 |
-| DPI 150% | **Pass（現在のChild構成）** — PMv2／DPI 144を維持し、Childの描画・ドラッグ・ホイール成功。両styleのattachと終了後残留0を確認し、採用方式は別途未選定 |
+| 実タスクバーへの`WS_POPUP`表示 | **Pass／採用方式（100／125%およびStart／Search）** — `SetParent`後も`WS_POPUP`を維持。100%の120秒Phase 0E runはFloating遷移0、`DirectExpected`継続成功、wheel 80件、drag完了3件、正常破棄1件。ユーザーはStart／Search双方の表示中もタスクバー内保持とwheel入力成功を確認 |
+| 実タスクバーへの`WS_CHILD`表示 | **比較完了／不採用** — 安定layoutでは表示・入力に合格したが、100%のStart／Search表示中はWindows側の一時状態とQuickPodsの安全判定により3～10秒程度でFloatingへ退避した。`WS_POPUP`だけが要求されたnative continuityを満たしたため最終方式には採用しない |
+| DPI 150% | **Pass（基礎attach／Child入力）** — PMv2／DPI 144を維持し、Childの描画・ドラッグ・ホイール成功。両styleのattachと終了後残留0を確認。採用PopupのStart／Search continuityは残るDPI matrix項目 |
 | DPI 200% | **Partial Pass** — Widgets ONと検索／タスクビュー／Widgets OFFの最小構成がともに`VerifiedNoFit`。最小構成も最大gap 324px < Compact最小380px。フォールバック判断はIssue #11、目視・入力は未確認 |
-| DPI 100／125% | **Partial Pass（安定layout合格／Issue #13）** — 125%両styleと100%検索非表示両style、アイコンのみ／ボックスChildの監視・入力に合格。100%左揃えはNoFitでFail Closed。アイコン＋ラベルの一時UI復帰と200%フォールバックは未完了 |
+| DPI 100／125% | **Pass（試験済みPlace構成）** — 125%両styleと100%検索非表示両style、アイコンのみ／ボックスChildの監視・入力に合格。100% PopupはStart／Search表示中のnative continuityとwheel入力にも合格。100%左揃えはNoFitでFail Closed |
 | Start左揃え | **Partial Pass（100% Fail Closed）** — 検索非表示／Task View OFF／Widgets OFFで探索complete、fault 0、boundsなしの`VerifiedNoFit`。Child／Popupともexit 3、View／Control／プロセス残留0。ネイティブ表示成功ではなくフォールバックが必要な証跡 |
 | 検索：非表示／アイコンのみ／ボックス | **Pass（100%中央揃え）** — 3形式の安定layoutは`Place / Standard`。Task View／Widgets ON検索ボックスも1088 samplesでhidden／destroyed／rect drift 0、手動確認・残留0に合格 |
-| 検索：アイコン＋ラベル | **Partial Pass（Issue #13）** — Phase 0CではStart／検索一時UIで安全にhideし、最長7.796秒のnative復帰または10秒超で終了した。Phase 0Dの自動試験ではfloating退避・native再昇格・exit 0を確認。100%での個別15秒目視試験は未完了 |
+| 検索：アイコン＋ラベル | **Pass（Phase 0E／100% Popup）** — Start／検索の双方を開いたままタスクバー内の同じ位置を維持し、表示中のwheel入力も成功。120秒runでFloating遷移0、正常終了後残留0 |
 | 透過・hit testing | **Partial Pass** — 4 DPIの共通座標に加え、両style各1000 frameのhandle安定性、各200回click jump、透明corner pixel、double-buffer転送を自動試験。残る実画面構成は未確認 |
 | Explorer復旧policy | **Pass（自動試験）** — 250ms再試行、10秒fail-closed、identity／DPI／bounds世代比較、5秒Watchdog |
 | UIA churn guard | **Pass（自動試験）** — 連続10秒または30秒内6回でfail closed。厳密な外部bounds／同一identity／既存矩形safe／`ShowVerifiedExisting`時だけsparse履歴をacknowledge |
 | Explorer再起動10回 | **Pass（現在環境）** — 200% NoFitと150%可視Childで各10/10回。可視Childは最大4.064秒で再生成、重複0、自然終了後残存0 |
-| Child／Popup最終方式 | Pending |
+| Child／Popup最終方式 | **PopupPreservedを選定** — Start／Search中のnative continuityを満たした唯一の方式。`WS_CHILD`は明示比較／rollback用に残す |
 | Gate B判断 | Pending |
 
-Issue #12はClose済みで、100%の検索非表示／アイコンのみ／ボックス、およびTask View／Widgets ON検索ボックスは合格した。Issue #11／#13へのPhase 0D対策は実装・自動検証済みだが、floatingが目視上連続して操作できること、100% icon＋labelでStart／Searchを個別に15秒開く試験、ピン留めアプリ多数のstress、およびChild／Popup方式選定が未完了である。Gate BはPendingのままとする。
+Issue #12のちらつきとIssue #13のStart／Search native continuityは、100% PopupPreservedの実機確認まで合格し、採用styleをPopupに一意化した。非ブロッキングのprovenance／race hardeningはIssue #15で追跡する。Gate Bは、採用PopupでのExplorer再起動10回、ピン留めアプリ多数のstress、tray churn中のStart保持、および残るDPI／fallback目視項目が未完了のためPendingのままとする。
 
 実機host試験はapplication manifestが適用されるEXEまたは`dotnet run`で実施する。DLL直接起動はmanifest非適用のため、DPI／hostの証跡に使用しない。`--duration`はnative／floating／hiddenの遷移でresetせず、セッション開始から単調に測る。

@@ -250,6 +250,7 @@ Windowsの公式Taskbar Extensions資料にはJump List、サムネイルツー�
 | ADR-008 | 接続後の既定デバイス強制変更を初期版へ入れない | 一般に使われる手段が非公開API依存になるため |
 | ADR-009 | 製品版を.NET 10、初期配布をx64とする | 今後の保守期間と対象PC構成を優先するため |
 | ADR-010 | Ceilingのアイデアを参考にし、直接移植する箇所にはMIT表記を同梱する | ライセンス遵守と由来明確化のため |
+| ADR-011 | ネイティブタスクバーホストは`SetParent`後も`WS_POPUP`を維持する | 対象Windows 11 buildの実機比較で、PopupだけがStart／Search表示中も同じタスクバー位置とwheel入力を維持したため。`WS_CHILD`は比較／rollback用に限定する |
 
 ## 7. UX・画面仕様
 
@@ -713,7 +714,7 @@ Widgetsが無効な場合はタスクバー左端＋余白を開始位置とす�
 | `VerifiedNoFit` | レイアウト取得済みだが幅不足 | 即座に隠してフォールバック |
 | `TransientUnknown` | UIA一時失敗などで安全性不明 | 原則一時非表示、条件付きで短い再試行 |
 
-Ceilingは一時的なランドマーク欠落で既存表示を保持する工夫を持つ。本アプリでは重なり防止を優先し、画面構成変更直後の`TransientUnknown`では隠す。構成が不変で直前の安全領域が有効な場合だけ、最大3回または15秒の猶予を許す。
+Ceilingは一時的なランドマーク欠落で既存表示を保持する工夫を持つ。本アプリでは、初回探索、別taskbar、構成変更、identity／geometry不一致、一般的な`TransientUnknown`では即座に隠してフォールバックする。既に可視のhostだけは、完全観測由来anchorと同じtaskbar／hostをWin32で直接再証明できる`DirectExpected`で、UIA faultが単独`StartButtonMissing`の場合に限り、最後の完全Startとfresh／previous障害物のunionで既存矩形を再検証して表示を継続する。各scanは固定500ms以内、Direct中は500ms間隔、surface healthは100ms間隔で監視し、いずれかの証明が失われれば即fallbackする。保持結果を新しいbaselineにはしない。
 
 フローティングからネイティブへ戻すときは、500ms以上離した2回の連続成功を要求する。モード切り替え後は短いクールダウンを設け、点滅を防ぐ。
 
@@ -741,6 +742,8 @@ Microsoftの一般的な説明では親子付け時に`WS_CHILD`と`WS_POPUP`を
 
 - 方式A：Ceiling互換の`WS_POPUP`維持
 - 方式B：Microsoftの通常形に近い`WS_CHILD`
+
+Phase 0Eの対象build実機比較では方式AだけがStart／Search表示中のnative continuityを満たしたため、製品実装候補は`WS_POPUP`維持に確定した。方式Bは診断用の明示指定として残す。全体のGate BはPopupでのExplorer再起動、ピン留め多数、tray churn等の残件が完了するまでPendingとする。
 
 ### 11.8 描画と入力
 
@@ -1237,12 +1240,12 @@ Explorerの代わりとなるテスト用トップレベルウィンドウへホ
 - ネットワーク通信を行わず、管理者権限を要求しない。
 - Ceiling由来コードを含む場合、MITライセンスと著作権表示を同梱する。
 
-## 19. 未決事項
+## 19. 未決事項とSpike確定事項
 
 技術スパイクまたはUI試作で次を確定する。
 
 1. AirPods Pro＋MediaTek Bluetooth Audio DeviceでKS接続・切断が安定するか。
-2. `WS_POPUP`維持と`WS_CHILD`のどちらが対象Windowsビルドで安定するか。
+2. **確定：** 対象Windowsビルドでは`WS_POPUP`維持を採用する。`WS_CHILD`は安定layoutでは動作したが、Start／Search表示中のnative continuityを満たさなかった。
 3. GDI、32bit DIB＋`UpdateLayeredWindow`、Direct2Dの最終選択。
 4. 標準幅、コンパクト幅、各ヒット領域の最終値。
 5. 自動非表示中にネイティブ表示を許可するか、Trayへ固定するか。

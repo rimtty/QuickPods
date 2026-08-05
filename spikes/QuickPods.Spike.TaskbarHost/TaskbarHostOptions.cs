@@ -72,7 +72,7 @@ internal sealed record TaskbarHostOptions(
 
     private static OptionsParseResult ParseHost(IReadOnlyList<string> args)
     {
-        RequestedHostStyle style = RequestedHostStyle.Child;
+        RequestedHostStyle style = RequestedHostStyle.Popup;
         RequestedFallbackMode fallback = RequestedFallbackMode.Floating;
         int durationSeconds = 15;
         bool confirmed = false;

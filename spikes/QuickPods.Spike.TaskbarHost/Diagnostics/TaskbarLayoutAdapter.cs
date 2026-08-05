@@ -46,6 +46,58 @@ internal static class TaskbarLayoutAdapter
             discovery.IsComplete && start is not null);
     }
 
+    /// <summary>
+    /// Conservatively adds a fresh native-child snapshot to the last complete
+    /// UIA observation for bounded visible-continuity admission. Stale native
+    /// obstacles are intentionally retained; the subsequent full scan replaces
+    /// the entire observation before the surface may remain visible.
+    /// </summary>
+    internal static TaskbarLayoutObservation? CreateNativePreflightObservation(
+        TaskbarLayoutObservation? previous,
+        IReadOnlyList<CriticalTaskbarChildSnapshot>? freshCriticalChildren)
+    {
+        if (previous?.Obstacles is null || freshCriticalChildren is null)
+        {
+            return null;
+        }
+
+        IReadOnlyList<PixelRect> freshObstacles =
+        [
+            .. freshCriticalChildren
+                .Where(static child => IsConcreteCriticalObstacle(child.Kind))
+                .Select(static child => child.Bounds),
+        ];
+        PixelRect[] mergedObstacles =
+        [
+            .. previous.Obstacles
+                .Concat(freshObstacles)
+                .Distinct(),
+        ];
+        return previous with { Obstacles = mergedObstacles };
+    }
+
+    internal static TaskbarLayoutObservation? CreateConservativeContinuityObservation(
+        TaskbarLayoutObservation? fresh,
+        TaskbarLayoutObservation? previous)
+    {
+        if (fresh?.Obstacles is null || previous?.Obstacles is null)
+        {
+            return null;
+        }
+
+        PixelRect[] mergedObstacles =
+        [
+            .. fresh.Obstacles
+                .Concat(previous.Obstacles)
+                .Distinct(),
+        ];
+        return fresh with
+        {
+            Obstacles = mergedObstacles,
+            IsComplete = fresh.IsComplete && previous.IsComplete,
+        };
+    }
+
     private static PixelRect? FindUniqueButton(
         IReadOnlyList<AutomationButtonSnapshot> buttons,
         string automationId)
@@ -68,4 +120,10 @@ internal static class TaskbarLayoutAdapter
 
         return match;
     }
+
+    private static bool IsConcreteCriticalObstacle(CriticalTaskbarChildKind kind) =>
+        kind is
+            CriticalTaskbarChildKind.NotificationArea or
+            CriticalTaskbarChildKind.Clock or
+            CriticalTaskbarChildKind.UnknownObstacle;
 }

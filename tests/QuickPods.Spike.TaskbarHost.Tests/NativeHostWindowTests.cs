@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using QuickPods.Spike.TaskbarHost.Discovery;
 using QuickPods.Spike.TaskbarHost.Geometry;
 using QuickPods.Spike.TaskbarHost.Hosting;
 using QuickPods.Spike.TaskbarHost.Interop;
@@ -53,6 +54,19 @@ public sealed class NativeHostWindowTests
         Assert.False(NativeMethods.IsWindowVisible(control));
         Assert.Equal(requested, snapshot.ActualScreenBounds);
         Assert.True(NativeWindowStyles.MatchesParentStyleMode(snapshot.Style, mode));
+        if (mode == NativeParentStyleMode.PopupPreserved)
+        {
+            Assert.NotEqual(0, snapshot.Style & NativeConstants.WindowStylePopup);
+            Assert.Equal(0, snapshot.Style & NativeConstants.WindowStyleChild);
+            Assert.NotEqual(0, snapshot.Style & NativeConstants.WindowStyleClipSiblings);
+        }
+        else
+        {
+            Assert.Equal(0, snapshot.Style & NativeConstants.WindowStylePopup);
+            Assert.NotEqual(0, snapshot.Style & NativeConstants.WindowStyleChild);
+            Assert.NotEqual(0, snapshot.Style & NativeConstants.WindowStyleClipSiblings);
+        }
+
         Assert.True(NativeWindowStyles.HasRequiredExtendedStyles(snapshot.ExtendedStyle));
         Assert.True(NativeMethods.GetLayeredWindowAttributes(
             view,
@@ -66,11 +80,40 @@ public sealed class NativeHostWindowTests
         Assert.Equal(
             NativeConstants.MouseActivateNoActivate,
             NativeMethods.SendMessage(view, NativeConstants.WmMouseActivate, 0, nint.Zero));
+        Assert.True(host.IsCurrentContinuityStable());
+        Assert.True(
+            Win32TaskbarDiscovery.TryVerifyDirectHostAttachment(
+                parent.Handle,
+                new PixelRect(
+                    NativeTestParentWindow.ScreenLeft,
+                    NativeTestParentWindow.ScreenTop,
+                    NativeTestParentWindow.ScreenLeft + 640,
+                    NativeTestParentWindow.ScreenTop + 80),
+                snapshot.AfterParentingDpi.WindowDpi,
+                view));
 
         host.Hide();
         Assert.False(NativeMethods.IsWindowVisible(view));
+        Assert.False(host.IsCurrentContinuityStable());
+        Assert.False(
+            Win32TaskbarDiscovery.TryVerifyDirectHostAttachment(
+                parent.Handle,
+                new PixelRect(
+                    NativeTestParentWindow.ScreenLeft,
+                    NativeTestParentWindow.ScreenTop,
+                    NativeTestParentWindow.ScreenLeft + 640,
+                    NativeTestParentWindow.ScreenTop + 80),
+                snapshot.AfterParentingDpi.WindowDpi,
+                view));
         host.Show();
         Assert.True(NativeMethods.IsWindowVisible(view));
+        Assert.True(host.IsCurrentContinuityStable());
+        Assert.True(
+            NativeWindowStyles.MatchesParentStyleMode(
+                NativeMethods.GetWindowLongPointer(
+                    view,
+                    NativeConstants.GwlStyle).ToInt64(),
+                mode));
         Assert.True(NativeMethods.UpdateWindow(view));
         nint deviceContext = NativeMethods.GetDeviceContext(view);
         Assert.NotEqual(nint.Zero, deviceContext);
@@ -129,12 +172,14 @@ public sealed class NativeHostWindowTests
         Assert.True(snapshot.AfterParentingDpi.WindowDpi > 0);
         Assert.True(host.IsCurrentAttachmentValidWhileHidden());
         Assert.False(host.IsCurrentAttachmentValid());
+        Assert.False(host.IsCurrentContinuityStable());
 
         host.Show();
 
         Assert.True(NativeMethods.IsWindowVisible(snapshot.WindowHandle));
         Assert.True(host.IsCurrentAttachmentValid());
         Assert.False(host.IsCurrentAttachmentValidWhileHidden());
+        Assert.True(host.IsCurrentContinuityStable());
 
         host.Destroy();
 
@@ -517,6 +562,36 @@ public sealed class NativeHostWindowTests
         Assert.True(NativeMethods.IsWindow(snapshot.WindowHandle));
     }
 
+    [Fact]
+    public void Popup_continuity_validation_rejects_external_child_style_conversion()
+    {
+        RequireWindowTest();
+
+        using var parent = NativeTestParentWindow.CreateOffscreen();
+        var requested = new PixelRect(
+            NativeTestParentWindow.ScreenLeft + 20,
+            NativeTestParentWindow.ScreenTop + 14,
+            NativeTestParentWindow.ScreenLeft + 300,
+            NativeTestParentWindow.ScreenTop + 62);
+        using var host = new NativeTaskbarHost();
+        NativeHostCreationSnapshot snapshot = host.CreateForStableDpiTestParent(
+            parent.Handle,
+            requested,
+            NativeParentStyleMode.PopupPreserved);
+        long changedStyle =
+            (snapshot.Style & ~NativeConstants.WindowStylePopup) |
+            NativeConstants.WindowStyleChild |
+            NativeConstants.WindowStyleVisible;
+
+        _ = NativeMethods.SetWindowLongPointer(
+            snapshot.WindowHandle,
+            NativeConstants.GwlStyle,
+            new nint(changedStyle));
+
+        Assert.False(host.IsCurrentAttachmentValid());
+        Assert.False(host.IsCurrentContinuityStable());
+    }
+
     [Theory]
     [InlineData((int)NativeParentStyleMode.PopupPreserved)]
     [InlineData((int)NativeParentStyleMode.Child)]
@@ -536,10 +611,94 @@ public sealed class NativeHostWindowTests
             requested,
             (NativeParentStyleMode)modeValue);
         Assert.True(host.IsCurrentAttachmentValid());
+        Assert.True(host.IsCurrentContinuityStable());
 
         _ = NativeMethods.ShowWindow(snapshot.WindowHandle, NativeConstants.ShowWindowHide);
 
         Assert.False(host.IsCurrentAttachmentValid());
+        Assert.False(host.IsCurrentContinuityStable());
+    }
+
+    [Theory]
+    [InlineData((int)NativeParentStyleMode.PopupPreserved)]
+    [InlineData((int)NativeParentStyleMode.Child)]
+    public void Continuity_validation_requires_the_verified_parent_to_remain_visible(int modeValue)
+    {
+        RequireWindowTest();
+
+        using var parent = NativeTestParentWindow.CreateOffscreen();
+        var requested = new PixelRect(
+            NativeTestParentWindow.ScreenLeft + 20,
+            NativeTestParentWindow.ScreenTop + 14,
+            NativeTestParentWindow.ScreenLeft + 300,
+            NativeTestParentWindow.ScreenTop + 62);
+        using var host = new NativeTaskbarHost();
+        _ = host.CreateForStableDpiTestParent(
+            parent.Handle,
+            requested,
+            (NativeParentStyleMode)modeValue);
+        Assert.True(host.IsCurrentContinuityStable());
+
+        _ = NativeMethods.ShowWindow(parent.Handle, NativeConstants.ShowWindowHide);
+
+        Assert.False(host.IsCurrentContinuityStable());
+    }
+
+    [Fact]
+    public void Dwm_continuity_surface_validation_fails_closed_when_attributes_cannot_be_read()
+    {
+        RequireWindowTest();
+
+        using var parent = NativeTestParentWindow.CreateOffscreen();
+
+        Assert.True(NativeTaskbarHost.AreDwmContinuitySurfacesVisible(
+            parent.Handle,
+            parent.Handle));
+        Assert.False(NativeTaskbarHost.AreDwmContinuitySurfacesVisible(
+            parent.Handle,
+            new nint(-1)));
+        Assert.False(NativeTaskbarHost.AreDwmContinuitySurfacesVisible(
+            new nint(-1),
+            parent.Handle));
+        Assert.False(NativeTaskbarHost.AreDwmContinuitySurfacesVisible(
+            nint.Zero,
+            parent.Handle));
+    }
+
+    [Theory]
+    [InlineData((int)NativeParentStyleMode.PopupPreserved)]
+    [InlineData((int)NativeParentStyleMode.Child)]
+    public void Continuity_validation_rejects_pending_hard_invalidation_even_if_view_is_reshown(
+        int modeValue)
+    {
+        RequireWindowTest();
+
+        using var parent = NativeTestParentWindow.CreateOffscreen();
+        var requested = new PixelRect(
+            NativeTestParentWindow.ScreenLeft + 20,
+            NativeTestParentWindow.ScreenTop + 14,
+            NativeTestParentWindow.ScreenLeft + 300,
+            NativeTestParentWindow.ScreenTop + 62);
+        using var host = new NativeTaskbarHost();
+        NativeHostCreationSnapshot snapshot = host.CreateForStableDpiTestParent(
+            parent.Handle,
+            requested,
+            (NativeParentStyleMode)modeValue);
+
+        _ = NativeMethods.SendMessage(
+            snapshot.ControlWindowHandle,
+            NativeConstants.WmDisplayChange,
+            0,
+            nint.Zero);
+        Assert.False(NativeMethods.IsWindowVisible(snapshot.WindowHandle));
+
+        _ = NativeMethods.ShowWindow(
+            snapshot.WindowHandle,
+            NativeConstants.ShowWindowNoActivate);
+
+        Assert.True(NativeMethods.IsWindowVisible(snapshot.WindowHandle));
+        Assert.True(host.IsCurrentAttachmentValid());
+        Assert.False(host.IsCurrentContinuityStable());
     }
 
     [Theory]

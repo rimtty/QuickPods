@@ -108,6 +108,73 @@ public sealed class TaskbarLayoutAdapterTests
         Assert.Null(TaskbarLayoutAdapter.CreateObservation(discovery));
     }
 
+    [Fact]
+    public void NativePreflightObservation_AddsFreshConcreteObstaclesConservatively()
+    {
+        PixelRect priorObstacle = new(300, 1000, 400, 1080);
+        PixelRect freshObstacle = new(500, 1000, 600, 1080);
+        PixelRect structuralContainer = new(0, 1000, 1920, 1080);
+        var previous = new TaskbarLayoutObservation(
+            TaskbarBounds,
+            96,
+            TaskbarOrientation.Horizontal,
+            new PixelRect(900, 1000, 960, 1080),
+            new PixelRect(0, 1000, 140, 1080),
+            [priorObstacle],
+            IsComplete: true);
+
+        TaskbarLayoutObservation? preflight =
+            TaskbarLayoutAdapter.CreateNativePreflightObservation(
+                previous,
+                [
+                    new CriticalTaskbarChildSnapshot(
+                        CriticalTaskbarChildKind.UnknownObstacle,
+                        freshObstacle),
+                    new CriticalTaskbarChildSnapshot(
+                        CriticalTaskbarChildKind.TaskbarBand,
+                        structuralContainer),
+                ]);
+
+        Assert.NotNull(preflight);
+        Assert.Contains(priorObstacle, preflight.Obstacles);
+        Assert.Contains(freshObstacle, preflight.Obstacles);
+        Assert.DoesNotContain(structuralContainer, preflight.Obstacles);
+        Assert.True(preflight.IsComplete);
+    }
+
+    [Fact]
+    public void NativePreflightObservation_RejectsMissingEvidence()
+    {
+        Assert.Null(TaskbarLayoutAdapter.CreateNativePreflightObservation(null, []));
+    }
+
+    [Fact]
+    public void ConservativeContinuityObservation_RetainsPriorObstacles()
+    {
+        PixelRect freshObstacle = new(500, 1000, 600, 1080);
+        PixelRect retainedObstacle = new(1600, 1000, 1800, 1080);
+        var fresh = new TaskbarLayoutObservation(
+            TaskbarBounds,
+            96,
+            TaskbarOrientation.Horizontal,
+            new PixelRect(900, 1000, 960, 1080),
+            new PixelRect(0, 1000, 140, 1080),
+            [freshObstacle],
+            IsComplete: true);
+        TaskbarLayoutObservation previous = fresh with
+        {
+            Obstacles = [retainedObstacle],
+        };
+
+        TaskbarLayoutObservation? continuity =
+            TaskbarLayoutAdapter.CreateConservativeContinuityObservation(fresh, previous);
+
+        Assert.NotNull(continuity);
+        Assert.Contains(freshObstacle, continuity.Obstacles);
+        Assert.Contains(retainedObstacle, continuity.Obstacles);
+        Assert.True(continuity.IsComplete);
+    }
+
     private static TaskbarDiscoveryResult CreateDiscovery(
         IReadOnlyList<AutomationButtonSnapshot> automationButtons,
         IReadOnlyList<CriticalTaskbarChildSnapshot>? criticalChildren = null,

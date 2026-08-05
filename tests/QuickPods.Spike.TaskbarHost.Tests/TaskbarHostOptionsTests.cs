@@ -41,6 +41,16 @@ public sealed class TaskbarHostOptionsTests
         Assert.True(result.Options.LiveHostConfirmed);
     }
 
+    [Fact]
+    public void Parse_ConfirmedHostWithoutStyle_DefaultsToPopup()
+    {
+        OptionsParseResult result = TaskbarHostOptions.Parse(
+            ["host", "--confirm-live-host"]);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(RequestedHostStyle.Popup, result.Options!.Style);
+    }
+
     [Theory]
     [InlineData("floating", (int)RequestedFallbackMode.Floating)]
     [InlineData("hidden", (int)RequestedFallbackMode.Hidden)]

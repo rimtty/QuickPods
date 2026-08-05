@@ -12,6 +12,7 @@ internal static class NativeConstants
     internal const uint GetWindowOwner = 4;
     internal const uint MonitorDefaultToNearest = 2;
     internal const int MonitorDpiTypeEffective = 0;
+    internal const uint DwmWindowAttributeCloaked = 14;
 
     internal const long WindowStyleChild = 0x40000000L;
     internal const long WindowStyleClipSiblings = 0x04000000L;
