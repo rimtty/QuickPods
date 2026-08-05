@@ -10,6 +10,13 @@ namespace QuickPods.Spike.TaskbarHost.Discovery;
 /// </summary>
 internal sealed class TaskbarDiscoveryService
 {
+    private readonly nint ignoredWindowHandle;
+
+    internal TaskbarDiscoveryService(nint ignoredWindowHandle = default)
+    {
+        this.ignoredWindowHandle = ignoredWindowHandle;
+    }
+
     /// <summary>
     /// Enumerates the primary taskbar, its critical Win32 children and visible
     /// UIA buttons. UI Automation is bounded to five seconds on a background MTA.
@@ -34,7 +41,9 @@ internal sealed class TaskbarDiscoveryService
 
         try
         {
-            return await DiscoverOnWindowsAsync(cancellationToken).ConfigureAwait(false);
+            return await DiscoverOnWindowsAsync(
+                ignoredWindowHandle,
+                cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -50,9 +59,10 @@ internal sealed class TaskbarDiscoveryService
 
     [SupportedOSPlatform("windows")]
     private static async Task<TaskbarDiscoveryResult> DiscoverOnWindowsAsync(
+        nint ignoredWindowHandle,
         CancellationToken cancellationToken)
     {
-        Win32TaskbarProbe win32 = Win32TaskbarDiscovery.Discover();
+        Win32TaskbarProbe win32 = Win32TaskbarDiscovery.Discover(ignoredWindowHandle);
         if (win32.Target is null)
         {
             return new TaskbarDiscoveryResult(null, win32.Faults);

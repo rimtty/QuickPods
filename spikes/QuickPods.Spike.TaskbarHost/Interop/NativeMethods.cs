@@ -109,6 +109,13 @@ internal static class NativeMethods
 
     [DllImport("user32.dll", ExactSpelling = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetUpdateRect(
+        nint window,
+        out NativeRect rectangle,
+        [MarshalAs(UnmanagedType.Bool)] bool erase);
+
+    [DllImport("user32.dll", ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool UpdateWindow(nint window);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "SendMessageW")]
@@ -179,12 +186,35 @@ internal static class NativeMethods
     [DllImport("gdi32.dll", ExactSpelling = true, SetLastError = true)]
     internal static extern nint CreatePen(int style, int width, uint color);
 
+    [DllImport("gdi32.dll", EntryPoint = "CreateCompatibleDC", ExactSpelling = true, SetLastError = true)]
+    internal static extern nint CreateCompatibleDeviceContext(nint deviceContext);
+
+    [DllImport("gdi32.dll", ExactSpelling = true, SetLastError = true)]
+    internal static extern nint CreateCompatibleBitmap(nint deviceContext, int width, int height);
+
+    [DllImport("gdi32.dll", EntryPoint = "DeleteDC", ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool DeleteDeviceContext(nint deviceContext);
+
     [DllImport("gdi32.dll", ExactSpelling = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool DeleteObject(nint graphicsObject);
 
     [DllImport("gdi32.dll", ExactSpelling = true)]
     internal static extern nint SelectObject(nint deviceContext, nint graphicsObject);
+
+    [DllImport("gdi32.dll", ExactSpelling = true, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool BitBlt(
+        nint destinationDeviceContext,
+        int destinationX,
+        int destinationY,
+        int width,
+        int height,
+        nint sourceDeviceContext,
+        int sourceX,
+        int sourceY,
+        uint rasterOperation);
 
     [DllImport("gdi32.dll", ExactSpelling = true)]
     internal static extern uint GetPixel(nint deviceContext, int x, int y);

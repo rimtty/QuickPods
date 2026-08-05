@@ -271,11 +271,13 @@ internal sealed class TaskbarAutomationWatcher : IDisposable
                 callback,
                 eventArgs.Property == AutomationElement.BoundingRectangleProperty
                     ? TaskbarAutomationEventKind.BoundingRectangleChanged
-                    : TaskbarAutomationEventKind.IsOffscreenChanged);
+                    : TaskbarAutomationEventKind.IsOffscreenChanged,
+                placementButtonsOnly: true);
             layoutStructureHandler = (sender, _) => SignalCachedSender(
                 sender,
                 callback,
-                TaskbarAutomationEventKind.StructureChanged);
+                TaskbarAutomationEventKind.StructureChanged,
+                placementButtonsOnly: false);
 
             var cache = new CacheRequest
             {
@@ -287,6 +289,7 @@ internal sealed class TaskbarAutomationWatcher : IDisposable
             };
             cache.Add(AutomationElement.NativeWindowHandleProperty);
             cache.Add(AutomationElement.ProcessIdProperty);
+            cache.Add(AutomationElement.ControlTypeProperty);
             using IDisposable activation = cache.Activate();
             taskbarRoot = candidate;
             layoutRoot = candidateLayoutRoot;
@@ -349,7 +352,8 @@ internal sealed class TaskbarAutomationWatcher : IDisposable
         private static void SignalCachedSender(
             object sender,
             Action<TaskbarAutomationEventSource> callback,
-            TaskbarAutomationEventKind kind)
+            TaskbarAutomationEventKind kind,
+            bool placementButtonsOnly)
         {
             int nativeWindowHandle = 0;
             int processId = 0;
@@ -357,6 +361,23 @@ internal sealed class TaskbarAutomationWatcher : IDisposable
             {
                 if (sender is AutomationElement element)
                 {
+                    object controlTypeValue = element.GetCachedPropertyValue(
+                        AutomationElement.ControlTypeProperty,
+                        true);
+                    bool controlTypeKnown =
+                        !ReferenceEquals(controlTypeValue, AutomationElement.NotSupported) &&
+                        controlTypeValue is ControlType;
+                    bool isPlacementButton =
+                        controlTypeValue is ControlType controlType &&
+                        controlType == ControlType.Button;
+                    if (!TaskbarAutomationEventPolicy.ShouldSignal(
+                            placementButtonsOnly,
+                            controlTypeKnown,
+                            isPlacementButton))
+                    {
+                        return;
+                    }
+
                     object value = element.GetCachedPropertyValue(
                         AutomationElement.NativeWindowHandleProperty,
                         true);
@@ -433,6 +454,23 @@ internal sealed class TaskbarAutomationWatcher : IDisposable
             handler = null;
         }
     }
+}
+
+internal static class TaskbarAutomationEventPolicy
+{
+    /// <summary>
+    /// Property notifications are relevant only when they come from the Button
+    /// elements used by placement discovery. Windows 11 also raises recurring
+    /// bounds notifications for structural Pane containers while UIA is queried;
+    /// those containers are not placement obstacles. Unknown sender types still
+    /// signal so a cache/provider failure remains fail closed. Structure changes
+    /// are always signaled because they can add or remove placement buttons.
+    /// </summary>
+    internal static bool ShouldSignal(
+        bool placementButtonsOnly,
+        bool controlTypeKnown,
+        bool isPlacementButton) =>
+        !placementButtonsOnly || !controlTypeKnown || isPlacementButton;
 }
 
 internal interface ITaskbarAutomationSubscription

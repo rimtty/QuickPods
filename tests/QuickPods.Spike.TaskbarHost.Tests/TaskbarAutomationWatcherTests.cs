@@ -1,3 +1,4 @@
+using QuickPods.Spike.TaskbarHost.Discovery;
 using QuickPods.Spike.TaskbarHost.Geometry;
 using QuickPods.Spike.TaskbarHost.Runtime;
 
@@ -5,6 +6,40 @@ namespace QuickPods.Spike.TaskbarHost.Tests;
 
 public sealed class TaskbarAutomationWatcherTests
 {
+    [Theory]
+    [InlineData(0, 0, false)]
+    [InlineData(101, 0, false)]
+    [InlineData(101, 202, false)]
+    [InlineData(101, 101, true)]
+    public void NativeChildPolicy_IgnoresOnlyExactNonZeroHostedWindow(
+        long candidate,
+        long ignored,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            TaskbarNativeChildPolicy.ShouldIgnore(new nint(candidate), new nint(ignored)));
+    }
+
+    [Theory]
+    [InlineData(false, true, false, true)]
+    [InlineData(true, false, false, true)]
+    [InlineData(true, true, true, true)]
+    [InlineData(true, true, false, false)]
+    public void EventPolicy_FiltersKnownNonButtonPropertySendersOnly(
+        bool placementButtonsOnly,
+        bool controlTypeKnown,
+        bool isPlacementButton,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            TaskbarAutomationEventPolicy.ShouldSignal(
+                placementButtonsOnly,
+                controlTypeKnown,
+                isPlacementButton));
+    }
+
     [Fact]
     public void Signal_FiltersOwnedVisibilityButNotOwnedBoundsOrUnknownSender()
     {

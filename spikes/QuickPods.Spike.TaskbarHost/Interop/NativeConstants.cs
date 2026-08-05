@@ -56,5 +56,7 @@ internal static class NativeConstants
     internal const uint PeekMessageRemove = 0x0001;
 
     internal const int PenStyleSolid = 0;
+    internal const uint RasterOperationSourceCopy = 0x00CC0020;
     internal const int GuiResourceGdiObjects = 0;
+    internal const int GuiResourceUserObjects = 1;
 }

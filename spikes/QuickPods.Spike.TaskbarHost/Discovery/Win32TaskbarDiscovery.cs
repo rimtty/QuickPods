@@ -20,7 +20,7 @@ internal static class Win32TaskbarDiscovery
             ["Windows.UI.Composition.DesktopWindowContentBridge"] = CriticalTaskbarChildKind.XamlIsland,
         };
 
-    internal static Win32TaskbarProbe Discover()
+    internal static Win32TaskbarProbe Discover(nint ignoredWindowHandle = default)
     {
         List<TaskbarDiscoveryFault> faults = [];
         List<nint> primaryTaskbars = [];
@@ -135,6 +135,7 @@ internal static class Win32TaskbarDiscovery
         IReadOnlyList<CriticalTaskbarChildSnapshot> criticalChildren = DiscoverCriticalChildren(
             taskbarHandle,
             bounds,
+            ignoredWindowHandle,
             faults);
 
         Win32TaskbarTarget target = new(
@@ -150,11 +151,17 @@ internal static class Win32TaskbarDiscovery
     private static List<CriticalTaskbarChildSnapshot> DiscoverCriticalChildren(
         nint taskbarHandle,
         PixelRect taskbarBounds,
+        nint ignoredWindowHandle,
         List<TaskbarDiscoveryFault> faults)
     {
         List<CriticalTaskbarChildSnapshot> children = [];
         bool VisitChild(nint windowHandle, nint _)
         {
+            if (TaskbarNativeChildPolicy.ShouldIgnore(windowHandle, ignoredWindowHandle))
+            {
+                return true;
+            }
+
             if (!TaskbarNativeMethods.IsWindowVisible(windowHandle))
             {
                 return true;
@@ -238,6 +245,18 @@ internal static class Win32TaskbarDiscovery
         className = new string(buffer, 0, length);
         return true;
     }
+}
+
+internal static class TaskbarNativeChildPolicy
+{
+    /// <summary>
+    /// A visible watchdog scan must not turn the already verified QuickPods
+    /// HWND into an unknown obstacle against itself. Only the exact live handle
+    /// supplied by the host runner is excluded; every other native descendant
+    /// remains part of the fail-closed obstacle observation.
+    /// </summary>
+    internal static bool ShouldIgnore(nint candidate, nint ignoredWindowHandle) =>
+        ignoredWindowHandle != nint.Zero && candidate == ignoredWindowHandle;
 }
 
 internal sealed class Win32TaskbarTarget

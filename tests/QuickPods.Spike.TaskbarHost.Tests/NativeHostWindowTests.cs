@@ -203,8 +203,55 @@ public sealed class NativeHostWindowTests
         Assert.Equal(new[] { NativeLayoutInvalidationReason.TaskbarCreated }, invalidations);
     }
 
+    [Theory]
+    [InlineData((int)NativeParentStyleMode.PopupPreserved)]
+    [InlineData((int)NativeParentStyleMode.Child)]
+    public void Repeated_GDI_paints_release_every_created_handle(int modeValue)
+    {
+        RequireWindowTest();
+
+        using var parent = NativeTestParentWindow.CreateOffscreen();
+        var requested = new PixelRect(
+            NativeTestParentWindow.ScreenLeft + 20,
+            NativeTestParentWindow.ScreenTop + 14,
+            NativeTestParentWindow.ScreenLeft + 300,
+            NativeTestParentWindow.ScreenTop + 62);
+        using var host = new NativeTaskbarHost();
+        NativeHostCreationSnapshot snapshot = host.CreateForStableDpiTestParent(
+            parent.Handle,
+            requested,
+            (NativeParentStyleMode)modeValue);
+        host.VolumeFraction = 0.5;
+        Assert.True(NativeMethods.UpdateWindow(snapshot.WindowHandle));
+        uint baselineGdi = NativeMethods.GetGuiResources(
+            NativeMethods.GetCurrentProcess(),
+            NativeConstants.GuiResourceGdiObjects);
+        uint baselineUser = NativeMethods.GetGuiResources(
+            NativeMethods.GetCurrentProcess(),
+            NativeConstants.GuiResourceUserObjects);
+
+        for (int index = 0; index < 1000; index++)
+        {
+            host.VolumeFraction = index / 999d;
+            Assert.True(NativeMethods.UpdateWindow(snapshot.WindowHandle));
+        }
+
+        uint afterGdi = NativeMethods.GetGuiResources(
+            NativeMethods.GetCurrentProcess(),
+            NativeConstants.GuiResourceGdiObjects);
+        uint afterUser = NativeMethods.GetGuiResources(
+            NativeMethods.GetCurrentProcess(),
+            NativeConstants.GuiResourceUserObjects);
+        Assert.True(
+            afterGdi <= baselineGdi + 1,
+            $"GDI handles grew from {baselineGdi} to {afterGdi}.");
+        Assert.True(
+            afterUser <= baselineUser + 1,
+            $"USER handles grew from {baselineUser} to {afterUser}.");
+    }
+
     [Fact]
-    public void Repeated_GDI_paints_release_every_created_handle()
+    public void Assigning_the_same_clamped_volume_does_not_invalidate_the_host()
     {
         RequireWindowTest();
 
@@ -219,22 +266,115 @@ public sealed class NativeHostWindowTests
             parent.Handle,
             requested,
             NativeParentStyleMode.Child);
-        host.VolumeFraction = 0.5;
         Assert.True(NativeMethods.UpdateWindow(snapshot.WindowHandle));
-        uint baseline = NativeMethods.GetGuiResources(
+        Assert.False(NativeMethods.GetUpdateRect(snapshot.WindowHandle, out _, false));
+
+        host.VolumeFraction = host.VolumeFraction;
+
+        Assert.False(NativeMethods.GetUpdateRect(snapshot.WindowHandle, out _, false));
+
+        host.VolumeFraction = 1;
+        Assert.True(NativeMethods.GetUpdateRect(snapshot.WindowHandle, out _, false));
+        Assert.True(NativeMethods.UpdateWindow(snapshot.WindowHandle));
+
+        host.VolumeFraction = double.MaxValue;
+
+        Assert.Equal(1, host.VolumeFraction);
+        Assert.False(NativeMethods.GetUpdateRect(snapshot.WindowHandle, out _, false));
+    }
+
+    [Theory]
+    [InlineData((int)NativeParentStyleMode.PopupPreserved)]
+    [InlineData((int)NativeParentStyleMode.Child)]
+    public void Rapid_click_to_jump_updates_present_expected_frames_without_GDI_growth(int modeValue)
+    {
+        RequireWindowTest();
+
+        using var parent = NativeTestParentWindow.CreateOffscreen();
+        var requested = new PixelRect(
+            NativeTestParentWindow.ScreenLeft + 20,
+            NativeTestParentWindow.ScreenTop + 14,
+            NativeTestParentWindow.ScreenLeft + 300,
+            NativeTestParentWindow.ScreenTop + 62);
+        using var host = new NativeTaskbarHost();
+        NativeHostCreationSnapshot snapshot = host.CreateForStableDpiTestParent(
+            parent.Handle,
+            requested,
+            (NativeParentStyleMode)modeValue);
+        Assert.True(SliderGeometry.TryCreate(requested.Width, requested.Height, out SliderLayout layout));
+        host.Interaction += interaction =>
+        {
+            if (interaction.Kind is NativeInteractionKind.DragStarted or NativeInteractionKind.DragCompleted)
+            {
+                host.VolumeFraction = SliderGeometry.FractionFromPointerX(layout, interaction.X);
+            }
+        };
+
+        int probeX = layout.TrackLeft + (((layout.TrackRight - layout.TrackLeft) * 3) / 4);
+        host.VolumeFraction = 0;
+        Assert.True(NativeMethods.UpdateWindow(snapshot.WindowHandle));
+        uint emptyTrackPixel = ReadWindowPixel(snapshot.WindowHandle, probeX, layout.CenterY);
+        host.VolumeFraction = 1;
+        Assert.True(NativeMethods.UpdateWindow(snapshot.WindowHandle));
+        uint filledTrackPixel = ReadWindowPixel(snapshot.WindowHandle, probeX, layout.CenterY);
+        Assert.NotEqual(emptyTrackPixel, filledTrackPixel);
+
+        uint baselineGdi = NativeMethods.GetGuiResources(
             NativeMethods.GetCurrentProcess(),
             NativeConstants.GuiResourceGdiObjects);
+        uint baselineUser = NativeMethods.GetGuiResources(
+            NativeMethods.GetCurrentProcess(),
+            NativeConstants.GuiResourceUserObjects);
 
-        for (int index = 0; index < 100; index++)
+        for (int index = 0; index < 200; index++)
         {
-            host.VolumeFraction = index / 99d;
+            bool fillTrack = (index & 1) == 0;
+            int pointerX = fillTrack ? layout.TrackRight : layout.TrackLeft;
+            nint pointer = MakePointParameter(pointerX, layout.CenterY);
+            _ = NativeMethods.SendMessage(
+                snapshot.WindowHandle,
+                NativeConstants.WmLeftButtonDown,
+                0,
+                pointer);
+            _ = NativeMethods.SendMessage(
+                snapshot.WindowHandle,
+                NativeConstants.WmLeftButtonUp,
+                0,
+                pointer);
+            _ = host.PumpMessages();
             Assert.True(NativeMethods.UpdateWindow(snapshot.WindowHandle));
+
+            Assert.Equal(
+                fillTrack ? filledTrackPixel : emptyTrackPixel,
+                ReadWindowPixel(snapshot.WindowHandle, probeX, layout.CenterY));
         }
 
-        uint after = NativeMethods.GetGuiResources(
+        host.VolumeFraction = 1;
+        Assert.True(NativeMethods.UpdateWindow(snapshot.WindowHandle));
+        Assert.Equal(
+            filledTrackPixel,
+            ReadWindowPixel(snapshot.WindowHandle, probeX, layout.CenterY));
+        host.VolumeFraction = 0;
+        Assert.True(NativeMethods.UpdateWindow(snapshot.WindowHandle));
+        Assert.Equal(
+            emptyTrackPixel,
+            ReadWindowPixel(snapshot.WindowHandle, probeX, layout.CenterY));
+        Assert.Equal(
+            NativeConstants.TransparentColorKey,
+            ReadWindowPixel(snapshot.WindowHandle, 0, 0));
+
+        uint afterGdi = NativeMethods.GetGuiResources(
             NativeMethods.GetCurrentProcess(),
             NativeConstants.GuiResourceGdiObjects);
-        Assert.True(after <= baseline + 1, $"GDI handles grew from {baseline} to {after}.");
+        uint afterUser = NativeMethods.GetGuiResources(
+            NativeMethods.GetCurrentProcess(),
+            NativeConstants.GuiResourceUserObjects);
+        Assert.True(
+            afterGdi <= baselineGdi + 1,
+            $"GDI handles grew from {baselineGdi} to {afterGdi}.");
+        Assert.True(
+            afterUser <= baselineUser + 1,
+            $"USER handles grew from {baselineUser} to {afterUser}.");
     }
 
     [Fact]
@@ -259,10 +399,36 @@ public sealed class NativeHostWindowTests
             NativeConstants.GwlExtendedStyle,
             nint.Zero);
 
+        Assert.False(host.IsCurrentAttachmentValid());
         _ = Assert.Throws<InvalidOperationException>(host.Show);
 
         Assert.False(NativeMethods.IsWindowVisible(snapshot.WindowHandle));
         Assert.True(NativeMethods.IsWindow(snapshot.WindowHandle));
+    }
+
+    [Theory]
+    [InlineData((int)NativeParentStyleMode.PopupPreserved)]
+    [InlineData((int)NativeParentStyleMode.Child)]
+    public void Current_attachment_validation_detects_external_visibility_loss(int modeValue)
+    {
+        RequireWindowTest();
+
+        using var parent = NativeTestParentWindow.CreateOffscreen();
+        var requested = new PixelRect(
+            NativeTestParentWindow.ScreenLeft + 20,
+            NativeTestParentWindow.ScreenTop + 14,
+            NativeTestParentWindow.ScreenLeft + 300,
+            NativeTestParentWindow.ScreenTop + 62);
+        using var host = new NativeTaskbarHost();
+        NativeHostCreationSnapshot snapshot = host.CreateForStableDpiTestParent(
+            parent.Handle,
+            requested,
+            (NativeParentStyleMode)modeValue);
+        Assert.True(host.IsCurrentAttachmentValid());
+
+        _ = NativeMethods.ShowWindow(snapshot.WindowHandle, NativeConstants.ShowWindowHide);
+
+        Assert.False(host.IsCurrentAttachmentValid());
     }
 
     [Theory]
@@ -349,6 +515,20 @@ public sealed class NativeHostWindowTests
 
     private static nuint MakeWheelParameter(short delta) =>
         unchecked((nuint)(uint)((ushort)delta << 16));
+
+    private static uint ReadWindowPixel(nint window, int x, int y)
+    {
+        nint deviceContext = NativeMethods.GetDeviceContext(window);
+        Assert.NotEqual(nint.Zero, deviceContext);
+        try
+        {
+            return NativeMethods.GetPixel(deviceContext, x, y);
+        }
+        finally
+        {
+            Assert.Equal(1, NativeMethods.ReleaseDeviceContext(window, deviceContext));
+        }
+    }
 
     private static void AssertInteraction(
         NativeHostInteraction actual,

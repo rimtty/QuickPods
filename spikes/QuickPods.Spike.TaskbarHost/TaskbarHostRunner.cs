@@ -213,12 +213,64 @@ internal sealed class TaskbarHostRunner
                 }
                 else if (!recoveryInProgress && now >= nextRescanTimestamp)
                 {
-                    host.Hide();
-                    recoveryInProgress = true;
-                    recoveryStartTimestamp = now;
-                    nextRecoveryAttemptTimestamp = now;
-                    recoveryAttemptCount = 0;
-                    recoveryAutomationInvalidation = null;
+                    long watchdogScanStartTimestamp = Stopwatch.GetTimestamp();
+                    long watchdogInvalidationGeneration = invalidationGeneration;
+                    VerifiedLiveLayout? watchdogLayout = DiscoverVerifiedLayout(
+                        host,
+                        cancellationToken,
+                        () => _ = ConsumeAutomationInvalidation());
+                    _ = host.PumpMessages();
+                    _ = ConsumeAutomationInvalidation();
+                    if (automationContinuousChurnFailedClosed)
+                    {
+                        failedClosed = true;
+                        break;
+                    }
+
+                    bool watchdogInvalidatedDuringScan =
+                        layoutInvalidated ||
+                        invalidationGeneration != watchdogInvalidationGeneration;
+                    bool watchdogCurrentBoundsSafe =
+                        watchdogLayout is not null &&
+                        SafeRegionCalculator.IsExistingPlacementSafe(
+                            watchdogLayout.Observation,
+                            TaskbarPlacementOptions.Default,
+                            currentBounds);
+                    bool watchdogNativeAttachmentValid = host.IsCurrentAttachmentValid();
+                    TaskbarWatchdogDecision watchdogDecision = TaskbarWatchdogPolicy.Decide(new(
+                        currentIdentity,
+                        currentBounds,
+                        watchdogLayout?.Identity,
+                        watchdogLayout?.Bounds,
+                        watchdogInvalidatedDuringScan,
+                        watchdogCurrentBoundsSafe,
+                        watchdogNativeAttachmentValid));
+
+                    if (watchdogDecision == TaskbarWatchdogDecision.KeepVisible)
+                    {
+                        Console.Error.WriteLine(
+                            string.Create(
+                                CultureInfo.InvariantCulture,
+                                $"layout-watchdog=verified-visible; " +
+                                     $"elapsed-ms={Stopwatch.GetElapsedTime(watchdogScanStartTimestamp).TotalMilliseconds:F3}; " +
+                                     $"current-bounds-safe=True"));
+                        nextRescanTimestamp = AddDuration(
+                            Stopwatch.GetTimestamp(),
+                            LayoutRescanInterval);
+                    }
+                    else
+                    {
+                        host.Hide();
+                        forceRecreate |= !watchdogNativeAttachmentValid;
+                        if (!watchdogInvalidatedDuringScan)
+                        {
+                            recoveryInProgress = true;
+                            recoveryStartTimestamp = Stopwatch.GetTimestamp();
+                            nextRecoveryAttemptTimestamp = recoveryStartTimestamp;
+                            recoveryAttemptCount = 0;
+                            recoveryAutomationInvalidation = null;
+                        }
+                    }
                 }
 
                 if (recoveryInProgress && now >= nextRecoveryAttemptTimestamp)
@@ -517,9 +569,11 @@ internal sealed class TaskbarHostRunner
     [SupportedOSPlatform("windows")]
     private static VerifiedLiveLayout? DiscoverVerifiedLayout(
         NativeTaskbarHost host,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action? consumeAutomationInvalidation = null)
     {
-        var discoveryService = new TaskbarDiscoveryService();
+        var discoveryService = new TaskbarDiscoveryService(
+            host.IsCreated ? host.WindowHandle : nint.Zero);
         Task<TaskbarDiscoveryResult> task = discoveryService.DiscoverAsync(cancellationToken);
         while (!task.IsCompleted)
         {
@@ -527,6 +581,7 @@ internal sealed class TaskbarHostRunner
             if (host.IsCreated)
             {
                 _ = host.PumpMessages();
+                consumeAutomationInvalidation?.Invoke();
             }
 
             Thread.Sleep(MessagePumpInterval);

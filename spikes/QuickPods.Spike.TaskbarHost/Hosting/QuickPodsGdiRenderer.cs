@@ -26,11 +26,65 @@ internal static class QuickPodsGdiRenderer
                 throw new Win32Exception();
             }
 
-            Draw(deviceContext, client, Math.Clamp(volumeFraction, 0, 1));
+            DrawBuffered(deviceContext, client, Math.Clamp(volumeFraction, 0, 1));
         }
         finally
         {
             _ = NativeMethods.EndPaint(window, ref paint);
+        }
+    }
+
+    private static void DrawBuffered(
+        nint destinationDeviceContext,
+        NativeRect destinationBounds,
+        double volumeFraction)
+    {
+        int width = Math.Max(1, destinationBounds.Right - destinationBounds.Left);
+        int height = Math.Max(1, destinationBounds.Bottom - destinationBounds.Top);
+
+        using SafeGdiObjectHandle bitmap = CreateCompatibleBitmap(
+            destinationDeviceContext,
+            width,
+            height);
+        using SafeMemoryDeviceContextHandle memoryDeviceContext =
+            CreateMemoryDeviceContext(destinationDeviceContext);
+
+        nint previousBitmap = NativeMethods.SelectObject(
+            memoryDeviceContext.DangerousGetHandle(),
+            bitmap.DangerousGetHandle());
+        if (!IsValidSelectedObject(previousBitmap))
+        {
+            throw new Win32Exception("Unable to select the GDI back buffer.");
+        }
+
+        try
+        {
+            var bufferBounds = new NativeRect
+            {
+                Right = width,
+                Bottom = height,
+            };
+            Draw(memoryDeviceContext.DangerousGetHandle(), bufferBounds, volumeFraction);
+
+            if (!NativeMethods.BitBlt(
+                    destinationDeviceContext,
+                    destinationBounds.Left,
+                    destinationBounds.Top,
+                    width,
+                    height,
+                    memoryDeviceContext.DangerousGetHandle(),
+                    0,
+                    0,
+                    NativeConstants.RasterOperationSourceCopy))
+            {
+                throw new Win32Exception("Unable to present the GDI back buffer.");
+            }
+        }
+        finally
+        {
+            _ = NativeMethods.SelectObject(
+                memoryDeviceContext.DangerousGetHandle(),
+                previousBitmap);
         }
     }
 
@@ -163,6 +217,34 @@ internal static class QuickPodsGdiRenderer
         return SafeGdiObjectHandle.FromOwnedHandle(handle);
     }
 
+    private static SafeMemoryDeviceContextHandle CreateMemoryDeviceContext(nint deviceContext)
+    {
+        nint handle = NativeMethods.CreateCompatibleDeviceContext(deviceContext);
+        if (handle == nint.Zero)
+        {
+            throw new Win32Exception("Unable to create a GDI memory device context.");
+        }
+
+        return SafeMemoryDeviceContextHandle.FromOwnedHandle(handle);
+    }
+
+    private static SafeGdiObjectHandle CreateCompatibleBitmap(
+        nint deviceContext,
+        int width,
+        int height)
+    {
+        nint handle = NativeMethods.CreateCompatibleBitmap(deviceContext, width, height);
+        if (handle == nint.Zero)
+        {
+            throw new Win32Exception("Unable to create the GDI back-buffer bitmap.");
+        }
+
+        return SafeGdiObjectHandle.FromOwnedHandle(handle);
+    }
+
+    private static bool IsValidSelectedObject(nint handle) =>
+        handle != nint.Zero && handle != new nint(-1);
+
     private static void WithSelectedObjects(
         nint deviceContext,
         SafeGdiObjectHandle brush,
@@ -170,13 +252,13 @@ internal static class QuickPodsGdiRenderer
         Action draw)
     {
         nint previousBrush = NativeMethods.SelectObject(deviceContext, brush.DangerousGetHandle());
-        if (previousBrush == nint.Zero || previousBrush == new nint(-1))
+        if (!IsValidSelectedObject(previousBrush))
         {
             throw new Win32Exception("Unable to select the GDI brush.");
         }
 
         nint previousPen = NativeMethods.SelectObject(deviceContext, pen.DangerousGetHandle());
-        if (previousPen == nint.Zero || previousPen == new nint(-1))
+        if (!IsValidSelectedObject(previousPen))
         {
             _ = NativeMethods.SelectObject(deviceContext, previousBrush);
             throw new Win32Exception("Unable to select the GDI pen.");

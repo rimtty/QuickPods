@@ -45,7 +45,13 @@ internal sealed class NativeTaskbarHost : IDisposable
         set
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            volumeFraction = Math.Clamp(value, 0, 1);
+            double nextVolumeFraction = Math.Clamp(value, 0, 1);
+            if (nextVolumeFraction.Equals(volumeFraction))
+            {
+                return;
+            }
+
+            volumeFraction = nextVolumeFraction;
             if (windowHandle != nint.Zero)
             {
                 _ = NativeMethods.InvalidateRect(windowHandle, nint.Zero, false);
@@ -271,6 +277,22 @@ internal sealed class NativeTaskbarHost : IDisposable
         {
             HideViewImmediately();
             throw;
+        }
+    }
+
+    internal bool IsCurrentAttachmentValid()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        EnsureOwningThread();
+
+        try
+        {
+            ValidateAttachedWindow();
+            return NativeMethods.IsWindowVisible(windowHandle);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
+        {
+            return false;
         }
     }
 
