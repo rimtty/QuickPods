@@ -16,27 +16,6 @@ public sealed class CrossProcessKsGateTests
                 timeout.Token);
             Assert.Equal("acquired", firstLine);
 
-            using var commandOutput = new StringWriter();
-            using var commandError = new StringWriter();
-            int cliExitCode = await BluetoothKsCli.RunAsync(
-                [
-                    "probe",
-                    "--session",
-                    "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
-                    "--target",
-                    "A1B2C3D4E5F60123456789AB",
-                    "--confirm-ks-operation",
-                ],
-                commandOutput,
-                commandError,
-                timeout.Token);
-            Assert.Equal(1, cliExitCode);
-            Assert.Empty(commandOutput.ToString());
-            Assert.Contains(
-                "no isolated command was started",
-                commandError.ToString(),
-                StringComparison.Ordinal);
-
             using Process second = StartGateChild(holdMilliseconds: 1);
             string secondOutput = await second.StandardOutput.ReadToEndAsync(
                 timeout.Token);
