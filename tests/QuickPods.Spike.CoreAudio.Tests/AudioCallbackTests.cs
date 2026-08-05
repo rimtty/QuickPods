@@ -203,5 +203,6 @@ public sealed class AudioCallbackTests
         Assert.Equal(28, Marshal.SizeOf<AudioVolumeNotificationData>());
         Assert.Equal(20, Marshal.SizeOf<PropertyKey>());
         Assert.Equal(24, Marshal.SizeOf<PropVariant>());
+        Assert.Equal(40, SystemVolumeKeySender.NativeInputSize);
     }
 }

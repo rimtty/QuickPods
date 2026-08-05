@@ -25,13 +25,14 @@ public sealed class GenerationAndStatisticsTests
     [Theory]
     [InlineData(new long[] { 1, 2, 3 }, true)]
     [InlineData(new long[] { 1, 1, 2 }, true)]
-    [InlineData(new long[] { 1, 2, 2 }, true)]
+    [InlineData(new long[] { 1, 2, 2 }, false)]
+    [InlineData(new long[] { 1, 2, 3, 3, 3 }, false)]
     [InlineData(new long[] { 3, 2, 1 }, false)]
     [InlineData(new long[] { 1, 3, 2 }, false)]
     [InlineData(new long[] { 1, 1, 1 }, false)]
     [InlineData(new long[] { 1 }, false)]
-    public void NonDecreasingGrowthAllowsPlateausButRequiresNetGrowth(long[] samples, bool expected)
+    public void SustainedGrowthMustContinueIntoTheSecondHalf(long[] samples, bool expected)
     {
-        Assert.Equal(expected, Statistics.HasNonDecreasingGrowth(samples));
+        Assert.Equal(expected, Statistics.HasSustainedGrowth(samples));
     }
 }

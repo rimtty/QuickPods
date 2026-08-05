@@ -14,6 +14,28 @@ public sealed class CoreAudioOptionsTests
     }
 
     [Fact]
+    public void KeyLatencyDefaultsToBoundedExternalSampleCount()
+    {
+        CoreAudioOptions options = CoreAudioOptions.Parse(["key-latency", "--confirm-playback-stopped"]);
+
+        Assert.Equal(CoreAudioCommand.KeyLatency, options.Command);
+        Assert.Equal(100, options.Iterations);
+        Assert.True(options.PlaybackStoppedConfirmed);
+    }
+
+    [Fact]
+    public void KeyLatencyRejectsMoreThanOneThousandKeySteps()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            CoreAudioOptions.Parse([
+                "key-latency",
+                "--iterations",
+                "1001",
+                "--confirm-playback-stopped",
+            ]));
+    }
+
+    [Fact]
     public void PulseRequiresExplicitTarget()
     {
         ArgumentException exception = Assert.Throws<ArgumentException>(() => CoreAudioOptions.Parse(["pulse"]));

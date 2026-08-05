@@ -7,6 +7,7 @@ namespace QuickPods.Spike.CoreAudio;
 
 public static class CoreAudioCli
 {
+    private const int ExerciseWarmupIterations = 10;
     private static readonly TimeSpan NotificationTimeout = TimeSpan.FromSeconds(2);
 
     public static async Task<int> RunAsync(
@@ -48,6 +49,11 @@ public static class CoreAudioCli
                     error,
                     cancellationToken).ConfigureAwait(false),
                 CoreAudioCommand.Exercise => await RunExerciseAsync(
+                    options,
+                    output,
+                    error,
+                    cancellationToken).ConfigureAwait(false),
+                CoreAudioCommand.KeyLatency => await RunKeyLatencyAsync(
                     options,
                     output,
                     error,
@@ -192,7 +198,19 @@ public static class CoreAudioCli
         try
         {
             _ = mutation.MuteForSafety();
-            resources.Add(ResourceSample.Capture(0));
+            for (int iteration = 1; iteration <= ExerciseWarmupIterations; iteration++)
+            {
+                double target = iteration % 2 == 1 ? alternate : original.VolumePercent;
+                _ = await SetAndObserveAsync(
+                    mutation,
+                    notifications,
+                    target,
+                    original.Generation,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            output.WriteLine($"warmup={ExerciseWarmupIterations}");
+            resources.Add(ResourceSample.CaptureLiveResources(0));
             for (int iteration = 1; iteration <= options.Iterations; iteration++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -217,7 +235,7 @@ public static class CoreAudioCli
 
                 if (iteration % sampleInterval == 0 || iteration == options.Iterations)
                 {
-                    resources.Add(ResourceSample.Capture(iteration));
+                    resources.Add(ResourceSample.CaptureLiveResources(iteration));
                     output.WriteLine($"progress={iteration}/{options.Iterations}");
                 }
             }
@@ -236,11 +254,11 @@ public static class CoreAudioCli
         long privateBytesDelta = lastResource.PrivateBytes - firstResource.PrivateBytes;
         long handleDelta = lastResource.HandleCount - firstResource.HandleCount;
         long threadDelta = lastResource.ThreadCount - firstResource.ThreadCount;
-        bool privateBytesGrowth = Statistics.HasNonDecreasingGrowth(
+        bool privateBytesGrowth = Statistics.HasSustainedGrowth(
             resources.Select(sample => sample.PrivateBytes));
-        bool handleGrowth = Statistics.HasNonDecreasingGrowth(
+        bool handleGrowth = Statistics.HasSustainedGrowth(
             resources.Select(sample => sample.HandleCount));
-        bool threadGrowth = Statistics.HasNonDecreasingGrowth(
+        bool threadGrowth = Statistics.HasSustainedGrowth(
             resources.Select(sample => sample.ThreadCount));
         AudioSnapshot finalSnapshot = client.GetSnapshot();
         long rebindCount = Math.Max(0, finalSnapshot.Generation - original.Generation);
@@ -254,9 +272,9 @@ public static class CoreAudioCli
 
         output.WriteLine(FormattableString.Invariant($"set_p95_ms={setP95:F3}"));
         output.WriteLine(FormattableString.Invariant($"notify_p95_ms={notificationP95:F3}"));
-        output.WriteLine($"private_bytes_non_decreasing_growth={privateBytesGrowth.ToString().ToLowerInvariant()}");
-        output.WriteLine($"handles_non_decreasing_growth={handleGrowth.ToString().ToLowerInvariant()}");
-        output.WriteLine($"threads_non_decreasing_growth={threadGrowth.ToString().ToLowerInvariant()}");
+        output.WriteLine($"private_bytes_sustained_growth={privateBytesGrowth.ToString().ToLowerInvariant()}");
+        output.WriteLine($"handles_sustained_growth={handleGrowth.ToString().ToLowerInvariant()}");
+        output.WriteLine($"threads_sustained_growth={threadGrowth.ToString().ToLowerInvariant()}");
         output.WriteLine($"private_bytes_delta={privateBytesDelta}");
         output.WriteLine($"handle_delta={handleDelta}");
         output.WriteLine($"thread_delta={threadDelta}");
@@ -276,6 +294,72 @@ public static class CoreAudioCli
             output.WriteLine($"resource_csv={Path.GetFullPath(options.CsvPath)}");
         }
 
+        return passed ? 0 : 1;
+    }
+
+    private static async Task<int> RunKeyLatencyAsync(
+        CoreAudioOptions options,
+        TextWriter output,
+        TextWriter error,
+        CancellationToken cancellationToken)
+    {
+        if (!options.PlaybackStoppedConfirmed)
+        {
+            error.WriteLine("Safety check failed: stop audio playback, then pass --confirm-playback-stopped.");
+            return 2;
+        }
+
+        VolumeNotificationBuffer notifications = new();
+        using var client = CreateClient(error, notifications.Publish);
+        using CoreAudioMutationScope mutation = client.BeginMutationScope();
+        AudioSnapshot original = mutation.OriginalSnapshot;
+        SystemVolumeKeySender sender = new();
+        List<double> notificationMilliseconds = new(options.Iterations);
+        int progressInterval = Math.Max(1, options.Iterations / 10);
+        bool restored = false;
+        Exception? operationFailure = null;
+
+        output.WriteLine(
+            FormattableString.Invariant(
+                $"Key latency iterations={options.Iterations} original={original.VolumePercent:F1}% endpoint_hash={original.EndpointIdHash}"));
+
+        try
+        {
+            _ = mutation.MuteForSafety();
+            for (int iteration = 1; iteration <= options.Iterations; iteration++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                notifications.Drain();
+                long started = Stopwatch.GetTimestamp();
+                sender.SendStep(increase: iteration % 2 == 0);
+                VolumeNotification notification = await notifications.WaitForAsync(
+                    candidate =>
+                        candidate.Generation == original.Generation &&
+                        candidate.CallbackTimestamp >= started &&
+                        !candidate.IsSelfOriginated(CoreAudioClient.EventContext),
+                    NotificationTimeout,
+                    cancellationToken).ConfigureAwait(false);
+                notificationMilliseconds.Add(
+                    Stopwatch.GetElapsedTime(started, notification.CallbackTimestamp).TotalMilliseconds);
+
+                if (iteration % progressInterval == 0 || iteration == options.Iterations)
+                {
+                    output.WriteLine($"progress={iteration}/{options.Iterations}");
+                }
+            }
+        }
+        catch (Exception exception)
+        {
+            operationFailure = exception;
+        }
+
+        restored = RestoreOriginal(mutation, error);
+        CompleteGuardedMutation(operationFailure, restored);
+        double notificationP95 = Statistics.Percentile(notificationMilliseconds, 0.95d);
+        bool passed = restored && notificationP95 <= 250d;
+        output.WriteLine(FormattableString.Invariant($"external_notify_p95_ms={notificationP95:F3}"));
+        output.WriteLine($"restored={restored.ToString().ToLowerInvariant()}");
+        output.WriteLine($"external_latency_gate_passed={passed.ToString().ToLowerInvariant()}");
         return passed ? 0 : 1;
     }
 
@@ -434,6 +518,8 @@ public static class CoreAudioCli
         output.WriteLine("      Temporarily set volume, observe the callback, and restore the original state.");
         output.WriteLine("  exercise [--iterations 1000] [--delta-percent 1] [--csv PATH] --confirm-playback-stopped");
         output.WriteLine("      Run bounded alternating changes, record latency/resources, and always restore state.");
+        output.WriteLine("  key-latency [--iterations 100] --confirm-playback-stopped");
+        output.WriteLine("      Send bounded system volume keys, measure external callback latency, and restore state.");
         output.WriteLine();
         output.WriteLine("Output uses a short SHA-256 endpoint hash; full endpoint identifiers are never printed.");
     }
@@ -444,7 +530,7 @@ public static class CoreAudioCli
         double ObservedPercent,
         long Generation);
 
-    private sealed record ExerciseMeasurement(
+    private readonly record struct ExerciseMeasurement(
         int Iteration,
         double TargetPercent,
         double ObservedPercent,

@@ -13,14 +13,17 @@ Output contains only a short SHA-256 endpoint hash. Full endpoint identifiers ar
 
 ## Hardware-changing commands
 
-Stop playback before using either command. Both commands require an explicit confirmation flag, mute the original endpoint before changing its volume, and restore the original endpoint's scalar volume followed by its original mute state.
+Stop playback before using a mutating command. Each mutating command requires an explicit confirmation flag, mutes the original endpoint before changing its volume, and restores the original endpoint's scalar volume followed by its original mute state.
 
 ```powershell
 dotnet run --project spikes/QuickPods.Spike.CoreAudio -c Release -- pulse --percent 50 --confirm-playback-stopped
 dotnet run --project spikes/QuickPods.Spike.CoreAudio -c Release -- exercise --iterations 1000 --delta-percent 1 --csv docs/validation/phase-0/core-audio/metrics.csv --confirm-playback-stopped
+dotnet run --project spikes/QuickPods.Spike.CoreAudio -c Release -- key-latency --iterations 100 --confirm-playback-stopped
 ```
 
 The mutation lease remains attached to the endpoint that was default when the command began. A default-device change aborts further mutations and restoration still targets the original endpoint; the new default endpoint is never used as a restoration target.
+
+`key-latency` uses the public `SendInput` API to alternate bounded system volume-down/up key steps. It measures callback latency only for notifications classified as external, then restores and verifies the original endpoint state.
 
 ## Safety invariants
 

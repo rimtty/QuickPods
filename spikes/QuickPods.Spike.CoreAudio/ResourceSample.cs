@@ -20,4 +20,15 @@ internal sealed record ResourceSample(
             process.HandleCount,
             process.Threads.Count);
     }
+
+    public static ResourceSample CaptureLiveResources(int iteration)
+    {
+        // The exercise creates short-lived Tasks and cancellation registrations.
+        // Collect those before sampling so the trend represents live resources,
+        // including any leaked native wrappers, rather than benchmark bookkeeping.
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+        return Capture(iteration);
+    }
 }

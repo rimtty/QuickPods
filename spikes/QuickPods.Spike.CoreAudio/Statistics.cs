@@ -21,30 +21,26 @@ public static class Statistics
         return ordered[index];
     }
 
-    public static bool HasNonDecreasingGrowth(IEnumerable<long> values)
+    public static bool HasSustainedGrowth(IEnumerable<long> values)
     {
         ArgumentNullException.ThrowIfNull(values);
 
-        using IEnumerator<long> enumerator = values.GetEnumerator();
-        if (!enumerator.MoveNext())
+        long[] samples = values.ToArray();
+        if (samples.Length < 3)
         {
             return false;
         }
 
-        long first = enumerator.Current;
-        long previous = first;
-        int comparisons = 0;
-        while (enumerator.MoveNext())
+        for (int index = 1; index < samples.Length; index++)
         {
-            if (enumerator.Current < previous)
+            if (samples[index] < samples[index - 1])
             {
                 return false;
             }
-
-            previous = enumerator.Current;
-            comparisons++;
         }
 
-        return comparisons > 0 && previous > first;
+        // Startup growth that plateaus for the latter half is initialization,
+        // not continuously increasing resource use.
+        return samples[^1] > samples[samples.Length / 2];
     }
 }

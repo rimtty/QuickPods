@@ -9,6 +9,7 @@ internal enum CoreAudioCommand
     Watch,
     Pulse,
     Exercise,
+    KeyLatency,
 }
 
 internal sealed record CoreAudioOptions(
@@ -37,13 +38,14 @@ internal sealed record CoreAudioOptions(
             "watch" => CoreAudioCommand.Watch,
             "pulse" => CoreAudioCommand.Pulse,
             "exercise" => CoreAudioCommand.Exercise,
+            "key-latency" => CoreAudioCommand.KeyLatency,
             _ => throw new ArgumentException($"Unknown command '{arguments[0]}'."),
         };
 
         int seconds = 30;
         double? percent = null;
         int holdMilliseconds = 1000;
-        int iterations = 1000;
+        int iterations = command == CoreAudioCommand.KeyLatency ? 100 : 1000;
         double deltaPercent = 1d;
         bool playbackStoppedConfirmed = false;
         string? csvPath = null;
@@ -84,10 +86,19 @@ internal sealed record CoreAudioOptions(
             throw new ArgumentException("The pulse command requires --percent <0..100>.");
         }
 
-        if (command is not (CoreAudioCommand.Pulse or CoreAudioCommand.Exercise) &&
+        if (command == CoreAudioCommand.KeyLatency && iterations > 1000)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(arguments),
+                iterations,
+                "key-latency is limited to at most 1000 bounded key steps.");
+        }
+
+        if (command is not (CoreAudioCommand.Pulse or CoreAudioCommand.Exercise or CoreAudioCommand.KeyLatency) &&
             playbackStoppedConfirmed)
         {
-            throw new ArgumentException("--confirm-playback-stopped is only valid for pulse or exercise.");
+            throw new ArgumentException(
+                "--confirm-playback-stopped is only valid for pulse, exercise, or key-latency.");
         }
 
         return new CoreAudioOptions(
