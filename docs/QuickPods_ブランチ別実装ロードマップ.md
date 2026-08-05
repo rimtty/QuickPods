@@ -23,7 +23,7 @@
 
 | 項目 | 状態 |
 |---|---|
-| Git | `main`は`5d441e3`まで統合済み。現在はPhase 0Cからstackした`codex/phase-0d-floating-fallback-spike` |
+| Git | `main`は`5d441e3`まで統合済み。現在はPhase 0Dからstackした`codex/phase-0e-native-continuity-spike` |
 | Remote | `origin/main`作成済み。Phase 0 Spikeは短命ブランチとDraft PRで管理 |
 | 追跡対象 | 計画資料、ブランド資産、solution基盤、Spike、検証証跡 |
 | ソース／テスト／CI | .NET 10 solution、Windows CI、Smoke testを作成済み |
@@ -75,10 +75,11 @@ flowchart TD
     Bootstrap --> AudioSpike["phase-0a-core-audio-spike"]
     Bootstrap --> TaskbarSpike["phase-0c-taskbar-host-spike"]
     TaskbarSpike --> TaskbarFallback["phase-0d-floating-fallback-spike"]
+    TaskbarFallback --> TaskbarContinuity["phase-0e-native-continuity-spike"]
     AudioSpike --> BluetoothSpike["phase-0b-bluetooth-ks-spike"]
     AudioSpike --> Gate["phase-0-gate-decisions"]
     BluetoothSpike --> Gate
-    TaskbarFallback --> Gate
+    TaskbarContinuity --> Gate
     Gate --> Foundation["phase-1-solution-foundation"]
     Foundation --> AudioMvp["phase-2-audio-mvp"]
     AudioMvp --> DisplayHost["phase-3a-display-host"]
@@ -186,9 +187,9 @@ No-Go時：Bluetoothボタンは`ms-settings:bluetooth`等のWindows設定ラン
 | 項目 | 内容 |
 |---|---|
 | 目的 | `SetParent`とUI Automationを使ったネイティブ表示のGate Bを判定する |
-| 状態 | **Gate待ち** — Phase 0Cの診断とnative fail-closedは完了。Issue #12はClose済み。Start／検索の`PrimaryTaskbarMissing`継続表示対策をPhase 0Dへ分離 |
+| 状態 | **Gate B Go（2026-08-06）** — 全実機マトリクスと7件のGo条件に合格。別プロセス`PopupPreserved`を採用し、unsafe／NoFitはfloatingまたはhiddenへfail closed |
 | Spike | `spikes/QuickPods.Spike.TaskbarHost/` |
-| 実装 | ランドマーク探索、安全領域可視化、raw HWND、透過double-buffer描画、入力、`WS_POPUP`／`WS_CHILD`比較、UIA即時監視、hide-first復旧、stable Watchdog表示継続、churn fail closed |
+| 実装 | ランドマーク探索、安全領域可視化、raw HWND、透過double-buffer描画、入力、`WS_POPUP`／`WS_CHILD`比較、UIA即時監視、hide-first復旧、stable Watchdog表示継続 |
 | 実機試験 | DPI 100／125／150／200%、Start中央／左寄せ、Widgets ON／OFF、検索4形式、空き不足、Explorer再起動10回 |
 | 完了成果物 | Spikeコード、配置スクリーンショット、計測結果、採用スタイル、Gate B判断 |
 
@@ -221,7 +222,7 @@ No-Go時：フローティングを標準表示、通知領域を最終退避先
 |---|---|
 | 基点 | `codex/phase-0c-taskbar-host-spike`からstack。Phase 0Cの安全性を変更せず、復帰UXだけを検証する |
 | 目的 | Start／Search中の`PrimaryTaskbarMissing`、`VerifiedNoFit`、native作成失敗時もプロセスと操作面を維持する |
-| 状態 | **進行中／Gate待ち** — 自動試験と175% EXE実機自動試験は合格。手動のfloating目視・入力と100%個別再現試験は未完了 |
+| 状態 | **完了** — 自動試験、175%のfallback／promotion、100／200%左揃えNoFitのfloating目視・入力・自然破棄・残留0に合格。Start／Searchの最終UXはPhase 0Eのnative continuityで検証 |
 | フォールバック | 直前の完全検証済みprimary work-area／DPIがある場合だけ、unowned・non-topmost floatingへ即時退避。安全なgeometryがなければ非表示 |
 | geometry失効 | Start／Searchの一時的なprimary欠落では保持し、Settings／Display／DPI変更時だけ破棄 |
 | native復帰 | 1秒cooldown、500ms以上離れた同一candidate 2回、fresh watcher fenceを満たした後、hidden-prepared nativeへ二段階で昇格 |
@@ -229,9 +230,32 @@ No-Go時：フローティングを標準表示、通知領域を最終退避先
 | CLI | `host --style child|popup --fallback floating|hidden --duration ... --confirm-live-host`（既定は`floating`） |
 | 自動検証 | TaskbarHost 301件＋Smoke 1件、Release build 0 warning／0 error、format／diff check合格 |
 | 実機自動検証 | DPI 168（175%）、45秒EXE、Start 12秒／Search 12秒入力、exit 0、残留0。少なくとも1回`External / StructureChanged`から`NativeVisible → FloatingFallback → NativePromoted`を確認 |
-| 未完了 | ログだけではStart／Searchのどちらがtransitionを起こしたか特定不能。floatingの目視継続・操作、100% icon＋labelでStart／Search各15秒、ピン留め多数、native style選定 |
+| 実機手動検証 | 100／200%左揃えNoFitでunowned・non-topmost floating、click／drag／wheel、自然破棄、残留0に合格。Issue #11完了条件を満たした |
+| 後続 | 100% icon＋labelのStart／Search個別試験とnative style選定はPhase 0Eで完了。NoFit等の真のunsafe状態では本fallbackを維持 |
 
-実機ホスト検証はapplication manifestが適用されるEXEまたは`dotnet run`で行う。DLLの直接起動はmanifestが適用されないため、DPI／hostの実機証跡として使用しない。Gate Bは上記の手動項目が完了するまでPendingとする。
+実機ホスト検証はapplication manifestが適用されるEXEまたは`dotnet run`で行う。DLLの直接起動はmanifestが適用されないため、DPI／hostの実機証跡として使用しない。このPhase 0D時点では手動項目が残りPendingだったが、後続Phase 0Eで完了しGate BはGoとなった。
+
+#### B4.2：`codex/phase-0e-native-continuity-spike`
+
+| 項目 | 内容 |
+|---|---|
+| 基点 | `codex/phase-0d-floating-fallback-spike`からstack。unsafe時のfallbackを残したまま、同一generationを直接再証明できる一時状態だけnativeを保持 |
+| 目的 | Start／Search表示中も、Windows標準要素と重ならず、同じタスクバー位置で表示とwheel入力を継続する |
+| 継続anchor | 通常の完全観測で得たprimary taskbar identity／geometryと一意なStartだけが起点。初回配置や別taskbar探索には使用しない |
+| Direct証明 | top-level列挙成功、競合taskbar 0、exact retained taskbarのclass／root／process／bounds／DPI／monitor／work area／visibility／DWM一致 |
+| 限定保持 | Direct routeの単独`StartButtonMissing`だけ最後の完全Startを保持。fresh UIA buttons、fresh native obstacles、直前完全obstaclesをunionし、現在boundsの交差0pxを再検証 |
+| host証明 | exact child一致、またはQuickPods class／same process／GA_PARENT／bounds／DPI／visibility／DWMのdirect attachment証明。runtimeでもstyleを含め再検証 |
+| timeout／監視 | UIA前後のnative再探索、watcher generation fence、固定500ms deadline、Direct中500ms rescan、100ms surface health check |
+| style判断 | `PopupPreserved`を採用。`SetParent`後も`WS_POPUP`を維持し、Childは明示比較／rollback用に残す。CLI既定はPopup |
+| 自動検証 | TaskbarHost 183件＋Smoke 1件。重複整理前368件から50.0%へ縮約し、Release build 0 warning／0 error、format／diff check合格 |
+| 実機検証 | 100%・1920×1080と150%・5120px幅タスクバーの各120秒Popup EXE。Start／Search双方でnative保持、Floating遷移0、表示中wheel入力、自然破棄、残留0。ユーザー目視・入力確認合格 |
+| 多数ピン留め | 150%でbutton 27→52、Start X 1919→1094でも`Place / Standard`。自動監査と75秒手動runで重なり／ちらつきなし、wheel 18件、drag 18組、Floating／fatal／残留0 |
+| Start中tray churn | 通知アイコンadd／delete各45回、native継続4回（Direct 2）、Floating 0、wheel 67、drag 5組、watcher failure／fatal／helper／host残留0。ユーザー目視合格 |
+| Explorer復旧 | 採用Popupで10/10回が10秒以内（最大5.395秒）。旧View消失、新Explorer世代、View／Control各1、Popup style／実親／DWM、exit 0、終了後残留0を確認 |
+| 既知P2 | UIA event watcher再購読でUSER objectがExplorer世代ごとに1増加（10回で22→32）。GDI／HWND inventoryは不変。製品化前の隔離方式をIssue #18で追跡し、Phase 0Eの単体テストは再拡張しない |
+| 判断 | **Go** — 製品版`QuickPods.TaskbarHost.exe`へ別プロセス隔離して`PopupPreserved`を実装。Issue #15／#18はリリース前P2 |
+
+Start／Search表示中でも、identity、parent、style、bounds、DPI、monitor、DWM、fresh obstacle、watcher generationのいずれかが変化した場合はnativeを保持せず、Phase 0Dのfloating／hidden fallbackへ即時退避する。保持結果を新しいbaselineにはせず、freshでfault 0のUIA成功時だけStart anchorを更新する。
 
 #### B5：`codex/phase-0-gate-decisions`
 
@@ -481,4 +505,4 @@ dotnet publish src/QuickPods.TaskbarHost/QuickPods.TaskbarHost.csproj -c Release
 
 ---
 
-資料ベースラインは`main`の初回コミット`1f63aa1`、B1 bootstrapは`5d441e3`として統合済みである。Phase 0CはTaskbarHost 216件＋Smoke 1件、150%可視ChildのExplorer再生成10/10回、200% NoFit再検出10/10回までを履歴として確定し、Start／Search中の`PrimaryTaskbarMissing`ではnativeを安全にhideすることを確認した。現在はそこからstackした`codex/phase-0d-floating-fallback-spike`で、終了ではなく検証済みprimary work-area／DPI上のfloatingへ退避する復帰UXを検証している。Phase 0DはTaskbarHost 301件＋Smoke 1件、Release build 0 warning／0 error、format／diff checkに合格し、DPI 168（175%）の45秒EXE自動試験でもStart 12秒／Search 12秒入力、exit 0、残留0、`NativeVisible → FloatingFallback → NativePromoted`を確認した。floatingの目視継続・操作、100% icon＋labelでのStart／Search個別15秒、ピン留めアプリ多数、採用方式が未完了のためGate BはPendingである。B2／B3／B4.1の実機Gateが完了するまでB5およびPhase 1へ進めない。
+資料ベースラインは`main`の初回コミット`1f63aa1`、B1 bootstrapは`5d441e3`として統合済みである。Phase 0CはTaskbarHost 216件＋Smoke 1件、150%可視ChildのExplorer再生成10/10回、200% NoFit再検出10/10回までを履歴として確定し、Start／Search中の`PrimaryTaskbarMissing`ではnativeを安全にhideすることを確認した。Phase 0DはTaskbarHost 301件＋Smoke 1件、175%のStart／Search入力を含むEXEでfloating fallbackとnative promotionを確定し、Phase 0Eで100／200%左揃えNoFitのfloating目視・入力・自然破棄・残留0まで合格した。現在の`codex/phase-0e-native-continuity-spike`は重複整理後のTaskbarHost 183件＋Smoke 1件（整理前368件の50.0%）、Release build 0 warning／0 error、format／diff checkに合格し、100%・1920×1080と150%・5120px幅タスクバーの各120秒Popup EXEでStart／Search双方のnative保持、表示中wheel入力、Floating遷移0、自然破棄、残留0を確認した。150%の多数ピン留めstressとStart中tray churnも重なり／ちらつき／入力問題なし、Floating／watcher failure／fatal／残留0で合格した。`PopupPreserved`を採用方式に選定し、Childは比較／rollback用に残す。採用PopupのExplorer再起動も10/10回・最大5.395秒・重複／残留0で合格した。Gate Bは2026-08-06にGoとし、UIA watcherのExplorer世代別USER object増加はIssue #18、provenance／race hardeningはIssue #15でリリース前P2として追跡する。B2／B3の実機Gateが完了するまでB5およびPhase 1へ進めない。

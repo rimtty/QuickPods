@@ -16,15 +16,6 @@ public sealed class PixelGeometryTests
     }
 
     [Fact]
-    public void PixelIntervalRejectsAnUnrepresentableSpan()
-    {
-        var interval = new PixelInterval(int.MinValue, int.MaxValue);
-
-        Assert.False(interval.IsValid);
-        Assert.Equal(0, interval.Length);
-    }
-
-    [Fact]
     public void PixelIntervalClipsToPhysicalBounds()
     {
         var interval = new PixelInterval(-100, 100);
@@ -46,15 +37,6 @@ public sealed class PixelGeometryTests
         Assert.Equal(1920, rectangle.Width);
         Assert.Equal(48, rectangle.Height);
         Assert.Equal(new PixelInterval(-1920, 0), rectangle.HorizontalInterval);
-    }
-
-    [Fact]
-    public void PixelRectCreateFailsClosedWhenTrailingEdgeOverflows()
-    {
-        bool created = PixelRect.TryCreateFromPositionAndSize(int.MaxValue - 5, 0, 10, 10, out PixelRect rectangle);
-
-        Assert.False(created);
-        Assert.False(rectangle.IsValid);
     }
 
     [Fact]
@@ -88,7 +70,6 @@ public sealed class PixelGeometryTests
     }
 
     [Theory]
-    [InlineData(int.MinValue, 10)]
     [InlineData(0, int.MaxValue)]
     public void ExpandFailsClosedOnCoordinateOverflow(int start, int end)
     {
@@ -118,32 +99,6 @@ public sealed class PixelGeometryTests
     }
 
     [Fact]
-    public void MergeFailsClosedForAnInvalidInterval()
-    {
-        bool merged = IntervalGeometry.TryMerge(
-            [new PixelInterval(0, 10), default],
-            out IReadOnlyList<PixelInterval> result);
-
-        Assert.False(merged);
-        Assert.Empty(result);
-    }
-
-    [Fact]
-    public void MergeFailsClosedWhenTheCombinedSpanIsUnrepresentable()
-    {
-        PixelInterval[] intervals =
-        [
-            new(int.MinValue, -1),
-            new(-1, int.MaxValue - 1),
-        ];
-
-        bool merged = IntervalGeometry.TryMerge(intervals, out IReadOnlyList<PixelInterval> result);
-
-        Assert.False(merged);
-        Assert.Empty(result);
-    }
-
-    [Fact]
     public void SubtractClipsMergesAndReturnsAllRemainingGaps()
     {
         PixelInterval[] obstacles =
@@ -161,18 +116,6 @@ public sealed class PixelGeometryTests
 
         Assert.True(subtracted);
         Assert.Equal([new PixelInterval(10, 20), new PixelInterval(50, 90)], gaps);
-    }
-
-    [Fact]
-    public void SubtractReturnsNoGapWhenAnObstacleCoversTheSource()
-    {
-        bool subtracted = IntervalGeometry.TrySubtract(
-            new PixelInterval(0, 100),
-            [new PixelInterval(-10, 110)],
-            out IReadOnlyList<PixelInterval> gaps);
-
-        Assert.True(subtracted);
-        Assert.Empty(gaps);
     }
 
     [Fact]

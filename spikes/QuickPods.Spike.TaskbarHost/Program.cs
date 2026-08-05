@@ -93,7 +93,7 @@ internal static class Program
 
     private static void WriteUsage(TextWriter writer)
     {
-        writer.WriteLine("QuickPods Taskbar Host Phase 0D diagnostic");
+        writer.WriteLine("QuickPods Taskbar Host Phase 0E diagnostic");
         writer.WriteLine();
         writer.WriteLine("  inspect");
         writer.WriteLine("      Read-only taskbar/UI Automation discovery and placement report.");

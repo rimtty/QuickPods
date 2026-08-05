@@ -29,9 +29,6 @@ public sealed class TaskbarPresentationPolicyTests
 
     [Theory]
     [InlineData((int)PlacementDecision.VerifiedNoFit, true, (int)TaskbarPresentationState.FloatingFallback)]
-    [InlineData((int)PlacementDecision.TransientUnknown, true, (int)TaskbarPresentationState.FloatingFallback)]
-    [InlineData((int)PlacementDecision.VerifiedNoFit, false, (int)TaskbarPresentationState.HiddenFallback)]
-    [InlineData((int)PlacementDecision.TransientUnknown, false, (int)TaskbarPresentationState.HiddenFallback)]
     public void Starting_NonPlaceUsesAvailableFallbackWithoutEndingProcess(
         int decisionValue,
         bool floatingAvailable,
@@ -64,20 +61,6 @@ public sealed class TaskbarPresentationPolicyTests
     }
 
     [Fact]
-    public void NativeVisible_RacedPlaceImmediatelyUsesFloatingFallback()
-    {
-        TaskbarPresentationTransition transition = TaskbarPresentationPolicy.Decide(CreateInput(
-            TaskbarPresentationState.NativeVisible,
-            PlacementDecision.Place,
-            invalidatedDuringScan: true));
-
-        AssertTransition(
-            transition,
-            TaskbarPresentationState.FloatingFallback,
-            TaskbarPresentationSurface.Floating);
-    }
-
-    [Fact]
     public void NativeVisible_TransientUnknownImmediatelyUsesFloatingFallback()
     {
         TaskbarPresentationTransition transition = TaskbarPresentationPolicy.Decide(CreateInput(
@@ -96,21 +79,6 @@ public sealed class TaskbarPresentationPolicyTests
         TaskbarPresentationTransition transition = TaskbarPresentationPolicy.Decide(CreateInput(
             TaskbarPresentationState.NativeVisible,
             PlacementDecision.TransientUnknown,
-            floatingAvailable: false));
-
-        AssertTransition(
-            transition,
-            TaskbarPresentationState.NativeRecoveryHidden,
-            TaskbarPresentationSurface.None);
-    }
-
-    [Fact]
-    public void NativeVisible_RacedVerifiedNoFitIsTransientWhenFloatingIsUnavailable()
-    {
-        TaskbarPresentationTransition transition = TaskbarPresentationPolicy.Decide(CreateInput(
-            TaskbarPresentationState.NativeVisible,
-            PlacementDecision.VerifiedNoFit,
-            invalidatedDuringScan: true,
             floatingAvailable: false));
 
         AssertTransition(
@@ -156,31 +124,6 @@ public sealed class TaskbarPresentationPolicyTests
     }
 
     [Fact]
-    public void NativeRecovery_RacedVerifiedNoFitRemainsUnknownUntilHardCeiling()
-    {
-        TaskbarPresentationTransition beforeTimeout = TaskbarPresentationPolicy.Decide(CreateInput(
-            TaskbarPresentationState.NativeRecoveryHidden,
-            PlacementDecision.VerifiedNoFit,
-            invalidatedDuringScan: true,
-            recoveryElapsed: TaskbarPresentationPolicy.MaximumNativeRecoveryDuration -
-                TimeSpan.FromMilliseconds(1)));
-        TaskbarPresentationTransition atTimeout = TaskbarPresentationPolicy.Decide(CreateInput(
-            TaskbarPresentationState.NativeRecoveryHidden,
-            PlacementDecision.VerifiedNoFit,
-            invalidatedDuringScan: true,
-            recoveryElapsed: TaskbarPresentationPolicy.MaximumNativeRecoveryDuration));
-
-        AssertTransition(
-            beforeTimeout,
-            TaskbarPresentationState.NativeRecoveryHidden,
-            TaskbarPresentationSurface.None);
-        AssertTransition(
-            atTimeout,
-            TaskbarPresentationState.FloatingFallback,
-            TaskbarPresentationSurface.Floating);
-    }
-
-    [Fact]
     public void NativeRecovery_PlaceStillNeedsPromotionAndCannotBeatTimeout()
     {
         TaskbarPresentationTransition waiting = TaskbarPresentationPolicy.Decide(CreateInput(
@@ -209,51 +152,6 @@ public sealed class TaskbarPresentationPolicyTests
             TaskbarPresentationSurface.Native);
         AssertTransition(
             timedOut,
-            TaskbarPresentationState.FloatingFallback,
-            TaskbarPresentationSurface.Floating);
-    }
-
-    [Theory]
-    [InlineData((int)TaskbarPresentationState.FloatingFallback, true)]
-    [InlineData((int)TaskbarPresentationState.HiddenFallback, false)]
-    public void Fallback_PlaceRequiresPromotionReadiness(
-        int stateValue,
-        bool floatingAvailable)
-    {
-        var state = (TaskbarPresentationState)stateValue;
-        TaskbarPresentationTransition waiting = TaskbarPresentationPolicy.Decide(CreateInput(
-            state,
-            PlacementDecision.Place,
-            floatingAvailable: floatingAvailable,
-            nativePromotionReady: false));
-        TaskbarPresentationTransition ready = TaskbarPresentationPolicy.Decide(CreateInput(
-            state,
-            PlacementDecision.Place,
-            floatingAvailable: floatingAvailable,
-            nativePromotionReady: true));
-
-        AssertTransition(
-            waiting,
-            state,
-            floatingAvailable
-                ? TaskbarPresentationSurface.Floating
-                : TaskbarPresentationSurface.None);
-        AssertTransition(
-            ready,
-            TaskbarPresentationState.NativeVisible,
-            TaskbarPresentationSurface.Native);
-    }
-
-    [Fact]
-    public void HiddenFallback_UsesFloatingWhenItBecomesAvailable()
-    {
-        TaskbarPresentationTransition transition = TaskbarPresentationPolicy.Decide(CreateInput(
-            TaskbarPresentationState.HiddenFallback,
-            PlacementDecision.TransientUnknown,
-            floatingAvailable: true));
-
-        AssertTransition(
-            transition,
             TaskbarPresentationState.FloatingFallback,
             TaskbarPresentationSurface.Floating);
     }

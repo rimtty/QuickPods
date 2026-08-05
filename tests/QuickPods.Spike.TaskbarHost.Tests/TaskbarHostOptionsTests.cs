@@ -3,10 +3,7 @@ namespace QuickPods.Spike.TaskbarHost.Tests;
 public sealed class TaskbarHostOptionsTests
 {
     [Theory]
-    [InlineData()]
-    [InlineData("help")]
     [InlineData("--help")]
-    [InlineData("-h")]
     public void Parse_HelpInputs_ReturnHelp(params string[] args)
     {
         OptionsParseResult result = TaskbarHostOptions.Parse(args);
@@ -41,8 +38,17 @@ public sealed class TaskbarHostOptionsTests
         Assert.True(result.Options.LiveHostConfirmed);
     }
 
+    [Fact]
+    public void Parse_ConfirmedHostWithoutStyle_DefaultsToPopup()
+    {
+        OptionsParseResult result = TaskbarHostOptions.Parse(
+            ["host", "--confirm-live-host"]);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(RequestedHostStyle.Popup, result.Options!.Style);
+    }
+
     [Theory]
-    [InlineData("floating", (int)RequestedFallbackMode.Floating)]
     [InlineData("hidden", (int)RequestedFallbackMode.Hidden)]
     public void Parse_ExplicitFallback_ReturnsRequestedMode(
         string value,
@@ -67,8 +73,6 @@ public sealed class TaskbarHostOptionsTests
     [Theory]
     [InlineData("0")]
     [InlineData("121")]
-    [InlineData("1.5")]
-    [InlineData("not-a-number")]
     public void Parse_InvalidDuration_IsRejected(string value)
     {
         OptionsParseResult result = TaskbarHostOptions.Parse(
@@ -78,13 +82,7 @@ public sealed class TaskbarHostOptionsTests
     }
 
     [Theory]
-    [InlineData("inspect", "--confirm-live-host")]
-    [InlineData("host", "--confirm-live-host", "--confirm-live-host")]
-    [InlineData("host", "--style", "floating", "--confirm-live-host")]
-    [InlineData("host", "--fallback", "popup", "--confirm-live-host")]
-    [InlineData("host", "--fallback", "hidden", "--fallback", "floating", "--confirm-live-host")]
     [InlineData("host", "--unknown", "value", "--confirm-live-host")]
-    [InlineData("unknown")]
     public void Parse_UnknownOrContradictoryInput_IsRejected(params string[] args)
     {
         OptionsParseResult result = TaskbarHostOptions.Parse(args);

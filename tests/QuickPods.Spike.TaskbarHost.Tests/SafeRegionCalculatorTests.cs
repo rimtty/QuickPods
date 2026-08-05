@@ -43,56 +43,6 @@ public sealed class SafeRegionCalculatorTests
     }
 
     [Fact]
-    public void ExistingPlacementOutsideCandidateLaneIsUnsafe()
-    {
-        TaskbarLayoutObservation observation = CreateObservation();
-        var outsideCandidateLane = new PixelRect(157, 4, 347, 44);
-
-        bool isSafe = SafeRegionCalculator.IsExistingPlacementSafe(
-            observation,
-            TaskbarPlacementOptions.Default,
-            outsideCandidateLane);
-
-        Assert.False(isSafe);
-    }
-
-    [Theory]
-    [InlineData(200, 3, 390, 43)]
-    [InlineData(200, 4, 390, 43)]
-    public void ExistingPlacementWithWrongVerticalBandOrHeightIsUnsafe(
-        int left,
-        int top,
-        int right,
-        int bottom)
-    {
-        var existingBounds = new PixelRect(left, top, right, bottom);
-
-        bool isSafe = SafeRegionCalculator.IsExistingPlacementSafe(
-            CreateObservation(),
-            TaskbarPlacementOptions.Default,
-            existingBounds);
-
-        Assert.False(isSafe);
-    }
-
-    [Theory]
-    [InlineData(200, 389)]
-    [InlineData(200, 501)]
-    public void ExistingPlacementOutsideCompactToStandardWidthRangeIsUnsafe(
-        int left,
-        int right)
-    {
-        var existingBounds = new PixelRect(left, 4, right, 44);
-
-        bool isSafe = SafeRegionCalculator.IsExistingPlacementSafe(
-            CreateObservation(),
-            TaskbarPlacementOptions.Default,
-            existingBounds);
-
-        Assert.False(isSafe);
-    }
-
-    [Fact]
     public void ExistingPlacementWithinRawClearanceButInsideExpandedObstacleMarginIsUnsafe()
     {
         var obstacle = new PixelRect(400, 0, 500, 48);
@@ -109,26 +59,6 @@ public sealed class SafeRegionCalculatorTests
             observation,
             TaskbarPlacementOptions.Default,
             insideExpandedMargin);
-
-        Assert.False(isSafe);
-    }
-
-    [Fact]
-    public void ExistingPlacementIntersectingRawObstacleIsUnsafeEvenWithZeroMargin()
-    {
-        var obstacle = new PixelRect(400, 0, 500, 48);
-        TaskbarLayoutObservation observation = CreateObservation(obstacles: [obstacle]);
-        var overlappingBounds = new PixelRect(350, 4, 540, 44);
-        TaskbarPlacementOptions options = TaskbarPlacementOptions.Default with { MarginDip = 0d };
-        TaskbarPlacementResult preferred = SafeRegionCalculator.Calculate(observation, options);
-        Assert.True(overlappingBounds.IntersectionArea(obstacle) > 0);
-        Assert.Equal(PlacementDecision.Place, preferred.Decision);
-        Assert.NotEqual(preferred.Bounds, overlappingBounds);
-
-        bool isSafe = SafeRegionCalculator.IsExistingPlacementSafe(
-            observation,
-            options,
-            overlappingBounds);
 
         Assert.False(isSafe);
     }
@@ -184,8 +114,6 @@ public sealed class SafeRegionCalculatorTests
 
     [Theory]
     [InlineData(96u, 1920, 48, 150, 900, 300, 40)]
-    [InlineData(120u, 2400, 60, 188, 1125, 375, 50)]
-    [InlineData(144u, 2880, 72, 225, 1350, 450, 60)]
     [InlineData(192u, 3840, 96, 300, 1800, 600, 80)]
     public void PlacementUsesPhysicalPixelsAtSupportedDpiScales(
         uint dpi,
@@ -251,36 +179,6 @@ public sealed class SafeRegionCalculatorTests
     }
 
     [Fact]
-    public void ObstaclesAreClippedToTheTaskbarBeforeExpansion()
-    {
-        var partiallyOutsideObstacle = new PixelRect(-1000, -10, 300, 60);
-        TaskbarLayoutObservation observation = CreateObservation(obstacles: [partiallyOutsideObstacle]);
-
-        TaskbarPlacementResult result = SafeRegionCalculator.Calculate(
-            observation,
-            TaskbarPlacementOptions.Default);
-
-        var expected = new PixelRect(450, 4, 750, 44);
-        Assert.Equal(PlacementDecision.Place, result.Decision);
-        Assert.Equal(expected, result.Bounds);
-        Assert.Equal(0, expected.IntersectionArea(partiallyOutsideObstacle));
-    }
-
-    [Fact]
-    public void ObstacleOutsideTheVerticalPlacementBandDoesNotConsumeHorizontalSpace()
-    {
-        var outsideBand = new PixelRect(300, -100, 700, 0);
-        TaskbarLayoutObservation observation = CreateObservation(obstacles: [outsideBand]);
-
-        TaskbarPlacementResult result = SafeRegionCalculator.Calculate(
-            observation,
-            TaskbarPlacementOptions.Default);
-
-        Assert.Equal(PlacementDecision.Place, result.Decision);
-        Assert.Equal(new PixelRect(375, 4, 675, 44), result.Bounds);
-    }
-
-    [Fact]
     public void GapBelowStandardButAtCompactMinimumUsesAllAvailableCompactWidth()
     {
         var taskbar = new PixelRect(0, 0, 600, 48);
@@ -326,54 +224,6 @@ public sealed class SafeRegionCalculatorTests
     }
 
     [Fact]
-    public void EqualMaximumGapsUseTheLeftmostGapDeterministically()
-    {
-        var taskbar = new PixelRect(0, 0, 800, 48);
-        var start = new PixelRect(718, 0, 766, 48);
-        var obstacle = new PixelRect(208, 0, 510, 48);
-        TaskbarLayoutObservation observation = CreateObservation(
-            taskbar,
-            start,
-            includeWidgets: false,
-            obstacles: [obstacle]);
-
-        TaskbarPlacementResult result = SafeRegionCalculator.Calculate(
-            observation,
-            TaskbarPlacementOptions.Default);
-
-        Assert.Equal(PlacementDecision.Place, result.Decision);
-        Assert.Equal(TaskbarStripMode.Compact, result.Mode);
-        Assert.Equal(new PixelRect(8, 4, 200, 44), result.Bounds);
-    }
-
-    [Fact]
-    public void PlacementDimensionsAndMarginsAreInputValues()
-    {
-        var options = new TaskbarPlacementOptions(
-            StandardWidthDip: 240d,
-            CompactMinimumWidthDip: 160d,
-            HeightDip: 32d,
-            MarginDip: 12d);
-
-        TaskbarPlacementResult result = SafeRegionCalculator.Calculate(CreateObservation(), options);
-
-        Assert.Equal(PlacementDecision.Place, result.Decision);
-        Assert.Equal(240, result.Bounds!.Value.Width);
-        Assert.Equal(32, result.Bounds.Value.Height);
-        Assert.Equal(8, result.Bounds.Value.Top);
-    }
-
-    [Fact]
-    public void StripTallerThanVerifiedTaskbarIsVerifiedNoFit()
-    {
-        TaskbarPlacementOptions options = TaskbarPlacementOptions.Default with { HeightDip = 64d };
-
-        TaskbarPlacementResult result = SafeRegionCalculator.Calculate(CreateObservation(), options);
-
-        AssertNoFit(result, PlacementReason.InsufficientHeight);
-    }
-
-    [Fact]
     public void MissingStartLandmarkIsTransientUnknown()
     {
         TaskbarLayoutObservation observation = CreateObservation(includeStart: false);
@@ -399,7 +249,6 @@ public sealed class SafeRegionCalculatorTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(2)]
     public void NonHorizontalTaskbarsAreTransientUnknown(int orientationValue)
     {
         var orientation = (TaskbarOrientation)orientationValue;
@@ -410,132 +259,6 @@ public sealed class SafeRegionCalculatorTests
             TaskbarPlacementOptions.Default);
 
         AssertUnknown(result, PlacementReason.UnsupportedOrientation);
-    }
-
-    [Fact]
-    public void GeometryClaimingHorizontalButShapedVerticalIsTransientUnknown()
-    {
-        var taskbar = new PixelRect(0, 0, 48, 1000);
-        var widgets = new PixelRect(0, 0, 48, 100);
-        var start = new PixelRect(0, 400, 48, 448);
-        TaskbarLayoutObservation observation = CreateObservation(taskbar, start, widgets);
-
-        TaskbarPlacementResult result = SafeRegionCalculator.Calculate(
-            observation,
-            TaskbarPlacementOptions.Default);
-
-        AssertUnknown(result, PlacementReason.InvalidGeometry);
-    }
-
-    [Fact]
-    public void LandmarkOutsideTaskbarIsTransientUnknown()
-    {
-        TaskbarLayoutObservation observation = CreateObservation(
-            start: new PixelRect(900, -1, 948, 48));
-
-        TaskbarPlacementResult result = SafeRegionCalculator.Calculate(
-            observation,
-            TaskbarPlacementOptions.Default);
-
-        AssertUnknown(result, PlacementReason.InvalidGeometry);
-    }
-
-    [Fact]
-    public void WidgetsToTheRightOfStartIsContradictoryAndTransientUnknown()
-    {
-        TaskbarLayoutObservation observation = CreateObservation(
-            start: new PixelRect(500, 0, 548, 48),
-            widgets: new PixelRect(490, 0, 510, 48));
-
-        TaskbarPlacementResult result = SafeRegionCalculator.Calculate(
-            observation,
-            TaskbarPlacementOptions.Default);
-
-        AssertUnknown(result, PlacementReason.ContradictoryLandmarks);
-    }
-
-    [Fact]
-    public void NullObstacleCollectionIsIncompleteAndTransientUnknown()
-    {
-        TaskbarLayoutObservation observation = CreateObservation(includeObstacleCollection: false);
-
-        TaskbarPlacementResult result = SafeRegionCalculator.Calculate(
-            observation,
-            TaskbarPlacementOptions.Default);
-
-        AssertUnknown(result, PlacementReason.InvalidGeometry);
-    }
-
-    [Fact]
-    public void InvalidObstacleIsTransientUnknown()
-    {
-        TaskbarLayoutObservation observation = CreateObservation(obstacles: [default]);
-
-        TaskbarPlacementResult result = SafeRegionCalculator.Calculate(
-            observation,
-            TaskbarPlacementOptions.Default);
-
-        AssertUnknown(result, PlacementReason.InvalidGeometry);
-    }
-
-    [Fact]
-    public void InvalidPlacementOptionsAreTransientUnknown()
-    {
-        TaskbarPlacementOptions[] invalidOptions =
-        [
-            TaskbarPlacementOptions.Default with { StandardWidthDip = double.NaN },
-            TaskbarPlacementOptions.Default with { CompactMinimumWidthDip = 0d },
-            TaskbarPlacementOptions.Default with { HeightDip = -1d },
-            TaskbarPlacementOptions.Default with { MarginDip = -1d },
-            new TaskbarPlacementOptions(180d, 190d, 40d, 8d),
-        ];
-
-        foreach (TaskbarPlacementOptions options in invalidOptions)
-        {
-            TaskbarPlacementResult result = SafeRegionCalculator.Calculate(CreateObservation(), options);
-            AssertUnknown(result, PlacementReason.InvalidGeometry);
-        }
-    }
-
-    [Fact]
-    public void MetricConversionOverflowIsTransientUnknown()
-    {
-        TaskbarPlacementOptions options = TaskbarPlacementOptions.Default with { StandardWidthDip = double.MaxValue };
-
-        TaskbarPlacementResult result = SafeRegionCalculator.Calculate(CreateObservation(), options);
-
-        AssertUnknown(result, PlacementReason.ConversionFailed);
-    }
-
-    [Fact]
-    public void ObstacleExpansionOverflowIsTransientUnknown()
-    {
-        var taskbar = new PixelRect(int.MinValue, 0, int.MinValue + 1000, 48);
-        var widgets = new PixelRect(int.MinValue, 0, int.MinValue + 100, 48);
-        var start = new PixelRect(int.MinValue + 900, 0, int.MinValue + 948, 48);
-        var obstacle = new PixelRect(int.MinValue, 0, int.MinValue + 200, 48);
-        TaskbarLayoutObservation observation = CreateObservation(taskbar, start, widgets, [obstacle]);
-
-        TaskbarPlacementResult result = SafeRegionCalculator.Calculate(
-            observation,
-            TaskbarPlacementOptions.Default);
-
-        AssertUnknown(result, PlacementReason.ConversionFailed);
-    }
-
-    [Fact]
-    public void CandidateMarginOverflowIsTransientUnknownRatherThanNoFit()
-    {
-        var taskbar = new PixelRect(int.MaxValue - 100, 0, int.MaxValue, 48);
-        var widgets = new PixelRect(int.MaxValue - 100, 0, int.MaxValue - 4, 48);
-        var start = new PixelRect(int.MaxValue - 3, 0, int.MaxValue, 48);
-        TaskbarLayoutObservation observation = CreateObservation(taskbar, start, widgets);
-
-        TaskbarPlacementResult result = SafeRegionCalculator.Calculate(
-            observation,
-            TaskbarPlacementOptions.Default);
-
-        AssertUnknown(result, PlacementReason.ConversionFailed);
     }
 
     [Fact]

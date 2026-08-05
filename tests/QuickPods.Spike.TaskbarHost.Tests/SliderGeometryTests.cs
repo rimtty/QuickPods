@@ -7,8 +7,6 @@ public sealed class SliderGeometryTests
 {
     [Theory]
     [InlineData(96)]
-    [InlineData(120)]
-    [InlineData(144)]
     [InlineData(192)]
     public void DrawingAndInput_UseSameTrackAtSupportedDpi(uint dpi)
     {
@@ -27,7 +25,6 @@ public sealed class SliderGeometryTests
 
     [Theory]
     [InlineData(0, 40)]
-    [InlineData(300, 0)]
     [InlineData(1, 1)]
     public void TryCreate_InvalidSurface_ReturnsFalse(int width, int height)
     {

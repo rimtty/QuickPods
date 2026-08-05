@@ -196,6 +196,17 @@ internal static class NativeMethods
         out uint dpiX,
         out uint dpiY);
 
+    [DllImport("dwmapi.dll", ExactSpelling = true)]
+    internal static extern int DwmIsCompositionEnabled(
+        [MarshalAs(UnmanagedType.Bool)] out bool enabled);
+
+    [DllImport("dwmapi.dll", ExactSpelling = true)]
+    internal static extern int DwmGetWindowAttribute(
+        nint window,
+        uint attribute,
+        out uint value,
+        uint valueSize);
+
     [DllImport("gdi32.dll", ExactSpelling = true, SetLastError = true)]
     internal static extern nint CreateSolidBrush(uint color);
 

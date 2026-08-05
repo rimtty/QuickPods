@@ -10,6 +10,9 @@ namespace QuickPods.Spike.TaskbarHost.Discovery;
     Justification = "The callback-based EnumWindows APIs require runtime delegate marshalling.")]
 internal static class TaskbarNativeMethods
 {
+    internal const uint DwmWindowAttributeCloaked = 14;
+    internal const uint GetAncestorParent = 1;
+    internal const uint GetAncestorRoot = 2;
     internal const uint MonitorInfoPrimary = 0x00000001;
     internal const uint MonitorDefaultToNull = 0x00000000;
 
@@ -24,6 +27,13 @@ internal static class TaskbarNativeMethods
     [DllImport("user32.dll", EntryPoint = "EnumChildWindows", ExactSpelling = true, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool EnumChildWindows(nint parent, EnumWindowProc callback, nint state);
+
+    [DllImport("user32.dll", EntryPoint = "IsWindow", ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool IsWindow(nint windowHandle);
+
+    [DllImport("user32.dll", EntryPoint = "GetAncestor", ExactSpelling = true)]
+    internal static extern nint GetAncestor(nint windowHandle, uint flags);
 
     [DllImport(
         "user32.dll",
@@ -56,6 +66,13 @@ internal static class TaskbarNativeMethods
     [DllImport("user32.dll", EntryPoint = "IsWindowVisible", ExactSpelling = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool IsWindowVisible(nint windowHandle);
+
+    [DllImport("dwmapi.dll", EntryPoint = "DwmGetWindowAttribute", ExactSpelling = true)]
+    internal static extern int DwmGetWindowAttribute(
+        nint windowHandle,
+        uint attribute,
+        out uint value,
+        uint valueSize);
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct NativeRect

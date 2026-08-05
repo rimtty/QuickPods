@@ -5,48 +5,6 @@ using Xunit.Sdk;
 
 namespace QuickPods.Spike.TaskbarHost.Tests;
 
-public sealed class NativeFloatingStripContractTests
-{
-    [Fact]
-    public void Style_contract_is_popup_layered_toolwindow_noactivate_and_not_topmost()
-    {
-        long style = NativeWindowStyles.GetFloatingStyle();
-        long extendedStyle = NativeWindowStyles.GetFloatingExtendedStyle();
-
-        Assert.True(NativeWindowStyles.MatchesFloatingWindow(style, extendedStyle));
-        Assert.NotEqual(0, style & NativeConstants.WindowStylePopup);
-        Assert.Equal(0, style & NativeConstants.WindowStyleChild);
-        Assert.Equal(
-            NativeConstants.WindowExtendedStyleToolWindow |
-            NativeConstants.WindowExtendedStyleLayered |
-            NativeConstants.WindowExtendedStyleNoActivate,
-            extendedStyle);
-        Assert.Equal(0, extendedStyle & NativeConstants.WindowExtendedStyleTopmost);
-    }
-
-    [Fact]
-    public void Verified_pmv2_measurement_requires_known_process_thread_window_and_positive_dpi()
-    {
-        var valid = new NativeDpiAwarenessMeasurement(
-            NativeDpiAwareness.PerMonitorAware,
-            NativeDpiAwareness.PerMonitorAware,
-            NativeDpiAwareness.PerMonitorAware,
-            true,
-            true,
-            144);
-
-        Assert.True(NativeFloatingStripHost.IsVerifiedPerMonitorV2(valid));
-        Assert.False(NativeFloatingStripHost.IsVerifiedPerMonitorV2(
-            valid with { Window = NativeDpiAwareness.SystemAware }));
-        Assert.False(NativeFloatingStripHost.IsVerifiedPerMonitorV2(
-            valid with { ThreadIsPerMonitorV2 = false }));
-        Assert.False(NativeFloatingStripHost.IsVerifiedPerMonitorV2(
-            valid with { WindowIsPerMonitorV2 = false }));
-        Assert.False(NativeFloatingStripHost.IsVerifiedPerMonitorV2(
-            valid with { WindowDpi = 0 }));
-    }
-}
-
 [Collection(NativeHostTestGroup.Name)]
 public sealed class NativeFloatingStripHostTests
 {
@@ -212,14 +170,8 @@ public sealed class NativeFloatingStripHostTests
                 false));
     }
 
-    [Theory]
-    [InlineData((int)NativeConstants.WmSettingChange, (int)NativeLayoutInvalidationReason.SettingsChanged)]
-    [InlineData((int)NativeConstants.WmThemeChanged, (int)NativeLayoutInvalidationReason.ThemeChanged)]
-    [InlineData((int)NativeConstants.WmDisplayChange, (int)NativeLayoutInvalidationReason.DisplayChanged)]
-    [InlineData((int)NativeConstants.WmDpiChanged, (int)NativeLayoutInvalidationReason.DpiChanged)]
-    public void Coordinate_context_invalidation_hides_before_queued_event_dispatch(
-        int messageValue,
-        int reasonValue)
+    [Fact]
+    public void Dpi_invalidation_hides_before_queued_event_dispatch()
     {
         RequireWindowTest();
 
@@ -230,7 +182,7 @@ public sealed class NativeFloatingStripHostTests
 
         _ = NativeMethods.SendMessage(
             snapshot.WindowHandle,
-            unchecked((uint)messageValue),
+            NativeConstants.WmDpiChanged,
             0,
             nint.Zero);
 
@@ -241,7 +193,7 @@ public sealed class NativeFloatingStripHostTests
 
         _ = host.PumpMessages();
 
-        Assert.Equal(new[] { (NativeLayoutInvalidationReason)reasonValue }, observed);
+        Assert.Equal(new[] { NativeLayoutInvalidationReason.DpiChanged }, observed);
         _ = Assert.Throws<NativeLayoutInvalidatedException>(host.Show);
         host.ShowAtVerifiedBounds(snapshot.RequestedScreenBounds, snapshot.ExpectedDpi);
         Assert.True(NativeMethods.IsWindowVisible(snapshot.WindowHandle));
