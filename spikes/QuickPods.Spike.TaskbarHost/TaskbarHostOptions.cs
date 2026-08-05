@@ -15,9 +15,16 @@ internal enum RequestedHostStyle
     Popup,
 }
 
+internal enum RequestedFallbackMode
+{
+    Floating,
+    Hidden,
+}
+
 internal sealed record TaskbarHostOptions(
     TaskbarCommand Command,
     RequestedHostStyle Style,
+    RequestedFallbackMode Fallback,
     TimeSpan Duration,
     bool LiveHostConfirmed)
 {
@@ -31,7 +38,12 @@ internal sealed record TaskbarHostOptions(
         if (args.Count == 0 || IsHelp(args[0]))
         {
             return OptionsParseResult.Success(
-                new TaskbarHostOptions(TaskbarCommand.Help, RequestedHostStyle.Child, TimeSpan.Zero, false));
+                new TaskbarHostOptions(
+                    TaskbarCommand.Help,
+                    RequestedHostStyle.Child,
+                    RequestedFallbackMode.Floating,
+                    TimeSpan.Zero,
+                    false));
         }
 
         return args[0] switch
@@ -50,15 +62,22 @@ internal sealed record TaskbarHostOptions(
         }
 
         return OptionsParseResult.Success(
-            new TaskbarHostOptions(TaskbarCommand.Inspect, RequestedHostStyle.Child, TimeSpan.Zero, false));
+            new TaskbarHostOptions(
+                TaskbarCommand.Inspect,
+                RequestedHostStyle.Child,
+                RequestedFallbackMode.Floating,
+                TimeSpan.Zero,
+                false));
     }
 
     private static OptionsParseResult ParseHost(IReadOnlyList<string> args)
     {
         RequestedHostStyle style = RequestedHostStyle.Child;
+        RequestedFallbackMode fallback = RequestedFallbackMode.Floating;
         int durationSeconds = 15;
         bool confirmed = false;
         bool styleSeen = false;
+        bool fallbackSeen = false;
         bool durationSeen = false;
 
         for (int index = 1; index < args.Count; index++)
@@ -76,6 +95,22 @@ internal sealed record TaskbarHostOptions(
                     if (!TryParseStyle(styleValue, out style))
                     {
                         return OptionsParseResult.Failure("--style must be child or popup.");
+                    }
+
+                    break;
+
+                case "--fallback":
+                    if (fallbackSeen || !TryTakeValue(args, ref index, out string? fallbackValue))
+                    {
+                        return OptionsParseResult.Failure(
+                            "--fallback must appear once with floating or hidden.");
+                    }
+
+                    fallbackSeen = true;
+                    if (!TryParseFallback(fallbackValue, out fallback))
+                    {
+                        return OptionsParseResult.Failure(
+                            "--fallback must be floating or hidden.");
                     }
 
                     break;
@@ -121,7 +156,12 @@ internal sealed record TaskbarHostOptions(
         }
 
         return OptionsParseResult.Success(
-            new TaskbarHostOptions(TaskbarCommand.Host, style, TimeSpan.FromSeconds(durationSeconds), true));
+            new TaskbarHostOptions(
+                TaskbarCommand.Host,
+                style,
+                fallback,
+                TimeSpan.FromSeconds(durationSeconds),
+                true));
     }
 
     private static bool IsHelp(string value) => value is "help" or "--help" or "-h";
@@ -152,6 +192,22 @@ internal sealed record TaskbarHostOptions(
                 return true;
             default:
                 style = default;
+                return false;
+        }
+    }
+
+    private static bool TryParseFallback(string? value, out RequestedFallbackMode fallback)
+    {
+        switch (value)
+        {
+            case "floating":
+                fallback = RequestedFallbackMode.Floating;
+                return true;
+            case "hidden":
+                fallback = RequestedFallbackMode.Hidden;
+                return true;
+            default:
+                fallback = default;
                 return false;
         }
     }

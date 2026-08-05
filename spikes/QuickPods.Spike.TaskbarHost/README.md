@@ -1,6 +1,6 @@
 # QuickPods Taskbar Host feasibility spike
 
-This isolated Phase 0C diagnostic evaluates whether a raw Win32 surface can be placed inside the primary Windows 11 taskbar without covering Shell controls. It is evidence only; production code must be implemented separately after Gate B.
+This isolated Phase 0C/0D diagnostic evaluates whether a raw Win32 surface can be placed inside the primary Windows 11 taskbar without covering Shell controls, and whether a safe floating surface can preserve continuity while the native surface is unavailable. Phase 0D lives on `codex/phase-0d-floating-fallback-spike`, stacked on `codex/phase-0c-taskbar-host-spike`. It is evidence only; production code must be implemented separately after Gate B.
 
 ## Safety model
 
@@ -24,7 +24,16 @@ This isolated Phase 0C diagnostic evaluates whether a raw Win32 surface can be p
 - Subscription epochs reject callbacks arriving late from a replaced taskbar root. A watcher-generation fence requires a fresh scan before a host can be shown.
 - Recovery is hide-first: a retained invalidation hides the host before scanning, then shows the verified existing host or recreates it only from a fresh `Place` result.
 - A 5-second watchdog remains as a fallback for missed notifications and parent, DPI, identity, or geometry drift. It keeps the host visible only when a fresh scan proves the same identity, valid native attachment, and a still-safe current rectangle; an incomplete, raced, changed, or unsafe observation escalates to hidden recovery.
-- Continuous invalidation for 10 seconds, or 6 sparse windows within 30 seconds, fails closed. The sparse limit is acknowledged only for an external bounding-rectangle change with unchanged identity, a fresh safe existing rectangle, and a `ShowVerifiedExisting` recovery decision. This acknowledgment never clears the continuous window.
+- Continuous invalidation for 10 seconds, or 6 sparse windows within 30 seconds, still makes the native surface fail closed. The sparse limit is acknowledged only for an external bounding-rectangle change with unchanged identity, a fresh safe existing rectangle, and a `ShowVerifiedExisting` recovery decision. This acknowledgment never clears the continuous window.
+- Phase 0C historically ended the bounded Spike after the 10-second native recovery timeout. Phase 0D instead keeps the process alive and moves to `FloatingFallback` or `HiddenFallback`; the native fail-closed rule itself is unchanged.
+
+## Floating fallback and native promotion
+
+- `VerifiedNoFit` or a sustained incomplete native observation hides the native surface first. If a previously complete observation still supplies a verified primary-monitor work area and DPI, the strip immediately moves to an unowned, non-topmost floating popup inside that work area. Without safe geometry it remains hidden.
+- Start and Search can temporarily produce `PrimaryTaskbarMissing`. This condition does not invalidate the last complete primary-monitor geometry. Settings, display, or DPI invalidation does invalidate it, preventing reuse across a changed coordinate system.
+- The floating surface is `WS_POPUP` with `WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_NOACTIVATE`; it is never parented, owned, or topmost. Native and floating surfaces are never visible simultaneously.
+- Promotion back to native waits for a 1-second mode cooldown and two identical verified `Place` candidates at least 500 ms apart, behind a fresh UI Automation watcher-generation fence. The floating surface is hidden before the prepared native surface is shown.
+- Three native creation failures latch native hosting off for the rest of the session. The configured duration is measured once and is never reset by surface transitions.
 
 ## Rendering stability
 
@@ -49,10 +58,12 @@ dotnet run --project spikes/QuickPods.Spike.TaskbarHost -c Release -- inspect
 Temporarily attach the visual diagnostic host after explicit confirmation:
 
 ```powershell
-dotnet run --project spikes/QuickPods.Spike.TaskbarHost -c Release -- host --style child --duration 30 --confirm-live-host
+dotnet run --project spikes/QuickPods.Spike.TaskbarHost -c Release -- host --style child --fallback floating --duration 30 --confirm-live-host
 ```
 
-Use `--style popup` for the experimental Ceiling-compatible style comparison. Duration is bounded; cancellation and every normal exit destroy the host HWND.
+Use `--style popup` for the experimental Ceiling-compatible native style comparison. `--fallback floating|hidden` selects the fail-closed fallback; the default is `floating`. Duration is bounded across all surface transitions; cancellation and every normal exit destroy every host HWND.
+
+The application manifest is applied by the generated EXE (and by `dotnet run`), not by direct `dotnet QuickPods.Spike.TaskbarHost.dll` execution. Live DPI/host validation must therefore use the EXE or `dotnet run`.
 
 The host draws a local sample slider only. It does not read or change Core Audio volume and does not access Bluetooth. Use `--style popup` for the bounded comparison run; the final Child versus Popup choice remains a Gate B decision.
 
@@ -60,4 +71,6 @@ The host draws a local sample slider only. It does not read or change Core Audio
 
 Sanitized results belong in `docs/validation/phase-0/taskbar-host/`. Do not commit raw HWND values, Explorer PIDs, localized window names, notification content, or unreviewed screenshots.
 
-The current Windows 11 evidence covers 100%, 125%, and 150% Child and Popup runs, a 10-cycle visible-Child Explorer restart test, and 200% fail-closed NoFit checks. Issue #12 is closed. At 100%, hidden Search, icon-only Search, and the Search box passed the applicable fixed-HWND and manual visual/input checks; the Search box also passed with Task View and Widgets enabled (1088 samples, no hidden, destroyed, or rectangle drift, and no residue). The icon-plus-label layout places and accepts input initially, but both the Start/Windows and Search transient UI reproduce temporary `PrimaryTaskbarMissing`. Controlled isolated runs restored the same host after 7.796 seconds and 6.757 seconds respectively; observations lasting more than 10 seconds reach the existing safe fail-closed timeout. Coalesced diagnostics distinguish complete discovery, placement, faults, scan races, and the exact host-exclusion match without emitting handles, process IDs, names, Automation IDs, or coordinates. The pre-timeout runs remain alive and safely hidden, while the bounded timeout intentionally stops the Spike; both appear to the user as a crash and remain open as Issue #13. Floating fallback (Issue #11), Issue #13, many-pinned-app stress, and the final style decision remain pending, so Gate B remains Pending.
+The current Windows 11 evidence covers the Phase 0C 100%, 125%, and 150% Child and Popup runs, a 10-cycle visible-Child Explorer restart test, and 200% fail-closed NoFit checks. Phase 0D passes a Release build with 0 warnings/errors, TaskbarHost 301 tests plus Smoke 1, format verification, and diff check. At DPI 168 (175%), a 45-second EXE run with automated 12-second Start and 12-second Search input exited 0 with no residual process and observed at least one `External / StructureChanged` transition through `NativeVisible → FloatingFallback → NativePromoted`.
+
+The sanitized log cannot identify whether a particular transition was caused by Start or Search, and automation does not prove that the floating strip stayed visibly continuous or remained operable. Manual visual/input confirmation of the floating surface, plus separate 15-second Start and Search checks at 100% with icon-plus-label Search, remain Pending. Many-pinned-app stress and the final Child/Popup choice also remain Pending, so Gate B remains Pending.

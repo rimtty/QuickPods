@@ -13,6 +13,10 @@ internal static class NativeWindowStyles
         NativeConstants.WindowStylePopup |
         NativeConstants.WindowStyleClipSiblings;
 
+    internal static long GetFloatingStyle() => GetInitialStyle();
+
+    internal static long GetFloatingExtendedStyle() => RequiredExtendedStyle;
+
     internal static long GetStyle(NativeParentStyleMode mode) => mode switch
     {
         NativeParentStyleMode.PopupPreserved => GetInitialStyle(),
@@ -35,4 +39,10 @@ internal static class NativeWindowStyles
             (style & NativeConstants.WindowStylePopup) == 0,
         _ => false,
     };
+
+    internal static bool MatchesFloatingWindow(long style, long extendedStyle) =>
+        (style & NativeConstants.WindowStylePopup) != 0 &&
+        (style & NativeConstants.WindowStyleChild) == 0 &&
+        HasRequiredExtendedStyles(extendedStyle) &&
+        (extendedStyle & NativeConstants.WindowExtendedStyleTopmost) == 0;
 }

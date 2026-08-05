@@ -36,8 +36,23 @@ public sealed class TaskbarHostOptionsTests
         Assert.True(result.IsSuccess);
         Assert.Equal(TaskbarCommand.Host, result.Options!.Command);
         Assert.Equal(expected, result.Options.Style.ToString());
+        Assert.Equal(RequestedFallbackMode.Floating, result.Options.Fallback);
         Assert.Equal(TimeSpan.FromSeconds(30), result.Options.Duration);
         Assert.True(result.Options.LiveHostConfirmed);
+    }
+
+    [Theory]
+    [InlineData("floating", (int)RequestedFallbackMode.Floating)]
+    [InlineData("hidden", (int)RequestedFallbackMode.Hidden)]
+    public void Parse_ExplicitFallback_ReturnsRequestedMode(
+        string value,
+        int expectedValue)
+    {
+        OptionsParseResult result = TaskbarHostOptions.Parse(
+            ["host", "--fallback", value, "--confirm-live-host"]);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal((RequestedFallbackMode)expectedValue, result.Options!.Fallback);
     }
 
     [Fact]
@@ -66,6 +81,8 @@ public sealed class TaskbarHostOptionsTests
     [InlineData("inspect", "--confirm-live-host")]
     [InlineData("host", "--confirm-live-host", "--confirm-live-host")]
     [InlineData("host", "--style", "floating", "--confirm-live-host")]
+    [InlineData("host", "--fallback", "popup", "--confirm-live-host")]
+    [InlineData("host", "--fallback", "hidden", "--fallback", "floating", "--confirm-live-host")]
     [InlineData("host", "--unknown", "value", "--confirm-live-host")]
     [InlineData("unknown")]
     public void Parse_UnknownOrContradictoryInput_IsRejected(params string[] args)

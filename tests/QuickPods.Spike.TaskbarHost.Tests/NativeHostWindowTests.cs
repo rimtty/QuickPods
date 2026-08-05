@@ -92,6 +92,117 @@ public sealed class NativeHostWindowTests
         Assert.False(host.IsCreated);
     }
 
+    [Theory]
+    [InlineData((int)NativeParentStyleMode.PopupPreserved)]
+    [InlineData((int)NativeParentStyleMode.Child)]
+    public void CreateHidden_prepares_verified_host_without_showing_it(int modeValue)
+    {
+        RequireWindowTest();
+
+        var mode = (NativeParentStyleMode)modeValue;
+        using var parent = NativeTestParentWindow.CreateOffscreen();
+        var requested = new PixelRect(
+            NativeTestParentWindow.ScreenLeft + 20,
+            NativeTestParentWindow.ScreenTop + 14,
+            NativeTestParentWindow.ScreenLeft + 300,
+            NativeTestParentWindow.ScreenTop + 62);
+        using var host = new NativeTaskbarHost();
+
+        NativeHostCreationSnapshot snapshot = host.CreateHiddenForStableDpiTestParent(
+            parent.Handle,
+            requested,
+            mode);
+
+        Assert.NotEqual(nint.Zero, snapshot.WindowHandle);
+        Assert.NotEqual(nint.Zero, snapshot.ControlWindowHandle);
+        Assert.True(NativeMethods.IsWindow(snapshot.WindowHandle));
+        Assert.True(NativeMethods.IsWindow(snapshot.ControlWindowHandle));
+        Assert.False(NativeMethods.IsWindowVisible(snapshot.WindowHandle));
+        Assert.False(NativeMethods.IsWindowVisible(snapshot.ControlWindowHandle));
+        Assert.Equal(parent.Handle, snapshot.ParentHandle);
+        Assert.Equal(requested, snapshot.RequestedScreenBounds);
+        Assert.Equal(requested, snapshot.ActualScreenBounds);
+        Assert.Equal(mode, snapshot.StyleMode);
+        Assert.True(NativeWindowStyles.MatchesParentStyleMode(snapshot.Style, mode));
+        Assert.True(NativeWindowStyles.HasRequiredExtendedStyles(snapshot.ExtendedStyle));
+        Assert.True(snapshot.BeforeParentingDpi.WindowDpi > 0);
+        Assert.True(snapshot.AfterParentingDpi.WindowDpi > 0);
+        Assert.True(host.IsCurrentAttachmentValidWhileHidden());
+        Assert.False(host.IsCurrentAttachmentValid());
+
+        host.Show();
+
+        Assert.True(NativeMethods.IsWindowVisible(snapshot.WindowHandle));
+        Assert.True(host.IsCurrentAttachmentValid());
+        Assert.False(host.IsCurrentAttachmentValidWhileHidden());
+
+        host.Destroy();
+
+        Assert.False(NativeMethods.IsWindow(snapshot.WindowHandle));
+        Assert.False(NativeMethods.IsWindow(snapshot.ControlWindowHandle));
+        Assert.False(host.IsCreated);
+    }
+
+    [Fact]
+    public void Prepared_hidden_host_rejects_show_while_invalidation_is_pending_and_cleans_up()
+    {
+        RequireWindowTest();
+
+        using var parent = NativeTestParentWindow.CreateOffscreen();
+        var requested = new PixelRect(
+            NativeTestParentWindow.ScreenLeft + 20,
+            NativeTestParentWindow.ScreenTop + 14,
+            NativeTestParentWindow.ScreenLeft + 300,
+            NativeTestParentWindow.ScreenTop + 62);
+        using var host = new NativeTaskbarHost();
+        NativeHostCreationSnapshot snapshot = host.CreateHiddenForStableDpiTestParent(
+            parent.Handle,
+            requested,
+            NativeParentStyleMode.Child);
+
+        _ = NativeMethods.SendMessage(
+            snapshot.ControlWindowHandle,
+            NativeConstants.WmDisplayChange,
+            0,
+            nint.Zero);
+
+        Assert.False(NativeMethods.IsWindowVisible(snapshot.WindowHandle));
+        Assert.False(host.IsCurrentAttachmentValidWhileHidden());
+        _ = Assert.Throws<NativeLayoutInvalidatedException>(host.Show);
+        Assert.False(NativeMethods.IsWindowVisible(snapshot.WindowHandle));
+
+        host.Destroy();
+
+        Assert.False(NativeMethods.IsWindow(snapshot.WindowHandle));
+        Assert.False(NativeMethods.IsWindow(snapshot.ControlWindowHandle));
+        Assert.False(host.IsCreated);
+    }
+
+    [Theory]
+    [InlineData((int)NativeParentStyleMode.PopupPreserved)]
+    [InlineData((int)NativeParentStyleMode.Child)]
+    public void CreateHidden_rejects_a_supplied_parent_that_is_not_top_level(int modeValue)
+    {
+        RequireWindowTest();
+
+        using var root = NativeTestParentWindow.CreateOffscreen();
+        using var nested = NativeTestParentWindow.CreateOffscreenChild(root.Handle);
+        var requested = new PixelRect(
+            NativeTestParentWindow.ScreenLeft + 20,
+            NativeTestParentWindow.ScreenTop + 14,
+            NativeTestParentWindow.ScreenLeft + 300,
+            NativeTestParentWindow.ScreenTop + 62);
+        using var host = new NativeTaskbarHost();
+
+        _ = Assert.Throws<NativeLayoutInvalidatedException>(() =>
+            host.CreateHiddenForStableDpiTestParent(
+                nested.Handle,
+                requested,
+                (NativeParentStyleMode)modeValue));
+
+        Assert.False(host.IsCreated);
+    }
+
     [Fact]
     public void WndProc_queues_lightweight_interactions_until_the_message_pump_drains_them()
     {
@@ -578,6 +689,31 @@ public sealed class NativeHostWindowTests
                 640,
                 80,
                 nint.Zero,
+                nint.Zero,
+                registration.Instance,
+                nint.Zero);
+            if (handle == nint.Zero)
+            {
+                throw new Win32Exception();
+            }
+
+            _ = NativeMethods.ShowWindow(handle, NativeConstants.ShowWindowNoActivate);
+            return new(handle);
+        }
+
+        internal static NativeTestParentWindow CreateOffscreenChild(nint parentHandle)
+        {
+            NativeWindowClassRegistry.Registration registration = Registration.Value;
+            nint handle = NativeMethods.CreateWindow(
+                (uint)NativeConstants.WindowExtendedStyleToolWindow,
+                ClassName,
+                "QuickPods nested test parent",
+                (uint)NativeConstants.WindowStyleChild,
+                0,
+                0,
+                640,
+                80,
+                parentHandle,
                 nint.Zero,
                 registration.Instance,
                 nint.Zero);

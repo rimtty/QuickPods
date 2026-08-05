@@ -1,4 +1,4 @@
-# Phase 0C 検証環境
+# Phase 0C／0D 検証環境
 
 ## 自動取得対象
 
@@ -12,13 +12,35 @@
 - Explorer世代は実行中比較だけに使用し、生PIDは証跡へ保存しない
 - 検証コミットSHA
 
-## 初回観測：150%（Widgets ON）
+## Phase 0D自動実機観測：175% floating fallback
+
+| 項目 | 値 |
+|---|---|
+| 検証日 | 2026-08-05 |
+| ブランチ | `codex/phase-0d-floating-fallback-spike`（Phase 0Cからstack） |
+| Windows | Windows 11 Pro 10.0.26200（build 26200） |
+| OS／プロセスarchitecture | x64／x64 |
+| integrity | 非管理者（elevated=false） |
+| .NET SDK | 10.0.302 |
+| Windows Desktop Runtime | 10.0.10 |
+| DPI | 168（175%） |
+| 起動形態 | application manifestが適用されるEXE |
+| 実行時間 | 45秒。surface遷移中もdurationはresetしない |
+| 自動入力 | Start入力12秒／Search入力12秒 |
+| 結果 | exit 0、終了後QuickPodsプロセス残留0 |
+| 遷移証跡 | 少なくとも1回、`External / StructureChanged`から`NativeVisible → FloatingFallback → NativePromoted` |
+
+この試験では、nativeが安全にhideした後、直前の完全検証済みprimary work-area／DPI上のunowned・non-topmost floatingへ退避し、1秒cooldown、500ms以上離れた同一candidate 2回、およびwatcher fenceを経てnativeへ復帰した。Settings／Display／DPI invalidation時だけ保持geometryを破棄する。サニタイズ済みログからは各遷移がStart／Searchのどちらによるものかを特定できず、floatingの目視上の継続と入力も証明しない。100% icon＋labelでStart／Searchを個別に各15秒開く手動試験と、floatingのclick／drag／wheelはPendingである。
+
+実機host検証はEXEまたは`dotnet run`で行う。DLL直接起動ではapplication manifestが適用されないため、DPI／host証跡として使用しない。
+
+## Phase 0C historical：初回観測 150%（Widgets ON）
 
 | 項目 | 値 |
 |---|---|
 | 検証日 | 2026-08-05 |
 | ブランチ | `codex/phase-0c-taskbar-host-spike` |
-| 検証対象 | 本ブランチのPhase 0C作業ツリー（コミット前検証） |
+| 検証対象 | Phase 0C historical evidence |
 | Windows | Windows 11 Pro 10.0.26200（build 26200） |
 | OS／プロセスarchitecture | x64／x64 |
 | integrity | 非管理者（elevated=false） |
@@ -92,4 +114,4 @@ Childを17秒間、起動時に確定した同一HWNDで監視して1088 samples
 
 Start／Windows一時UIと検索アイコン＋ラベルの検索一時UIを個別に開く制御runでは、どちらも一時的な`PrimaryTaskbarMissing`を再現した。再現区間の外部inspectは57/57回が`TransientUnknown / IncompleteObservation`であり、Runnerは不完全観測中に推測配置せずhostを安全にhideした。その後、Startでは7.796秒、検索では6.757秒で同じhostを再表示した。観測不能が10秒を超えるケースは既存のFail Closed timeoutへ到達して安全停止する。
 
-10秒未満の制御runはhostプロセスが存続したまま安全に一時非表示となるため、renderer／input flickerや予期しない即時クラッシュではない。一方、観測不能が10秒を超えるとSpikeは設計どおり安全停止する。この二つがユーザーには同じ「落ちた」ように見える復帰UXの問題である。Issue #13は未解決であり、Gate B全体もIssue #11のフローティングフォールバック、Issue #13、ピン留めアプリ多数のstress、およびChild／Popup最終方式が残るためPendingである。
+Phase 0Cでは、10秒未満の制御runはhostプロセスが存続したまま安全に一時非表示となり、観測不能が10秒を超えるとSpikeは設計どおり安全停止した。この二つがユーザーには同じ「落ちた」ように見える復帰UXの問題だった。これはhistorical behaviorであり、Phase 0Dでは安全なfloatingまたはhidden fallbackへ遷移してセッションを継続する。Gate BはPhase 0Dの手動試験、ピン留めアプリ多数のstress、およびChild／Popup最終方式が残るためPendingである。

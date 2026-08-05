@@ -87,27 +87,24 @@ internal static class Program
                 : SuccessExitCode;
         }
 
-        if (placement.Decision != PlacementDecision.Place ||
-            placement.Bounds is null ||
-            discovery.Snapshot is null)
-        {
-            Console.Error.WriteLine("A visible host was not created because placement was not verified.");
-            return ObservationUnavailableExitCode;
-        }
-
         bool completed = await TaskbarHostRunner.RunAsync(options, cancellationToken).ConfigureAwait(false);
         return completed ? SuccessExitCode : HostFailureExitCode;
     }
 
     private static void WriteUsage(TextWriter writer)
     {
-        writer.WriteLine("QuickPods Taskbar Host Phase 0C diagnostic");
+        writer.WriteLine("QuickPods Taskbar Host Phase 0D diagnostic");
         writer.WriteLine();
         writer.WriteLine("  inspect");
         writer.WriteLine("      Read-only taskbar/UI Automation discovery and placement report.");
         writer.WriteLine();
-        writer.WriteLine("  host [--style child|popup] [--duration 1..120] --confirm-live-host");
-        writer.WriteLine("      Temporarily attach the sample raw Win32 host after verified placement.");
+        writer.WriteLine(
+            "  host [--style child|popup] [--fallback floating|hidden] " +
+            "[--duration 1..120] --confirm-live-host");
+        writer.WriteLine(
+            "      Temporarily show the sample host. Native placement is used only after verification;");
+        writer.WriteLine(
+            "      otherwise the selected safe fallback remains active for the bounded run.");
         writer.WriteLine();
         writer.WriteLine("The spike never restarts Explorer or changes audio/Bluetooth state.");
     }
