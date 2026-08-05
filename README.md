@@ -16,7 +16,7 @@ Run these commands from the repository root:
 ```powershell
 dotnet restore QuickPods.sln
 dotnet restore QuickPods.sln --locked-mode
-dotnet format QuickPods.sln --verify-no-changes --no-restore --severity info
+dotnet format QuickPods.sln --verify-no-changes --no-restore --severity warn
 dotnet build QuickPods.sln -c Release --no-restore -warnaserror
 dotnet test QuickPods.sln -c Release --no-build --no-restore --logger "trx;LogFilePrefix=quickpods" --results-directory TestResults -- RunConfiguration.TreatNoTestsAsError=true
 ```

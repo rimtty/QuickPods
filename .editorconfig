@@ -51,3 +51,7 @@ csharp_style_var_elsewhere = false:suggestion
 # ComImport interfaces breaks QueryInterface casts across the MMDevice topology.
 [spikes/QuickPods.Spike.BluetoothKs/Interop/*.cs]
 dotnet_diagnostic.SYSLIB1096.severity = none
+
+# Descriptive xUnit method names intentionally use Given_When_Then separators.
+[tests/QuickPods.Spike.TaskbarHost.Tests/*.cs]
+dotnet_diagnostic.CA1707.severity = none
