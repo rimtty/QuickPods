@@ -151,6 +151,8 @@ Go条件：
 
 No-Go時：原因を分類し、解消するまでPhase 1以降へ進まない。
 
+判定（2026-08-06）：**Go**。Windows UI一致、設定p95 0.111ms、外部通知p95 4.409ms、1,000回変更と復元が合格した。既定デバイス切替は単一出力環境のため設計証拠で受理し、複数デバイスでの実機追試をIssue #19に残す。根拠は`docs/validation/phase-0/core-audio/`を参照する。
+
 #### B3：`codex/phase-0b-bluetooth-ks-spike`
 
 | 項目 | 内容 |
