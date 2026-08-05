@@ -33,7 +33,7 @@
 
 | 検証項目 | 結果 |
 |---|---|
-| 自動試験／品質Gate | **Pass（Phase 0E）** — TaskbarHost 364件＋Smoke 1件、計365件、Release build 0 warning／0 error、format／diff check合格。Phase 0Dの301件＋1件とPhase 0Cの216件＋1件は履歴値 |
+| 自動試験／品質Gate | **Pass（Phase 0E）** — TaskbarHost 183件＋Smoke 1件、計184件。整理前368件から50.0%へ縮約し、Release build 0 warning／0 error、format／diff check合格。Phase 0Dの301件＋1件とPhase 0Cの216件＋1件は履歴値 |
 | 純粋な区間・DPI計算 | **Pass** — 境界、負座標、4 DPI、fail-closed、交差0pxを自動試験 |
 | 読み取り専用UIA探索 | **Pass（現在環境）** — 一意なStart、構成どおりのWidgets検出／欠落、fault 0 |
 | 擬似親HWND | **Pass（自動試験）** — attach、親／DPI検証、親消失、通知race、破棄 |
@@ -49,12 +49,12 @@
 | 検索：非表示／アイコンのみ／ボックス | **Pass（100%中央揃え）** — 3形式の安定layoutは`Place / Standard`。Task View／Widgets ON検索ボックスも1088 samplesでhidden／destroyed／rect drift 0、手動確認・残留0に合格 |
 | 検索：アイコン＋ラベル | **Pass（Phase 0E／100% Popup）** — Start／検索の双方を開いたままタスクバー内の同じ位置を維持し、表示中のwheel入力も成功。120秒runでFloating遷移0、正常終了後残留0 |
 | 透過・hit testing | **Partial Pass** — 4 DPIの共通座標に加え、両style各1000 frameのhandle安定性、各200回click jump、透明corner pixel、double-buffer転送を自動試験。残る実画面構成は未確認 |
-| Explorer復旧policy | **Pass（自動試験）** — 250ms再試行、10秒fail-closed、identity／DPI／bounds世代比較、5秒Watchdog |
-| UIA churn guard | **Pass（自動試験）** — 連続10秒または30秒内6回でfail closed。厳密な外部bounds／同一identity／既存矩形safe／`ShowVerifiedExisting`時だけsparse履歴をacknowledge |
-| Explorer再起動10回 | **Pass（現在環境）** — 200% NoFitと150%可視Childで各10/10回。可視Childは最大4.064秒で再生成、重複0、自然終了後残存0 |
+| Explorer復旧policy | **Pass（現在経路）** — 100ms attachment health check、5秒Watchdog、500ms fallback rescanを組み合わせ、fresh identity／DPI／bounds／attachment／障害物安全性が揃わない状態ではnativeを表示しない |
+| UIA watcher資源寿命 | **既知P2** — 採用Popupの10回試験でUSER objectがExplorer世代ごとに1増加（22→32）。GDI 10、通常HWND 5、message-only HWND 1、クラス構成は不変。discovery-onlyは増加0、watcher-onlyで再現し、強制GCでも不変。Issue #18で製品化前の隔離方式を追跡 |
+| Explorer再起動10回 | **Pass（現在環境／採用Popup）** — 10/10回が10秒以内、最大5.395秒。全回で旧View消失、新Explorer世代、View／Control各1、Popup style／実親／DWMを確認。exit 0、重複・孤立・終了後残存0。200% NoFitと150%可視Childの各10回も履歴Pass |
 | Child／Popup最終方式 | **PopupPreservedを選定** — Start／Search中のnative continuityを満たした唯一の方式。`WS_CHILD`は明示比較／rollback用に残す |
 | Gate B判断 | Pending |
 
-Issue #12のちらつきとIssue #13のStart／Search native continuityは、100% PopupPreservedの実機確認まで合格し、採用styleをPopupに一意化した。非ブロッキングのprovenance／race hardeningはIssue #15で追跡する。Gate Bは、採用PopupでのExplorer再起動10回、ピン留めアプリ多数のstress、tray churn中のStart保持、および残るDPI／fallback目視項目が未完了のためPendingのままとする。
+Issue #12のちらつき、Issue #13のStart／Search native continuity、および採用PopupのExplorer再起動10回は実機確認まで合格した。Popupを最終styleとして一意化し、非ブロッキングのprovenance／race hardeningはIssue #15、Explorer世代ごとのUIA watcher資源寿命はIssue #18で追跡する。Gate Bは、ピン留めアプリ多数のstress、tray churn中のStart保持、および残るDPI／fallback目視項目が未完了のためPendingのままとする。
 
 実機host試験はapplication manifestが適用されるEXEまたは`dotnet run`で実施する。DLL直接起動はmanifest非適用のため、DPI／hostの証跡に使用しない。`--duration`はnative／floating／hiddenの遷移でresetせず、セッション開始から単調に測る。
