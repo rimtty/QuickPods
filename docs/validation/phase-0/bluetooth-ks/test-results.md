@@ -1,0 +1,49 @@
+# Phase 0B 自動・読み取り専用検証結果
+
+## 結果概要
+
+| 項目 | 結果 |
+|---|---|
+| 実行日 | 2026-08-05 |
+| ブランチ | `codex/phase-0b-bluetooth-ks-spike` |
+| .NET | SDK `10.0.302` / Runtime `10.0.10` |
+| Release build | Pass、警告0、エラー0 |
+| 自動試験 | Pass、Bluetooth KS 56件 + solution smoke 1件 |
+| format / diff check | Pass |
+| 読み取り専用inventory | Pass |
+| KS Basic Support | Pending（未実行） |
+| Reconnect / Disconnect | Pending（未実行） |
+
+## 読み取り専用inventory
+
+`inventory`は外側の隔離プロセスとkill-on-close Job Object内で実行した。`IKsControl::KsProperty`は呼び出していない。
+
+- AirPods audioのContainerを1件識別した。
+- EndpointはRender 1件、Capture 1件で、観測時はいずれも`Unplugged`だった。
+- DeviceTopology connector 0からRender候補1件、Capture候補1件を区別した。
+- 操作対象の選択規則はRender候補がContainer内で1件、かつ全Containerで所有が一意の場合だけ許可する。
+- Friendly Nameを取得できないEndpointは表示専用faultとして記録し、Topology所有権へ影響するfaultは観測されなかった。
+- セッショントークンと24桁エイリアスは実行ごとに変わるため、本書には値を保存していない。
+- 生のContainer ID、Endpoint ID、Adapter/PnP ID、MACアドレスは標準出力、標準エラー、文書へ保存していない。
+
+## 自動試験で確認した安全条件
+
+- 引数確認前に探索またはKS操作を開始しない。
+- 未知target、複数Render候補、複数Containerで共有される候補をfail closedで拒否する。
+- 所有権へ影響する探索fault、または同じAdapterをContainerへ帰属できないsnapshotではKS子プロセスを開始しない。
+- Basic Supportの片方でも非対応ならReconnect／Disconnectを発行しない。
+- KS HRESULTが失敗の場合、MMDeviceが期待状態へ変化しても成功扱いしない。
+- 操作前から目的状態だった試行は`AlreadyInDesiredState`とし、有効成功へ数えない。
+- 同一Containerの操作は完全直列化し、古いgenerationの結果を破棄する。
+- machine-wide固定名のcross-process Mutexにより全診断コマンドを直列化し、2つの実行プロセスを競合させた場合は2つ目が固定名Jobへ合流する前に拒否される。
+- Mutex所有者の異常終了と待機cancelでは操作delegateを実行せず、名前付きJobの回収を確認するまで次の操作を拒否する。
+- 停止子プロセスはJob Objectで終了し、PIDが消滅したことまで確認する。
+- 名前付きJob内に実際の孫プロセスを残すsimulationで、`ActiveProcesses == 0`まで回収することを確認する。
+- 同名Jobが既に存在する場合は参加・再設定せず、コマンド開始前に拒否する。
+- 子の異常終了、欠落JSON、nonce／操作不一致、同意フラグ不足を成功へ読み替えない。
+- `--ks-child`の未定義数値を実操作へフォールスルーさせない。
+- 実KS子プロセスは、同一実行ファイルの親と操作に対応した同意capabilityを必要とする。
+
+## 未実行項目
+
+Basic Supportもドライバーへの読み取り要求であるため、`--confirm-ks-operation`を伴う操作者判断までは実行しない。Reconnect／Disconnectはさらに、音声再生と通話を停止したことの明示確認が必要である。Gate Aは接続・切断各10回を完了するまでPendingのままとする。

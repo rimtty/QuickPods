@@ -6,6 +6,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{0AB3BF05
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuickPods.SmokeTests", "tests\QuickPods.SmokeTests\QuickPods.SmokeTests.csproj", "{61B767B0-94E2-449F-AE59-335FEDD7A800}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Spikes", "Spikes", "{674B3D0D-B3C1-BDFD-64ED-056E74CE37B3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuickPods.Spike.BluetoothKs", "spikes\QuickPods.Spike.BluetoothKs\QuickPods.Spike.BluetoothKs.csproj", "{B711A2E2-CA93-4B89-AB2E-2DF4738F014F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuickPods.Spike.BluetoothKs.Tests", "tests\QuickPods.Spike.BluetoothKs.Tests\QuickPods.Spike.BluetoothKs.Tests.csproj", "{AA9C2071-4DAB-49DD-96F9-DB6D7D612AA8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -22,11 +28,29 @@ Global
 		{61B767B0-94E2-449F-AE59-335FEDD7A800}.Release|Any CPU.Build.0 = Release|Any CPU
 		{61B767B0-94E2-449F-AE59-335FEDD7A800}.Release|x64.ActiveCfg = Release|Any CPU
 		{61B767B0-94E2-449F-AE59-335FEDD7A800}.Release|x64.Build.0 = Release|Any CPU
+		{B711A2E2-CA93-4B89-AB2E-2DF4738F014F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B711A2E2-CA93-4B89-AB2E-2DF4738F014F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B711A2E2-CA93-4B89-AB2E-2DF4738F014F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B711A2E2-CA93-4B89-AB2E-2DF4738F014F}.Debug|x64.Build.0 = Debug|Any CPU
+		{B711A2E2-CA93-4B89-AB2E-2DF4738F014F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B711A2E2-CA93-4B89-AB2E-2DF4738F014F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B711A2E2-CA93-4B89-AB2E-2DF4738F014F}.Release|x64.ActiveCfg = Release|Any CPU
+		{B711A2E2-CA93-4B89-AB2E-2DF4738F014F}.Release|x64.Build.0 = Release|Any CPU
+		{AA9C2071-4DAB-49DD-96F9-DB6D7D612AA8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AA9C2071-4DAB-49DD-96F9-DB6D7D612AA8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AA9C2071-4DAB-49DD-96F9-DB6D7D612AA8}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{AA9C2071-4DAB-49DD-96F9-DB6D7D612AA8}.Debug|x64.Build.0 = Debug|Any CPU
+		{AA9C2071-4DAB-49DD-96F9-DB6D7D612AA8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AA9C2071-4DAB-49DD-96F9-DB6D7D612AA8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AA9C2071-4DAB-49DD-96F9-DB6D7D612AA8}.Release|x64.ActiveCfg = Release|Any CPU
+		{AA9C2071-4DAB-49DD-96F9-DB6D7D612AA8}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{61B767B0-94E2-449F-AE59-335FEDD7A800} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{B711A2E2-CA93-4B89-AB2E-2DF4738F014F} = {674B3D0D-B3C1-BDFD-64ED-056E74CE37B3}
+		{AA9C2071-4DAB-49DD-96F9-DB6D7D612AA8} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

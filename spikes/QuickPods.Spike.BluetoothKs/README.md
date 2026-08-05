@@ -1,0 +1,22 @@
+# QuickPods Bluetooth KS spike
+
+This isolated diagnostic determines whether the documented Windows KS and DeviceTopology path can safely control the selected Bluetooth audio device on the current driver stack. It is not production code.
+
+## Safety boundaries
+
+- `inventory` only discovers audio endpoints, Container IDs, topology links, and potential KS filters. It does not call `IKsControl::KsProperty`.
+- Every non-help command runs inside a kill-on-close Windows Job Object, so a stalled discovery or topology call cannot hold the invoking process indefinitely. The named outer Job must report zero active processes before its machine-wide operation gate is released.
+- All diagnostic commands share a machine-wide named Mutex because they also share the named containment Job. A concurrent, abandoned, cancelled, or uncontained prior command is rejected before another isolated command starts.
+- `probe` requires the report session token and `--confirm-ks-operation`; each Basic Support request runs in a second watchdog-protected child process.
+- `connect` and `disconnect` additionally require the report-scoped target alias to be repeated with `--confirm-target` and require `--confirm-playback-stopped`.
+- A successful KS HRESULT is never treated as a successful connection change without an independent MMDevice state transition.
+- Only one explicitly selected Container ID may be operated on. Display names are never identity keys.
+- A topology fault that can affect KS-filter ownership, or a selected adapter that cannot be assigned to a Container, makes the entire snapshot ineligible for KS operations.
+- MAC addresses and full Container, endpoint, adapter, and PnP identifiers are never printed or persisted.
+- `inventory` creates a random report session token. All 24-character aliases use session-keyed HMAC, so an alias can be reused with that token but cannot be linked across reports.
+- Internal child requests carry a version, nonce, exact operation, target alias, and consent flags. Real KS children also require a parent process running the same executable.
+- The diagnostic never installs a driver, changes the registry, requests elevation, toggles the Bluetooth radio, or calls private OS APIs.
+
+The Gate A decision remains pending until the MediaTek/AirPods hardware matrix is completed. A No-Go result falls back to the Windows Bluetooth settings page (`ms-settings:bluetooth`).
+
+Run `inventory` first, then copy its `session` value and target alias into a separately confirmed `probe`, `connect`, or `disconnect` command. Do not commit the session token or runtime output.
