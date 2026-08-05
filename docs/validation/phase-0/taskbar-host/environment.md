@@ -33,3 +33,9 @@
 | 初回探索時間 | Child 102.439 ms／Popup 98.565 ms（各30秒live runの初回scan） |
 
 矩形はタスクバー左上を原点とする相対physical pxだけを記録した。生HWND、Explorer PID、ウィンドウタイトル、通知内容、一般ボタンのAutomation ID、外部要素のclass名は保存していない。UIA無効化の記録もevent kindと`Owned`／`External`／`Unknown`分類だけに限定した。別の可視タスクバー要素を検出したため、これを未知障害物として安全領域から除外した。実画面スクリーンショットは保存していない。
+
+## 追加観測：200%構成
+
+同日の後続セッションでは、プライマリ表示領域が3600×2260 physical px、タスクバーが3600×96 physical px、DPI 192（200%）だった。Startは相対矩形`(696, 0, 90, 96)`、Widgetsは`(12, 0, 304, 96)`、UIA button数は30、native critical child観測数は5だった。
+
+このWidgets ON構成では、Startより左の検証済み候補レーンがCompact最小幅に届かず、`VerifiedNoFit / InsufficientWidth`となった。これは推測配置せず非表示を選ぶ期待どおりのFail Closed結果であり、200%での描画・入力成功を示すものではない。

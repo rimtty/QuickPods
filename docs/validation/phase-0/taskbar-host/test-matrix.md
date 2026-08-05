@@ -29,11 +29,12 @@
 | ピン留めアプリ多数／空き不足 | コンパクトまたはVerifiedNoFit | Pending |
 | UIA外部bounds変更 | hide-firstでfresh scanし、安全な既存矩形だけを再表示 | **Partial Pass** — Child／Popupで各6回検出し、全件で既存矩形safe、`recreated=False`。異常・連続churnは自動試験のみ |
 | DPI 150% | attach前後でDPI 144を維持し、描画と入力位置が一致 | **Partial Pass** — attach前後のPMv2／DPIのみ。目視・入力未確認 |
-| DPI 100／125／200% | 描画と入力位置が一致 | Pending |
+| DPI 200% | 安全配置、または安全幅不足ならVerifiedNoFit | **Partial Pass** — Widgets ONで`VerifiedNoFit / InsufficientWidth`を再現。Place構成と描画・入力は未確認 |
+| DPI 100／125% | 描画と入力位置が一致 | Pending |
 | `WS_POPUP`比較 | 残像・描画負け・入力不良を記録 | **Partial Pass** — 30秒attach、6回の安全な復旧、exit 0。目視・入力未確認 |
 | `WS_CHILD`比較 | 残像・描画負け・入力不良を記録 | **Partial Pass** — 30秒attach、6回の安全な復旧、exit 0。目視・入力未確認 |
-| Explorer再起動10回 | 各10秒以内、重複・残骸0 | Pending |
-| アプリ終了 | ホスト残骸0 | **Partial Pass** — 30秒実行の正常終了時にhide-firstで破棄。独立列挙は未実施 |
+| Explorer再起動10回 | 各10秒以内、重複・残骸0 | **Partial Pass** — 200%／NoFit構成で10/10回、完全観測へ最大3.897秒、世代更新、終了後残存0。可視ホスト再接続は未確認 |
+| アプリ終了 | ホスト残骸0 | **Partial Pass** — 30秒実行の正常終了時にhide-firstで破棄。追加の独立列挙はView／Control／プロセス0件。実行中の個数確認は未完了 |
 | Child／Popup最終方式 | 実測で採用方式を一意に決定 | Pending |
 
-Explorer再起動と表示設定変更は未実行である。実タスクバーへの可視ホスト表示は、明示確認フラグ付きの時間制限された診断コマンドでだけ実行する。
+Explorer再起動はユーザー許可のもとでNoFit構成の再検出試験だけを実行した。表示設定変更と可視ホスト実行中の再起動は未実行である。実タスクバーへの可視ホスト表示は、明示確認フラグ付きの時間制限された診断コマンドでだけ実行する。

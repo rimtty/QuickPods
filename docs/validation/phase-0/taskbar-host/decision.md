@@ -36,16 +36,17 @@
 | 純粋な区間・DPI計算 | **Pass** — 境界、負座標、4 DPI、fail-closed、交差0pxを自動試験 |
 | 読み取り専用UIA探索 | **Pass（現在環境）** — 一意なStart、Widgets、fault 0 |
 | 擬似親HWND | **Pass（自動試験）** — attach、親／DPI検証、親消失、通知race、破棄 |
-| UIA watcher／復旧 | **Partial Pass** — 専用MTA、同一thread登録・解除、sender-only cache、subscription epoch、fresh scan fence、hide-firstを自動試験。現在環境の外部bounds変更でも確認。Explorer再起動は未実行 |
+| UIA watcher／復旧 | **Partial Pass** — 専用MTA、同一thread登録・解除、sender-only cache、subscription epoch、fresh scan fence、hide-firstを自動試験。現在環境の外部bounds変更とNoFit構成のExplorer再検出でも確認。可視ホスト再接続は未確認 |
 | 実タスクバーへの`WS_POPUP`表示 | **Partial Pass** — 30秒、外部bounds変更6回、安全な既存矩形を維持、exit 0。目視・入力未確認 |
 | 実タスクバーへの`WS_CHILD`表示 | **Partial Pass** — 30秒、外部bounds変更6回、安全な既存矩形を維持、exit 0。目視・入力未確認 |
 | DPI 150% | **Partial Pass** — attach前後でPMv2／DPI 144を維持。目視・入力未確認 |
-| DPI 100／125／200% | Pending |
+| DPI 200% | **Partial Pass** — Widgets ONでは安全幅不足を`VerifiedNoFit`として非表示。Place構成と目視・入力は未確認 |
+| DPI 100／125% | Pending |
 | 透過・hit testing | **Partial Pass** — 機構と4 DPIの共通座標は自動試験。実画面品質・実入力は未確認 |
 | Explorer復旧policy | **Pass（自動試験）** — 250ms再試行、10秒fail-closed、identity／DPI／bounds世代比較、5秒Watchdog |
 | UIA churn guard | **Pass（自動試験）** — 連続10秒または30秒内6回でfail closed。厳密な外部bounds／同一identity／既存矩形safe／`ShowVerifiedExisting`時だけsparse履歴をacknowledge |
-| Explorer再起動10回 | Pending |
+| Explorer再起動10回 | **Partial Pass** — 200%／NoFit構成で10/10回、完全観測へ最大3.897秒、世代更新、終了後残存0。可視ホスト再接続は未確認 |
 | Child／Popup最終方式 | Pending |
 | Gate B判断 | Pending |
 
-未実行の目視・実入力、複数DPI／表示構成、Explorer再起動、Child／Popup方式選定を成功として扱わず、Gate BはPendingのままとする。
+未実行の目視・実入力、残るDPI／表示構成、可視ホスト実行中のExplorer再起動、Child／Popup方式選定を成功として扱わず、Gate BはPendingのままとする。

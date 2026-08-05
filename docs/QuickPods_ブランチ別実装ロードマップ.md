@@ -185,7 +185,7 @@ No-Go時：Bluetoothボタンは`ms-settings:bluetooth`等のWindows設定ラン
 | 項目 | 内容 |
 |---|---|
 | 目的 | `SetParent`とUI Automationを使ったネイティブ表示のGate Bを判定する |
-| 状態 | **進行中** — Issue #6。自動試験189件と現在環境のChild／Popup各30秒attach・UIA復旧は完了、手動Gateは未完了 |
+| 状態 | **進行中** — Issue #6／Draft PR #10。自動試験189件、150%のChild／Popup各30秒attach・UIA復旧、200%／NoFitのExplorer再検出10回は完了。手動Gateは未完了 |
 | Spike | `spikes/QuickPods.Spike.TaskbarHost/` |
 | 実装 | ランドマーク探索、安全領域可視化、raw HWND、透過描画、入力、`WS_POPUP`／`WS_CHILD`比較、UIA即時監視、hide-first復旧、Watchdog／churn fail closed |
 | 実機試験 | DPI 100／125／150／200%、Start中央／左寄せ、Widgets ON／OFF、検索3形式、空き不足、Explorer再起動10回 |
