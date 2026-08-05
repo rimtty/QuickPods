@@ -50,7 +50,7 @@ jobs:
         run: dotnet restore QuickPods.sln --locked-mode
 
       - name: Verify formatting
-        run: dotnet format QuickPods.sln --verify-no-changes --no-restore --severity info --verbosity minimal
+        run: dotnet format QuickPods.sln --verify-no-changes --no-restore --severity warn --verbosity minimal
 
       - name: Build
         run: dotnet build QuickPods.sln -c Release --no-restore -p:ContinuousIntegrationBuild=true

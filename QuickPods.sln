@@ -6,6 +6,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{0AB3BF05
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuickPods.SmokeTests", "tests\QuickPods.SmokeTests\QuickPods.SmokeTests.csproj", "{61B767B0-94E2-449F-AE59-335FEDD7A800}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Spikes", "Spikes", "{674B3D0D-B3C1-BDFD-64ED-056E74CE37B3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuickPods.Spike.CoreAudio", "spikes\QuickPods.Spike.CoreAudio\QuickPods.Spike.CoreAudio.csproj", "{8A8E8B0C-B346-4E38-9E9A-5FDC29384100}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuickPods.Spike.CoreAudio.Tests", "tests\QuickPods.Spike.CoreAudio.Tests\QuickPods.Spike.CoreAudio.Tests.csproj", "{272124BF-D596-4776-AD24-49BA8F631AA4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -22,11 +28,29 @@ Global
 		{61B767B0-94E2-449F-AE59-335FEDD7A800}.Release|Any CPU.Build.0 = Release|Any CPU
 		{61B767B0-94E2-449F-AE59-335FEDD7A800}.Release|x64.ActiveCfg = Release|Any CPU
 		{61B767B0-94E2-449F-AE59-335FEDD7A800}.Release|x64.Build.0 = Release|Any CPU
+		{8A8E8B0C-B346-4E38-9E9A-5FDC29384100}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A8E8B0C-B346-4E38-9E9A-5FDC29384100}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A8E8B0C-B346-4E38-9E9A-5FDC29384100}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8A8E8B0C-B346-4E38-9E9A-5FDC29384100}.Debug|x64.Build.0 = Debug|Any CPU
+		{8A8E8B0C-B346-4E38-9E9A-5FDC29384100}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A8E8B0C-B346-4E38-9E9A-5FDC29384100}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A8E8B0C-B346-4E38-9E9A-5FDC29384100}.Release|x64.ActiveCfg = Release|Any CPU
+		{8A8E8B0C-B346-4E38-9E9A-5FDC29384100}.Release|x64.Build.0 = Release|Any CPU
+		{272124BF-D596-4776-AD24-49BA8F631AA4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{272124BF-D596-4776-AD24-49BA8F631AA4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{272124BF-D596-4776-AD24-49BA8F631AA4}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{272124BF-D596-4776-AD24-49BA8F631AA4}.Debug|x64.Build.0 = Debug|Any CPU
+		{272124BF-D596-4776-AD24-49BA8F631AA4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{272124BF-D596-4776-AD24-49BA8F631AA4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{272124BF-D596-4776-AD24-49BA8F631AA4}.Release|x64.ActiveCfg = Release|Any CPU
+		{272124BF-D596-4776-AD24-49BA8F631AA4}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{61B767B0-94E2-449F-AE59-335FEDD7A800} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{8A8E8B0C-B346-4E38-9E9A-5FDC29384100} = {674B3D0D-B3C1-BDFD-64ED-056E74CE37B3}
+		{272124BF-D596-4776-AD24-49BA8F631AA4} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
