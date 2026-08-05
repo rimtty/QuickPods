@@ -38,11 +38,11 @@
 | 読み取り専用UIA探索 | **Pass（現在環境）** — 一意なStart、Widgets、fault 0 |
 | 擬似親HWND | **Pass（自動試験）** — attach、親／DPI検証、親消失、通知race、破棄 |
 | UIA watcher／復旧 | **Pass（現在環境）** — 専用MTA、subscription epoch、fresh scan fence、危険通知のhide-firstを維持。既知の非Button property senderとexact live-host HWNDだけを狭く除外し、stable Watchdogは表示継続。不完全・競合・unsafeはfail closed |
-| 実タスクバーへの`WS_POPUP`表示 | **Partial Pass（修正後の自動再試験合格）** — 125%の17秒10ms samplingと150回rapid clickでhidden 0、重複・残留0。Issue #12の手動再確認待ち |
+| 実タスクバーへの`WS_POPUP`表示 | **Partial Pass（125%合格）** — 125%の17秒10ms samplingと150回rapid clickでhidden 0、重複・残留0。ユーザーの連続click-to-jump／ホイール手動確認でもちらつきなし（Issue #12受入完了） |
 | 実タスクバーへの`WS_CHILD`表示 | **Partial Pass（修正後の自動再試験合格）** — 125%の17秒10ms samplingでhidden 0、重複・残留0。既存のドラッグ／ホイール目視成功に加え、連続clickの手動再確認待ち |
 | DPI 150% | **Partial Pass** — PMv2／DPI 144を維持し、Childの描画・ドラッグ・ホイール成功。Popupの目視回答待ち |
 | DPI 200% | **Partial Pass** — Widgets ONと検索／タスクビュー／Widgets OFFの最小構成がともに`VerifiedNoFit`。最小構成も最大gap 324px < Compact最小380px。フォールバック判断はIssue #11、目視・入力は未確認 |
-| DPI 100／125% | **Partial Pass（125%自動再試験合格）** — Popup 1104 samples、Child 1105 samplesでhidden 0、Watchdog各3、recovery／invalidation／残留0。Popup 150回clickもhidden 0。手動再確認と100%は未完了 |
+| DPI 100／125% | **Partial Pass（125%合格）** — Popup 1104 samples、Child 1105 samplesでhidden 0、Watchdog各3、recovery／invalidation／残留0。Popup 150回clickもhidden 0で、ユーザーの連続click-to-jump／ホイール手動確認でもちらつきなし。100%は未完了 |
 | 透過・hit testing | **Partial Pass** — 4 DPIの共通座標に加え、両style各1000 frameのhandle安定性、各200回click jump、透明corner pixel、double-buffer転送を自動試験。残る実画面構成は未確認 |
 | Explorer復旧policy | **Pass（自動試験）** — 250ms再試行、10秒fail-closed、identity／DPI／bounds世代比較、5秒Watchdog |
 | UIA churn guard | **Pass（自動試験）** — 連続10秒または30秒内6回でfail closed。厳密な外部bounds／同一identity／既存矩形safe／`ShowVerifiedExisting`時だけsparse履歴をacknowledge |
@@ -50,4 +50,4 @@
 | Child／Popup最終方式 | Pending |
 | Gate B判断 | Pending |
 
-Issue #12はコード修正と125%自動再試験に合格したが、ユーザーの連続click-to-jump手動再確認を待っている。加えて100%と残る表示構成、200%フォールバック、Child／Popup方式選定が未完了のため、Gate BはPendingのままとする。
+Issue #12はコード修正と125%自動再試験に加え、ユーザーの連続click-to-jump／ホイール手動確認でもちらつきなしとなり、受入条件を満たした。ただし100%と残る表示構成、200%フォールバック、Child／Popup方式選定が未完了のため、Gate BはPendingのままとする。

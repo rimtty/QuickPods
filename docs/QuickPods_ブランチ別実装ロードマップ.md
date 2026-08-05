@@ -185,7 +185,7 @@ No-Go時：Bluetoothボタンは`ms-settings:bluetooth`等のWindows設定ラン
 | 項目 | 内容 |
 |---|---|
 | 目的 | `SetParent`とUI Automationを使ったネイティブ表示のGate Bを判定する |
-| 状態 | **進行中** — Issue #6／#11／#12／Draft PR #10。125%ちらつきはコード修正と自動再試験に合格し、手動再確認待ち。100%・フォールバックGate・残るlayout・採用方式は未完了 |
+| 状態 | **進行中** — Issue #6／#11／#12／Draft PR #10。125%ちらつきはコード修正、自動再試験、ユーザーの連続click／ホイール手動確認に合格し、Issue #12の受入条件を満たした。100%・フォールバックGate・残るlayout・採用方式は未完了 |
 | Spike | `spikes/QuickPods.Spike.TaskbarHost/` |
 | 実装 | ランドマーク探索、安全領域可視化、raw HWND、透過double-buffer描画、入力、`WS_POPUP`／`WS_CHILD`比較、UIA即時監視、hide-first復旧、stable Watchdog表示継続、churn fail closed |
 | 実機試験 | DPI 100／125／150／200%、Start中央／左寄せ、Widgets ON／OFF、検索3形式、空き不足、Explorer再起動10回 |
@@ -462,4 +462,4 @@ dotnet publish src/QuickPods.TaskbarHost/QuickPods.TaskbarHost.csproj -c Release
 
 ---
 
-資料ベースラインは`main`の初回コミット`1f63aa1`、B1 bootstrapは`5d441e3`として統合済みである。現在の実装対象は`codex/phase-0c-taskbar-host-spike`で、B4はTaskbarHost 209件＋Smoke 1件の自動試験、150%最小構成のChild入力、可視ChildのExplorer再生成10/10回、200% NoFit再検出10/10回まで完了した。125%ちらつきは原因修正後にChild／Popupの可視性samplingとPopup 150回rapid-clickをhidden 0で通過し、Issue #12の手動再確認待ちである。100%、残るlayout、200%フォールバック、採用方式が未完了のためGate BはPendingである。B2／B3／B4の実機Gateが完了するまでB5およびPhase 1へ進めない。
+資料ベースラインは`main`の初回コミット`1f63aa1`、B1 bootstrapは`5d441e3`として統合済みである。現在の実装対象は`codex/phase-0c-taskbar-host-spike`で、B4はTaskbarHost 209件＋Smoke 1件の自動試験、150%最小構成のChild入力、可視ChildのExplorer再生成10/10回、200% NoFit再検出10/10回まで完了した。125%ちらつきは原因修正後にChild／Popupの可視性samplingとPopup 150回rapid-clickをhidden 0で通過し、ユーザーの連続click-to-jump／ホイール手動確認でもちらつきなしとなったため、Issue #12の受入条件を満たした。100%、残るlayout、200%フォールバック、採用方式が未完了のためGate BはPendingである。B2／B3／B4の実機Gateが完了するまでB5およびPhase 1へ進めない。

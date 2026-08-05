@@ -34,11 +34,13 @@
 | UIA外部bounds変更 | Button／未知senderはhide-firstでfresh scanし、既知の非Button property senderだけを除外 | **Partial Pass** — 旧実装のChild／Popupで各6回の安全な復旧を確認。修正後は周期的なPane bounds通知を除外し、125%両方式で17秒間invalidation 0。異常・連続churnは自動試験のみ |
 | DPI 150% | attach前後でDPI 144を維持し、描画と入力位置が一致 | **Partial Pass** — Childで描画、ドラッグ、ホイールを実機確認。Popupの自動attachは成功したが目視回答待ち |
 | DPI 200% | 安全配置、または安全幅不足ならVerifiedNoFit | **Partial Pass** — Widgets ONと最小構成の双方で`VerifiedNoFit / InsufficientWidth`。最小構成も最大gap 324px < Compact最小380px。Place／フォールバックの目視・入力は未確認（Issue #11） |
-| DPI 100／125% | 描画と入力位置が一致 | **Partial Pass（125%自動再試験合格）** — 125%はChild／Popupの17秒10ms samplingでhidden 0。Popup 150回clickもhidden 0。Issue #12の手動再確認と100%は未完了 |
-| `WS_POPUP`比較 | 残像・描画負け・入力不良を記録 | **Partial Pass（修正後の自動再試験合格）** — 125%で1104 samples、最大View 1、hidden 0、Watchdog 3、recovery／invalidation／残留0。300 message／150 clickもhidden 0。手動確認待ち（Issue #12） |
+| DPI 100／125% | 描画と入力位置が一致 | **Partial Pass（125%合格）** — 125%はChild／Popupの17秒10ms samplingとPopup 150回clickでhidden 0。連続click-to-jump／ホイールの手動確認もちらつきなしでIssue #12の受入完了。100%は未完了 |
+| `WS_POPUP`比較 | 残像・描画負け・入力不良を記録 | **Partial Pass（125%合格）** — 125%で1104 samples、最大View 1、hidden 0、Watchdog 3、recovery／invalidation／残留0。300 message／150 clickもhidden 0。ユーザーの連続click-to-jump／ホイール手動確認でもちらつきなし（Issue #12受入完了） |
 | `WS_CHILD`比較 | 残像・描画負け・入力不良を記録 | **Partial Pass（修正後の自動再試験合格）** — 125%で1105 samples、最大View 1、hidden 0、Watchdog 3、recovery／invalidation／残留0。既存のドラッグ／ホイール目視成功に加え、連続clickの手動再確認待ち |
 | Explorer再起動10回 | 各10秒以内、重複・残骸0 | **Pass（現在環境）** — 200% NoFitに加え、150%可視Childで10/10回再生成。外部監査の最大4.064秒、重複0、自然終了後残存0 |
 | アプリ終了 | ホスト残骸0 | **Pass（現在環境）** — Child／Popup実行中はView／Control各1、重複なし。正常終了後の独立列挙はView／Control／プロセス0件 |
 | Child／Popup最終方式 | 実測で採用方式を一意に決定 | Pending |
 
 Explorer再起動はユーザー許可のもとでNoFit構成と可視Child構成を各10回実行した。表示倍率とタスクバー設定はユーザーがWindows設定から変更し、Spikeは変更していない。実タスクバーへの可視ホスト表示は、明示確認フラグ付きの時間制限された診断コマンドでだけ実行する。
+
+Issue #12の受入条件は満たしたが、100%、200%フォールバック、残るレイアウト、およびChild／Popup最終方式の試験は未完了であるため、Gate B全体はPendingのままとする。

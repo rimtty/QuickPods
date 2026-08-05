@@ -15,8 +15,8 @@
 | 擬似親HWND | **Pass（自動試験）** — attach、実親／PMv2検証、hide/show、親消失、通知race、破棄 |
 | 透過・入力 | **Pass（機構の自動試験）** — color-key、透明corner pixel、共通slider座標、hit target、GDI解放 |
 | `WS_CHILD`可視試験 | **Partial Pass** — 30秒の目視、ドラッグ、ホイールに加え、修正後17秒の10ms可視性samplingでhidden 0。連続clickの手動再確認は待機中 |
-| `WS_POPUP`可視試験 | **Partial Pass（修正後の自動再試験合格）** — 125%の17秒可視性samplingと150回のrapid clickでhidden 0。Issue #12の手動再確認待ち |
-| 125% | **Partial Pass（修正後の自動再試験合格）** — `Place / Standard`。Child／Popupの17秒samplingとPopup 150回clickでhidden 0、重複・残留0。手動の連続click確認は待機中 |
+| `WS_POPUP`可視試験 | **Partial Pass（Issue #12受入確認）** — 125%の17秒可視性samplingと150回のrapid clickでhidden 0。ユーザーが連続click-to-jumpとホイールを手動確認し、ちらつきなし。残る表示構成は未確認 |
+| 125% | **Partial Pass（Issue #12受入確認）** — `Place / Standard`。Child／Popupの17秒samplingとPopup 150回clickでhidden 0、重複・残留0。ユーザーの連続click-to-jump／ホイールでもちらつきなし。残るレイアウトは未確認 |
 | 200% | **Pass（Fail Closed）** — Widgets ONと検索／タスクビュー／Widgets OFFの最小構成がともに`VerifiedNoFit / InsufficientWidth`。可視ホストは作成しない |
 | Explorer再起動 | **Pass（現在環境）** — 200% NoFitと150%可視Childで各10回。可視Childは全回再生成、外部監査で最大4.064秒、重複・timeout・churn fail closed 0 |
 | 終了後残存 | **Pass（追加観測）** — 実行中View／Control各1、正常終了後は両HWNDとQuickPodsプロセス0 |
@@ -51,7 +51,7 @@ dotnet run --project spikes/QuickPods.Spike.TaskbarHost -c Release --no-build --
 - 原因は、5秒UIA scanのたびに届く`ControlType.Pane`のbounds通知と、可視ホスト自身がnative探索で`UnknownObstacle`として再列挙されるフィードバックにより、不要なhide／recoveryが発生していたことだった。whole-window blinkの主因はこの表示遷移であり、direct GDI描画にも副次的なtearリスクがあった。
 - 修正では、既知の非Button senderによるproperty通知だけを除外し、native child探索から現在のlive hostと完全一致するHWNDだけを除外した。Button、未知sender、structure通知、および別HWNDは従来どおりfail closedで扱う。安定したWatchdogは表示を維持し、GDIはcompatible memory DCへ全体描画後に1回の`BitBlt`で転送するdouble bufferへ変更した。同じclamp済み音量値の再設定は再描画しない。
 - 修正後の125% Popupを17秒間10ms間隔で監査し、1104 samples、View最大1、hidden interval 0、visible Watchdog 3回、recovery 0、invalidation 0、残留0を確認した。Childも同条件で1105 samples、View最大1、hidden interval 0、visible Watchdog 3回、recovery 0、invalidation 0、残留0だった。
-- Popupへdirect messageを300件送るrapid-click試験ではclick complete 150回、hidden 0、visible Watchdog 3回、recovery 0、残留0だった。Issue #12はコード修正と自動再試験を合格済みだが、ユーザーによる連続click-to-jumpの手動再確認が終わるまで完了扱いにしない。
+- Popupへdirect messageを300件送るrapid-click試験ではclick complete 150回、hidden 0、visible Watchdog 3回、recovery 0、残留0だった。その後、ユーザーが同じ125%構成で連続click-to-jumpとホイールを手動確認し、ちらつきが発生しないことを確認したため、Issue #12の受入条件を満たした。
 - 音量とBluetoothの状態は読み取りも変更もしていない。Explorer再起動はユーザー許可のGate B試験だけで行い、表示倍率とタスクバー設定はユーザーがWindows設定から変更した。Spike自身はExplorer再起動や設定変更を実行しない。
 
 ### 150%／WS_CHILD可視ホストのExplorer復旧
@@ -73,7 +73,7 @@ dotnet run --project spikes/QuickPods.Spike.TaskbarHost -c Release --no-build --
 
 外部監査は接続、可視性、現Shellとの親子関係、一意性、残留を独立検証したもので、UIA安全領域を再計算してはいない。各cycleの配置安全性はRunner内部のfresh complete scan、`SafeRegionCalculator`の最終交差検証、およびnative側の実bounds／parent／DPI検証を根拠とする。世代ごとの推奨X座標変化は、旧矩形がunsafeなら安全な新矩形へ再生成し、旧矩形がsafeならsticky placementで不要な移動を抑えるpolicyどおりだった。
 
-Childの150%での静止画とドラッグ／ホイール、および125%両方式の入力ログは確認済みである。Issue #12の修正後は125%両方式の可視性samplingとPopup rapid-click自動試験に合格したが、連続click-to-jumpの手動再確認は未完了である。DPI 100%、200%のフォールバック表示、Start左寄せ、検索アイコン、検索ボックスの目視、ピン留め多数の空き不足、およびChild／Popupの最終方式選定も未完了であり、Gate BをGoとして扱わない。
+Childの150%での静止画とドラッグ／ホイール、および125%両方式の入力ログは確認済みである。Issue #12の修正後は125%両方式の可視性samplingとPopup rapid-click自動試験に加え、ユーザーによる125% Popupの連続click-to-jump／ホイール手動確認にもちらつきなしで合格し、Issue #12の受入条件を満たした。DPI 100%、200%のフォールバック表示、Start左寄せ、検索アイコン、検索ボックスの目視、ピン留め多数の空き不足、およびChild／Popupの最終方式選定は未完了であり、Gate BをGoとして扱わない。
 
 以下は実画面を含まないサニタイズ済み配置図である。実画面スクリーンショットの代替ではなく、相対座標証跡の確認用とする。
 
