@@ -6,6 +6,7 @@ Planned spikes:
 
 - `QuickPods.Spike.CoreAudio`
 - `QuickPods.Spike.BluetoothKs`
+- `QuickPods.Spike.DefaultEndpointPolicy`
 - `QuickPods.Spike.TaskbarHost`
 
 Each spike branch contains only its own diagnostic until the focused pull request is integrated into `main`.
