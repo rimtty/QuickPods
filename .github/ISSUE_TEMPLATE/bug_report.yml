@@ -1,0 +1,84 @@
+name: Bug report
+description: Record a reproducible defect found during implementation or validation.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Provide enough evidence to reproduce and verify the defect. Remove credentials, MAC addresses, full endpoint IDs, PnP IDs, and other private identifiers from logs and screenshots.
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase
+      options:
+        - Phase 0 - Technical spikes
+        - Phase 1 - Solution foundation
+        - Phase 2 - Audio MVP
+        - Phase 3 - Taskbar Host and IPC
+        - Phase 4 - Bluetooth
+        - Phase 5 - Product UI and resilience
+        - Phase 6 - Release
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the observed problem and its impact.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Start QuickPods...
+        2. Perform...
+        3. Observe...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include the commit, branch, Windows build, DPI, adapter and driver versions when relevant.
+      placeholder: |
+        Commit:
+        Branch:
+        Windows build:
+        .NET SDK:
+        Hardware/driver:
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence
+      description: Add logs, measurements, screenshots, or links to validation records.
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed credentials and full private device identifiers from the evidence.
+          required: true

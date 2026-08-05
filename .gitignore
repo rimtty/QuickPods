@@ -1,0 +1,51 @@
+# Build outputs
+bin/
+obj/
+artifacts/
+publish/
+TestResults/
+coverage/
+*.trx
+
+# IDE and user state
+.vs/
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+# Package manager state
+packages/
+.nuget/
+*.nupkg
+*.snupkg
+
+# Runtime and diagnostic output
+logs/
+*.log
+*.dmp
+*.mdmp
+*.etl
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.pem
+*.key
+*.snk
+
+# Sanitized validation evidence may be committed intentionally.
+!docs/validation/**/logs/
+!docs/validation/**/logs/**/*.jsonl
+!docs/validation/**/logs/**/*.txt
+
+# OS metadata
+Thumbs.db
+Desktop.ini
+.DS_Store

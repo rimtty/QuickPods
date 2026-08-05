@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
+jobs:
+  build-test:
+    name: Windows / .NET 10 / Release
+    runs-on: windows-2025
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          architecture: x64
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      - name: Show environment
+        run: dotnet --info
+
+      - name: Restore
+        run: dotnet restore QuickPods.sln --locked-mode
+
+      - name: Verify formatting
+        run: dotnet format QuickPods.sln --verify-no-changes --no-restore --severity info --verbosity minimal
+
+      - name: Build
+        run: dotnet build QuickPods.sln -c Release --no-restore -p:ContinuousIntegrationBuild=true
+
+      - name: Test
+        id: test
+        run: >-
+          dotnet test QuickPods.sln
+          -c Release
+          --no-build
+          --no-restore
+          --logger "trx;LogFilePrefix=quickpods"
+          --results-directory TestResults
+          --collect:"XPlat Code Coverage"
+          --
+          RunConfiguration.TreatNoTestsAsError=true
+
+      - name: Upload test results
+        if: ${{ always() && steps.test.outcome != 'skipped' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-results
+          path: TestResults/**
+          if-no-files-found: error
+          retention-days: 14

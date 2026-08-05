@@ -456,4 +456,4 @@ dotnet publish src/QuickPods.TaskbarHost/QuickPods.TaskbarHost.csproj -c Release
 
 ---
 
-最初の実装対象は`codex/phase-0-bootstrap`である。ただし、現在は`main`に基点コミットがないため、その前に資料ベースラインの初回コミットが必要となる。
+資料ベースラインは`main`の初回コミット`1f63aa1`として作成・Push済みである。現在の実装対象は`codex/phase-0-bootstrap`である。
