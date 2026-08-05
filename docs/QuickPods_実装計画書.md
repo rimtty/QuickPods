@@ -743,7 +743,7 @@ Microsoftの一般的な説明では親子付け時に`WS_CHILD`と`WS_POPUP`を
 - 方式A：Ceiling互換の`WS_POPUP`維持
 - 方式B：Microsoftの通常形に近い`WS_CHILD`
 
-Phase 0Eの対象build実機比較では方式AだけがStart／Search表示中のnative continuityを満たしたため、製品実装候補は`WS_POPUP`維持に確定した。方式Bは診断用の明示指定として残す。全体のGate BはPopupでのExplorer再起動、ピン留め多数、tray churn等の残件が完了するまでPendingとする。
+Phase 0Eの対象build実機比較では方式AだけがStart／Search表示中のnative continuityを満たしたため、製品実装は`WS_POPUP`維持に確定した。方式Bは診断用の明示指定として残す。PopupのExplorer再起動10回、DPI 100／125／150／200%、NoFit fallback、ピン留め多数、Start中tray churnを含む全条件に合格し、Gate Bは2026-08-06にGoとなった。製品版は別プロセスの`QuickPods.TaskbarHost.exe`へ隔離し、unsafe／NoFit時はfloatingまたはhiddenへfail closedする。
 
 ### 11.8 描画と入力
 
@@ -1213,6 +1213,7 @@ Explorerの代わりとなるテスト用トップレベルウィンドウへホ
 
 - 対象PCで安全領域、ドラッグ、Explorer復旧、DPIを確認する。
 - 未達の場合、フローティングモードを初期リリースの標準にする。
+- **結果：Go（2026-08-06）**。別プロセス`PopupPreserved`を採用し、配置不能時はfloating／hidden fallbackを使用する。Issue #15／#18はリリース前P2として継続する。
 
 ### Gate C：MVP
 

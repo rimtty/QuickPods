@@ -187,7 +187,7 @@ No-Go時：Bluetoothボタンは`ms-settings:bluetooth`等のWindows設定ラン
 | 項目 | 内容 |
 |---|---|
 | 目的 | `SetParent`とUI Automationを使ったネイティブ表示のGate Bを判定する |
-| 状態 | **Gate待ち** — Phase 0Cの診断、Phase 0Dのfallback、Phase 0Eのnative continuity、Popup方式選定、採用PopupのExplorer再起動10回まで完了。残るstress matrixを継続 |
+| 状態 | **Gate B Go（2026-08-06）** — 全実機マトリクスと7件のGo条件に合格。別プロセス`PopupPreserved`を採用し、unsafe／NoFitはfloatingまたはhiddenへfail closed |
 | Spike | `spikes/QuickPods.Spike.TaskbarHost/` |
 | 実装 | ランドマーク探索、安全領域可視化、raw HWND、透過double-buffer描画、入力、`WS_POPUP`／`WS_CHILD`比較、UIA即時監視、hide-first復旧、stable Watchdog表示継続 |
 | 実機試験 | DPI 100／125／150／200%、Start中央／左寄せ、Widgets ON／OFF、検索4形式、空き不足、Explorer再起動10回 |
@@ -233,7 +233,7 @@ No-Go時：フローティングを標準表示、通知領域を最終退避先
 | 実機手動検証 | 100／200%左揃えNoFitでunowned・non-topmost floating、click／drag／wheel、自然破棄、残留0に合格。Issue #11完了条件を満たした |
 | 後続 | 100% icon＋labelのStart／Search個別試験とnative style選定はPhase 0Eで完了。NoFit等の真のunsafe状態では本fallbackを維持 |
 
-実機ホスト検証はapplication manifestが適用されるEXEまたは`dotnet run`で行う。DLLの直接起動はmanifestが適用されないため、DPI／hostの実機証跡として使用しない。Gate Bは上記の手動項目が完了するまでPendingとする。
+実機ホスト検証はapplication manifestが適用されるEXEまたは`dotnet run`で行う。DLLの直接起動はmanifestが適用されないため、DPI／hostの実機証跡として使用しない。このPhase 0D時点では手動項目が残りPendingだったが、後続Phase 0Eで完了しGate BはGoとなった。
 
 #### B4.2：`codex/phase-0e-native-continuity-spike`
 
@@ -250,9 +250,10 @@ No-Go時：フローティングを標準表示、通知領域を最終退避先
 | 自動検証 | TaskbarHost 183件＋Smoke 1件。重複整理前368件から50.0%へ縮約し、Release build 0 warning／0 error、format／diff check合格 |
 | 実機検証 | 100%・1920×1080と150%・5120px幅タスクバーの各120秒Popup EXE。Start／Search双方でnative保持、Floating遷移0、表示中wheel入力、自然破棄、残留0。ユーザー目視・入力確認合格 |
 | 多数ピン留め | 150%でbutton 27→52、Start X 1919→1094でも`Place / Standard`。自動監査と75秒手動runで重なり／ちらつきなし、wheel 18件、drag 18組、Floating／fatal／残留0 |
+| Start中tray churn | 通知アイコンadd／delete各45回、native継続4回（Direct 2）、Floating 0、wheel 67、drag 5組、watcher failure／fatal／helper／host残留0。ユーザー目視合格 |
 | Explorer復旧 | 採用Popupで10/10回が10秒以内（最大5.395秒）。旧View消失、新Explorer世代、View／Control各1、Popup style／実親／DWM、exit 0、終了後残留0を確認 |
 | 既知P2 | UIA event watcher再購読でUSER objectがExplorer世代ごとに1増加（10回で22→32）。GDI／HWND inventoryは不変。製品化前の隔離方式をIssue #18で追跡し、Phase 0Eの単体テストは再拡張しない |
-| 残件 | tray churn中Start保持。完了までGate BはPending |
+| 判断 | **Go** — 製品版`QuickPods.TaskbarHost.exe`へ別プロセス隔離して`PopupPreserved`を実装。Issue #15／#18はリリース前P2 |
 
 Start／Search表示中でも、identity、parent、style、bounds、DPI、monitor、DWM、fresh obstacle、watcher generationのいずれかが変化した場合はnativeを保持せず、Phase 0Dのfloating／hidden fallbackへ即時退避する。保持結果を新しいbaselineにはせず、freshでfault 0のUIA成功時だけStart anchorを更新する。
 
@@ -504,4 +505,4 @@ dotnet publish src/QuickPods.TaskbarHost/QuickPods.TaskbarHost.csproj -c Release
 
 ---
 
-資料ベースラインは`main`の初回コミット`1f63aa1`、B1 bootstrapは`5d441e3`として統合済みである。Phase 0CはTaskbarHost 216件＋Smoke 1件、150%可視ChildのExplorer再生成10/10回、200% NoFit再検出10/10回までを履歴として確定し、Start／Search中の`PrimaryTaskbarMissing`ではnativeを安全にhideすることを確認した。Phase 0DはTaskbarHost 301件＋Smoke 1件、175%のStart／Search入力を含むEXEでfloating fallbackとnative promotionを確定し、Phase 0Eで100／200%左揃えNoFitのfloating目視・入力・自然破棄・残留0まで合格した。現在の`codex/phase-0e-native-continuity-spike`は重複整理後のTaskbarHost 183件＋Smoke 1件（整理前368件の50.0%）、Release build 0 warning／0 error、format／diff checkに合格し、100%・1920×1080と150%・5120px幅タスクバーの各120秒Popup EXEでStart／Search双方のnative保持、表示中wheel入力、Floating遷移0、自然破棄、残留0を確認した。150%の多数ピン留めstressもbutton 52、重なり／ちらつき／入力問題なし、Floating／fatal／残留0で合格した。`PopupPreserved`を採用方式に選定し、Childは比較／rollback用に残す。採用PopupのExplorer再起動も10/10回・最大5.395秒・重複／残留0で合格した。UIA watcherのExplorer世代別USER object増加はIssue #18で非ブロッキングP2として追跡し、tray churn中Start保持が未完了のためGate BはPendingである。B2／B3／B4.2の実機Gateが完了するまでB5およびPhase 1へ進めない。
+資料ベースラインは`main`の初回コミット`1f63aa1`、B1 bootstrapは`5d441e3`として統合済みである。Phase 0CはTaskbarHost 216件＋Smoke 1件、150%可視ChildのExplorer再生成10/10回、200% NoFit再検出10/10回までを履歴として確定し、Start／Search中の`PrimaryTaskbarMissing`ではnativeを安全にhideすることを確認した。Phase 0DはTaskbarHost 301件＋Smoke 1件、175%のStart／Search入力を含むEXEでfloating fallbackとnative promotionを確定し、Phase 0Eで100／200%左揃えNoFitのfloating目視・入力・自然破棄・残留0まで合格した。現在の`codex/phase-0e-native-continuity-spike`は重複整理後のTaskbarHost 183件＋Smoke 1件（整理前368件の50.0%）、Release build 0 warning／0 error、format／diff checkに合格し、100%・1920×1080と150%・5120px幅タスクバーの各120秒Popup EXEでStart／Search双方のnative保持、表示中wheel入力、Floating遷移0、自然破棄、残留0を確認した。150%の多数ピン留めstressとStart中tray churnも重なり／ちらつき／入力問題なし、Floating／watcher failure／fatal／残留0で合格した。`PopupPreserved`を採用方式に選定し、Childは比較／rollback用に残す。採用PopupのExplorer再起動も10/10回・最大5.395秒・重複／残留0で合格した。Gate Bは2026-08-06にGoとし、UIA watcherのExplorer世代別USER object増加はIssue #18、provenance／race hardeningはIssue #15でリリース前P2として追跡する。B2／B3の実機Gateが完了するまでB5およびPhase 1へ進めない。

@@ -81,6 +81,12 @@
 
 12秒の自動監査はPopup style、taskbar実親、ownerなし、non-topmost、DWM uncloaked、drag／wheel、exit 0、View／Control／process残留0に合格した。75秒の手動runはnative継続3回、Floating遷移0、wheel 18件、drag開始／完了18／18、move 188件、fatal 0、`native-host=destroyed`、終了後プロセス残留0だった。ユーザーは多数のタスクバーアイコンとの重なり、ちらつき、click／drag／wheelにすべて問題がないことを確認した。
 
+## Phase 0E実機観測：Start中tray churn
+
+同じ150%・button 52の構成で採用Popupを120秒実行し、Startを表示したまま一時的な通知アイコンを500ms間隔で45回追加／45回削除した。診断helperは`System.Windows.Forms.NotifyIcon`の公開APIだけを使用し、最後にVisibleをfalseとしてDisposeした。helperはshown／hidden 45／45、stderrなし、既知PID残留0だった。
+
+ホストログはnative継続4回（`DirectExpected` 2回）、Floating遷移0、wheel 67件、drag開始／完了5／5、move 158件、watcher failure／fatal 0、`native-host=destroyed`、終了後プロセス残留0だった。ユーザーはStart表示中もPopupがタスクバー内に残り、ちらつき、重なり、入力に問題がないことを確認した。生HWND、PID、通知内容は証跡へ保存していない。
+
 ## Phase 0C historical：初回観測 150%（Widgets ON）
 
 | 項目 | 値 |
@@ -121,7 +127,7 @@
 
 この構成で確認されたちらつきは、5秒UIA scan時の既知`ControlType.Pane` bounds通知と、可視ホスト自身をnative探索が`UnknownObstacle`として再列挙するフィードバックによる不要なhide／recoveryが主因だった。修正後は既知の非Button property senderだけを除外し、native探索では実行中hostと完全一致するHWNDだけを除外した。Button、sender種別不明、structure通知、および別HWNDは安全側の無効化／障害物として維持している。副次的なdirect-GDI tearリスクには、memory DCへの全体描画と1回の`BitBlt`によるdouble buffer、および同一clamp済み音量値のno-opを適用した。
 
-修正後の同一125%構成で、Popupを17秒間10ms間隔で監査して1104 samples、Childで1105 samplesを取得した。両方式ともView最大1、hidden interval 0、visible Watchdog 3回、recovery 0、invalidation 0、終了後残留0だった。さらにPopupへ300件のdirect messageを送り、150回のclick完了、hidden 0、visible Watchdog 3回、recovery 0、終了後残留0を確認した。その後、ユーザーが125% Popupの連続click-to-jumpとホイールを手動確認し、ちらつきが発生しないことを確認したため、Issue #12の受入条件を満たした。Gate B全体は残る実機試験があるためPendingである。
+修正後の同一125%構成で、Popupを17秒間10ms間隔で監査して1104 samples、Childで1105 samplesを取得した。両方式ともView最大1、hidden interval 0、visible Watchdog 3回、recovery 0、invalidation 0、終了後残留0だった。さらにPopupへ300件のdirect messageを送り、150回のclick完了、hidden 0、visible Watchdog 3回、recovery 0、終了後残留0を確認した。その後、ユーザーが125% Popupの連続click-to-jumpとホイールを手動確認し、ちらつきが発生しないことを確認したため、Issue #12の受入条件を満たした。この観測時点では残る実機試験のためPendingだったが、後続Phase 0Eで完了した。
 
 ## 追加観測：100%中央揃え最小構成
 
@@ -129,13 +135,13 @@
 
 Popupは17秒間、起動時に確定した同一HWNDを監視して1087 samplesを取得し、hidden／destroyed／rect drift 0、最終View 1だった。ログはinteraction start／complete 49／49、`DragMoved` 593件、`Wheel` 205件、verified-visible Watchdog 23回で、invalidation／recovery／churnは0だった。Childも同じ固定HWND方式で17秒間監視して1089 samplesを取得し、hidden／destroyed／rect drift 0、最終View 1だった。ログはinteraction start／complete 50／50、`DragMoved` 506件、`Wheel` 515件、verified-visible Watchdog 11回で、invalidation／recoveryは0だった。
 
-ユーザーは両styleのclick、drag、wheel、および表示を手動確認し、ちらつきや表示・入力上の問題がないことを確認した。両styleを各6秒で再実行した終了試験もexit 0、fatal 0で、終了後の独立列挙はView／Control HWNDとQuickPodsプロセスがすべて0件だった。これは現在の100%最小構成の合格を示すもので、未試験のlayoutやフォールバックまで合格とするものではない。Gate B全体はPendingである。
+ユーザーは両styleのclick、drag、wheel、および表示を手動確認し、ちらつきや表示・入力上の問題がないことを確認した。両styleを各6秒で再実行した終了試験もexit 0、fatal 0で、終了後の独立列挙はView／Control HWNDとQuickPodsプロセスがすべて0件だった。これは当時の100%最小構成だけの合格であり、その時点ではGate BはPendingだった。未試験だったlayoutとfallbackは後続Phase 0D／0Eで完了した。
 
 ## 追加観測：100%左揃え最小構成
 
 100%のまま検索を非表示、Task ViewとWidgetsをOFF、タスクバーを左揃えにした構成では、タスクバーは3840×48 physical px、DPI 96、Startは相対矩形`(0, 0, 45, 48)`、UIA button数は26、native critical child観測数は4だった。読み取り専用探索は`discoveryComplete=true`、`faults=[]`で完了したが、安全幅不足のため配置boundsを返さず、`VerifiedNoFit / InsufficientWidth`と判定した。
 
-Child／Popupのhost試験はいずれもホストを作成せずexit 3で終了し、終了後の独立列挙はView／Control HWNDとQuickPodsプロセスがすべて0件だった。これは未知状態ではなく、完全な観測から安全幅不足を確定して推測配置しない期待どおりのFail Closed結果である。左揃えでネイティブ表示に成功した証跡ではなく、製品ではフォールバックが必要になる。Gate B全体はPendingである。
+Child／Popupのhost試験はいずれもホストを作成せずexit 3で終了し、終了後の独立列挙はView／Control HWNDとQuickPodsプロセスがすべて0件だった。これは未知状態ではなく、完全な観測から安全幅不足を確定して推測配置しない期待どおりのFail Closed結果である。左揃えでネイティブ表示に成功した証跡ではなく、製品ではフォールバックが必要になる。当時Pendingだったfallbackは後続Phase 0D／0Eで実装・合格した。
 
 ## 追加観測：100%中央揃え／検索アイコンのみ
 
@@ -161,4 +167,4 @@ Childを17秒間、起動時に確定した同一HWNDで監視して1088 samples
 
 Start／Windows一時UIと検索アイコン＋ラベルの検索一時UIを個別に開く制御runでは、どちらも一時的な`PrimaryTaskbarMissing`を再現した。再現区間の外部inspectは57/57回が`TransientUnknown / IncompleteObservation`であり、Runnerは不完全観測中に推測配置せずhostを安全にhideした。その後、Startでは7.796秒、検索では6.757秒で同じhostを再表示した。観測不能が10秒を超えるケースは既存のFail Closed timeoutへ到達して安全停止する。
 
-Phase 0Cでは、10秒未満の制御runはhostプロセスが存続したまま安全に一時非表示となり、観測不能が10秒を超えるとSpikeは設計どおり安全停止した。この二つがユーザーには同じ「落ちた」ように見える復帰UXの問題だった。これはhistorical behaviorであり、Phase 0Dでは安全なfloatingまたはhidden fallbackへ遷移してセッションを継続する。Phase 0Eでは100／150% Popup native continuity、多数ピン留めstress、最終style選定、採用PopupのExplorer再起動10回、および100／200%左揃えNoFit floatingの目視・入力まで完了した。tray churnが残るためGate BはPendingである。
+Phase 0Cでは、10秒未満の制御runはhostプロセスが存続したまま安全に一時非表示となり、観測不能が10秒を超えるとSpikeは設計どおり安全停止した。この二つがユーザーには同じ「落ちた」ように見える復帰UXの問題だった。これはhistorical behaviorであり、Phase 0Dでは安全なfloatingまたはhidden fallbackへ遷移してセッションを継続する。Phase 0Eでは100／150% Popup native continuity、多数ピン留めstress、Start中tray churn、最終style選定、採用PopupのExplorer再起動10回、および100／200%左揃えNoFit floatingの目視・入力まで完了した。Gate BはGoである。

@@ -35,13 +35,14 @@
 | Start中央 | 安全な空きだけを使用 | **Pass（試験済み構成）** — Widgets ON／OFFと100／125／150／200%で交差0pxまたはNoFitを確認。100% PopupはStart表示中も同じnative位置を保持し、表示中wheel入力に成功 |
 | Start左寄せ | 安全な空きだけを使用 | **Pass（100／200% NoFit fallback）** — 検索非表示／Task View OFF／Widgets OFFで`VerifiedNoFit / InsufficientWidth`。100／200%ともfloatingの自動監査、ユーザー目視・入力、自然破棄、残留0に合格 |
 | Widgets ON | 候補レーンを再計算 | **Pass（100%試験済み構成）** — 検索ボックスは`Place / Standard`、1088 samples、手動入力・表示、残留0に合格。アイコン＋ラベルもPopupでStart／Search native continuityとwheel入力に合格 |
-| Widgets OFF | 候補レーンを再計算 | **Partial Pass** — 中央揃え100／125／150%は`Place / Standard`、100%左揃えと200%中央揃えは`VerifiedNoFit`。100%検索非表示／アイコンのみ／ボックスChild、検索非表示Popup、150% Childの目視・入力成功 |
+| Widgets OFF | 候補レーンを再計算 | **Pass（試験済み経路）** — 中央揃え100／125／150%は`Place / Standard`、100／200%左揃えは`VerifiedNoFit`。nativeまたはfloatingで目視・入力・自然破棄・残留0に合格 |
 | 検索：非表示／アイコンのみ／ボックス | 検索を覆わない | **Pass（100%中央揃え）** — 3形式の安定layoutは`Place / Standard`で標準要素との重なり0。検索ボックスはTask View／Widgets ON構成も1088 samples、手動表示・入力、残留0に合格 |
 | 検索：アイコン＋ラベル | 初期配置と一時UIからの復帰 | **Pass（Phase 0E／100／150% Popup）** — 初期`Place / Standard`、Start／Search表示中もnative位置を保持し、表示中wheel入力と終了後残留0に合格 |
 | タスクビュー ON／OFF | 位置変更へ追従 | **Pass（100%試験済み構成）** — OFFは検索非表示／アイコンのみ／ボックス、ONは検索ボックスとアイコン＋ラベルを確認。後者はPhase 0E Popupで一時UI native continuityにも合格 |
 | ピン留めアプリ多数／空き不足 | コンパクトまたはVerifiedNoFit | **Pass（150%採用Popup）** — button 27→52、Start X 1919→1094でもfault 0、`Place / Standard`。自動監査と75秒手動runで重なり／ちらつきなし、wheel 18件、drag 18組、Floating／fatal／残留0 |
-| UIA外部bounds変更 | Button／未知senderはhide-firstでfresh scanし、既知の非Button property senderだけを除外 | **Partial Pass** — 旧実装のChild／Popupで各6回の安全な復旧を確認。修正後は周期的なPane bounds通知を除外し、125%両方式で17秒間invalidation 0。異常通知は自動試験のみ |
+| UIA外部bounds変更 | Button／未知senderはhide-firstでfresh scanし、既知の非Button property senderだけを除外 | **Pass（Gate B範囲）** — 異常通知のfail-closed自動試験、Child／Popup各6回の安全復旧、125%の不要invalidation 0、多数ピン留めによるbutton 27→52の実レイアウト変更に合格。追加の順序race hardeningはIssue #15 |
 | Start／検索の一時UI | native fail-closedを維持し、同一generationを直接再証明できる場合だけnativeを保持 | **Pass（Phase 0E／100／150% Popup）** — `DirectExpected`を含む継続証明に成功し、各120秒runでFloating遷移0。ユーザーは両UI中のnative保持を確認 |
+| Start中の通知領域変動 | native attachmentと保守的な通知領域障害物を維持 | **Pass（150% Popup）** — 通知アイコンadd／delete各45回、`DirectExpected` 2回、Floating 0、wheel 67、drag 5組、watcher failure／fatal／残留0。ユーザー目視合格 |
 | 一時UI表示中の操作 | Start／Searchを開いている間もstripが目視で継続し、入力を受ける | **Pass（wheel）** — 両UI中にwheelでsample volume変更成功。通常状態のclick／dragも同runで成功。click／dragはWindows transient UIを閉じる可能性があるため表示中の必須項目にはしない |
 | 100% icon＋label個別再現 | StartとSearchを個別に開き、native保持と復帰を確認 | **Pass（Popup）** — ユーザー目視、Floating遷移0、正常終了後残留0 |
 | DPI 150% | attach前後でDPI 144を維持し、描画と入力位置が一致 | **Pass（採用Popup continuity）** — 自動style／parent／owner／DWM／入力監査に合格。Start／Search目視runはnative継続3回、Floating遷移0、wheel 273件、drag 12組、fatal／残留0 |
@@ -56,6 +57,6 @@
 
 Explorer再起動はユーザー許可のもとでNoFit構成、可視Child構成、採用Popup構成を各10回実行した。表示倍率とタスクバー設定はユーザーがWindows設定から変更し、Spikeは変更していない。実タスクバーへの可視ホスト表示は、明示確認フラグ付きの時間制限された診断コマンドでだけ実行する。
 
-Issue #11の100／200% NoFit floating、Issue #12のちらつき、Issue #13のStart／Search native continuity、100／150%採用PopupのStart／Search目視、多数ピン留めstress、採用PopupのExplorer再起動10回は実機確認まで合格し、PopupPreservedを採用方式に選定した。provenance／raceのP2強化はIssue #15、UIA watcherのExplorer世代別資源寿命はIssue #18で追跡する。tray churn中のStart保持が未完了であるため、Gate B全体はPendingのままとする。
+Issue #11の100／200% NoFit floating、Issue #12のちらつき、Issue #13のStart／Search native continuity、100／150%採用PopupのStart／Search目視、多数ピン留めstress、Start中tray churn、採用PopupのExplorer再起動10回は実機確認まで合格した。PopupPreservedを採用方式に選定し、Gate BはGoとする。provenance／raceのP2強化はIssue #15、UIA watcherのExplorer世代別資源寿命はIssue #18でリリース前に追跡する。
 
 実機host試験はmanifestが適用されるEXEまたは`dotnet run`で行う。DLL直接起動はmanifest非適用のため使用しない。
