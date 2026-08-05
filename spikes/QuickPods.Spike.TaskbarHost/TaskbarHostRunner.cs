@@ -785,7 +785,7 @@ internal sealed class TaskbarHostRunner
                 TaskbarPlacementResult placement = SafeRegionCalculator.Calculate(
                     observation,
                     TaskbarPlacementOptions.Default);
-                TaskbarLiveScanSignature signature = TaskbarLiveScanSignature.Create(
+                var signature = TaskbarLiveScanSignature.Create(
                     discovery,
                     placement);
                 VerifiedLiveLayout? layout = null;
