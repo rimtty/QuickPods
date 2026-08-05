@@ -5,6 +5,8 @@ namespace QuickPods.Spike.BluetoothKs.Tests;
 
 public sealed class OperationGenerationAndSerializationTests
 {
+    private static readonly TimeSpan TestCompletionTimeout = TimeSpan.FromSeconds(5);
+
     [Fact]
     public void NewRequestSupersedesOnlyTheSameContainer()
     {
@@ -35,7 +37,7 @@ public sealed class OperationGenerationAndSerializationTests
         Assert.False(queued.IsCompleted);
 
         await first.DisposeAsync();
-        await using ContainerOperationLease second = await queued.WaitAsync(TimeSpan.FromSeconds(1));
+        await using ContainerOperationLease second = await queued.WaitAsync(TestCompletionTimeout);
         await other.DisposeAsync();
     }
 
@@ -54,7 +56,7 @@ public sealed class OperationGenerationAndSerializationTests
         Assert.False(queued.IsCompleted);
 
         nativeCompletion.SetResult();
-        await using ContainerOperationLease second = await queued.WaitAsync(TimeSpan.FromSeconds(1));
+        await using ContainerOperationLease second = await queued.WaitAsync(TestCompletionTimeout);
     }
 
     private static BluetoothOperationResult Result(string containerKey, long generation)

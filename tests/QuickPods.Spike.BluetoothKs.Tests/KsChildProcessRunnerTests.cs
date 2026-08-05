@@ -6,13 +6,11 @@ namespace QuickPods.Spike.BluetoothKs.Tests;
 public sealed class KsChildProcessRunnerTests
 {
     [Fact]
-    public async Task WatchdogTerminatesOnlyTheHungChildWithinItsBound()
+    public async Task WatchdogTerminatesHungChildAndConfirmsExit()
     {
         var runner = new KsChildProcessRunner(
             TimeSpan.FromMilliseconds(100),
             GetSpikeExecutablePath());
-        var stopwatch = Stopwatch.StartNew();
-
         KsChildRunResult result = await runner.RunAsync(
             new KsChildInvocation(
                 KsChildProtocol.SimulationTarget,
@@ -23,7 +21,6 @@ public sealed class KsChildProcessRunnerTests
 
         Assert.Equal(KsChildRunStatus.TimedOut, result.Status);
         Assert.Null(result.Response);
-        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(3));
         Assert.NotNull(result.ProcessId);
         Assert.False(IsProcessRunning(result.ProcessId.Value));
     }

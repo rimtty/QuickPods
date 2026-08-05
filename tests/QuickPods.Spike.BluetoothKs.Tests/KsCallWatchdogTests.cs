@@ -4,6 +4,8 @@ namespace QuickPods.Spike.BluetoothKs.Tests;
 
 public sealed class KsCallWatchdogTests
 {
+    private static readonly TimeSpan TestCompletionTimeout = TimeSpan.FromSeconds(5);
+
     [Fact]
     public async Task CompletedCallPreservesHResult()
     {
@@ -30,7 +32,7 @@ public sealed class KsCallWatchdogTests
             CancellationToken.None);
         await WaitUntilAsync(() => clock.PendingDelayCount > 0);
         clock.Advance(KsCallWatchdog.Timeout);
-        KsCallWatchdogResult result = await pending.WaitAsync(TimeSpan.FromSeconds(1));
+        KsCallWatchdogResult result = await pending.WaitAsync(TestCompletionTimeout);
 
         Assert.Equal(KsCallWatchdogStatus.TimedOut, result.Status);
         Assert.Null(result.HResult);

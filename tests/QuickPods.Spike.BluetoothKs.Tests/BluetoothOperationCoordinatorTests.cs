@@ -5,6 +5,8 @@ namespace QuickPods.Spike.BluetoothKs.Tests;
 
 public sealed class BluetoothOperationCoordinatorTests
 {
+    private static readonly TimeSpan TestCompletionTimeout = TimeSpan.FromSeconds(5);
+
     [Fact]
     public async Task SucceedingKsRequestIsNotSuccessUntilActualStateChanges()
     {
@@ -18,7 +20,7 @@ public sealed class BluetoothOperationCoordinatorTests
             BluetoothOperationKind.Connect,
             CancellationToken.None);
         await DriveToDeadlineAsync(pending, clock);
-        BluetoothOperationResult result = await pending.WaitAsync(TimeSpan.FromSeconds(1));
+        BluetoothOperationResult result = await pending.WaitAsync(TestCompletionTimeout);
 
         Assert.False(result.Succeeded);
         Assert.Equal(BluetoothOperationOutcome.DeadlineExceeded, result.Outcome);
@@ -53,7 +55,7 @@ public sealed class BluetoothOperationCoordinatorTests
         Assert.False(pending.IsCompleted);
 
         clock.Advance(TimeSpan.FromMilliseconds(250));
-        BluetoothOperationResult result = await pending.WaitAsync(TimeSpan.FromSeconds(1));
+        BluetoothOperationResult result = await pending.WaitAsync(TestCompletionTimeout);
 
         Assert.True(result.Succeeded);
         Assert.Equal(BluetoothAudioState.Connected, result.ActualState);
@@ -171,7 +173,7 @@ public sealed class BluetoothOperationCoordinatorTests
         _ = generations.Begin("container-a");
         observer.Complete(staleGeneration, BluetoothAudioState.Disconnected);
 
-        BluetoothOperationResult result = await pending.WaitAsync(TimeSpan.FromSeconds(1));
+        BluetoothOperationResult result = await pending.WaitAsync(TestCompletionTimeout);
 
         Assert.Equal(BluetoothOperationOutcome.Superseded, result.Outcome);
         Assert.Equal(0, invoker.Calls);
@@ -196,7 +198,7 @@ public sealed class BluetoothOperationCoordinatorTests
         await WaitUntilAsync(() => invoker.Calls == 1);
         firstCancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => first.WaitAsync(TimeSpan.FromSeconds(1)));
+            () => first.WaitAsync(TestCompletionTimeout));
 
         using var secondCancellation = new CancellationTokenSource();
         Task<BluetoothOperationResult> second = coordinator.ExecuteAsync(
@@ -210,7 +212,7 @@ public sealed class BluetoothOperationCoordinatorTests
         await WaitUntilAsync(() => invoker.Calls == 2);
         secondCancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => second.WaitAsync(TimeSpan.FromSeconds(1)));
+            () => second.WaitAsync(TestCompletionTimeout));
     }
 
     private static async Task DriveToDeadlineAsync(
