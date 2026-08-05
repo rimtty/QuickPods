@@ -59,6 +59,22 @@
 
 ユーザーはStart／Searchの双方で、ウィンドウが開いている間もPopup hostがタスクバー内の同じ位置に残り、wheelでsample volumeを変更できることを確認した。比較したChildは同じ要求を満たさず3～10秒程度でFloatingへ退避したため、PopupPreservedを採用方式に選定した。生HWND、Explorer PID、ウィンドウタイトル、通知内容は保存していない。
 
+## Phase 0E実機観測：150% Popup native continuity
+
+| 項目 | 値 |
+|---|---|
+| 検証日 | 2026-08-05 |
+| DPI | 144（150%） |
+| タスクバー | 5120×72 physical px、horizontal、中央揃え |
+| タスクバー設定 | 検索アイコン＋ラベル、Task View／Widgets ON |
+| 初期探索 | complete、fault 0、Start `(1919, 0, 68, 72)`、Widgets `(9, 0, 228, 72)`、button 27、critical child 4 |
+| 配置 | `Place / Standard`、`(853, 6, 450, 60)` |
+| 自動事前監査 | Popup style、taskbar実親、ownerなし、non-topmost、DWM uncloaked、drag／wheel、exit 0、残留0 |
+| 120秒目視run | Start／Searchを各10～15秒表示。native継続3回、Floating遷移0、wheel 273件、drag開始／完了12／12、fatal 0 |
+| 終了 | `native-host=destroyed`、QuickPodsプロセス残留0 |
+
+ユーザーは両一時UIの表示中もPopupが同じタスクバー位置に残り、wheel入力、描画、重なり、ちらつきのすべてに問題がないことを確認した。一時的にUIA button観測が1件まで減った区間でも、同一generationの証明を維持して通常の27件へ復帰した。監査スクリプトはPopupの実親を`GetParent`ではなく`GetAncestor(..., GA_PARENT)`で判定し、ownerは`GetWindow(..., GW_OWNER)`で独立確認した。
+
 ## Phase 0C historical：初回観測 150%（Widgets ON）
 
 | 項目 | 値 |
@@ -139,4 +155,4 @@ Childを17秒間、起動時に確定した同一HWNDで監視して1088 samples
 
 Start／Windows一時UIと検索アイコン＋ラベルの検索一時UIを個別に開く制御runでは、どちらも一時的な`PrimaryTaskbarMissing`を再現した。再現区間の外部inspectは57/57回が`TransientUnknown / IncompleteObservation`であり、Runnerは不完全観測中に推測配置せずhostを安全にhideした。その後、Startでは7.796秒、検索では6.757秒で同じhostを再表示した。観測不能が10秒を超えるケースは既存のFail Closed timeoutへ到達して安全停止する。
 
-Phase 0Cでは、10秒未満の制御runはhostプロセスが存続したまま安全に一時非表示となり、観測不能が10秒を超えるとSpikeは設計どおり安全停止した。この二つがユーザーには同じ「落ちた」ように見える復帰UXの問題だった。これはhistorical behaviorであり、Phase 0Dでは安全なfloatingまたはhidden fallbackへ遷移してセッションを継続する。Phase 0EではPopup native continuity、最終style選定、採用PopupのExplorer再起動10回、および100／200%左揃えNoFit floatingの目視・入力まで完了した。ピン留め多数、tray churn、および150%採用PopupのStart／Search目視が残るためGate BはPendingである。
+Phase 0Cでは、10秒未満の制御runはhostプロセスが存続したまま安全に一時非表示となり、観測不能が10秒を超えるとSpikeは設計どおり安全停止した。この二つがユーザーには同じ「落ちた」ように見える復帰UXの問題だった。これはhistorical behaviorであり、Phase 0Dでは安全なfloatingまたはhidden fallbackへ遷移してセッションを継続する。Phase 0Eでは100／150% Popup native continuity、最終style選定、採用PopupのExplorer再起動10回、および100／200%左揃えNoFit floatingの目視・入力まで完了した。ピン留め多数とtray churnが残るためGate BはPendingである。
