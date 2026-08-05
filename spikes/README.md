@@ -8,4 +8,6 @@ Planned spikes:
 - `QuickPods.Spike.BluetoothKs`
 - `QuickPods.Spike.TaskbarHost`
 
+Each spike branch contains only its own diagnostic until the focused pull request is integrated into `main`.
+
 Spike code is evidence, not production code. Product implementations must be written from the validated behavior and contracts rather than promoted directly from a spike.

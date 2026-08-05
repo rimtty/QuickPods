@@ -9,7 +9,7 @@
 | 作成日 | 2026-08-05 |
 | 対象環境 | Windows 11 x64 / .NET 10 / WPF + Win32 |
 | 基本文書 | `QuickPods_実装計画書.md` |
-| ステータス | 実装開始前 |
+| ステータス | Phase 0 Spike実装・実機Gate待ち |
 
 ## 1. 目的
 
@@ -23,16 +23,16 @@
 
 | 項目 | 状態 |
 |---|---|
-| Git | `main`、コミット0件 |
-| Remote | `origin`設定済み、`origin/main`は未作成 |
-| 追跡対象 | なし。`docs/`が未追跡 |
-| ソース／テスト／CI | 未作成 |
+| Git | `main`は`5d441e3`まで統合済み。現在は`codex/phase-0c-taskbar-host-spike` |
+| Remote | `origin/main`作成済み。Phase 0 Spikeは短命ブランチとDraft PRで管理 |
+| 追跡対象 | 計画資料、ブランド資産、solution基盤、Spike、検証証跡 |
+| ソース／テスト／CI | .NET 10 solution、Windows CI、Smoke testを作成済み |
 | AGENTS.md | なし |
 | .NET SDK | `10.0.302`利用可能 |
 | Windows Desktop Runtime | `10.0.10`利用可能 |
 | Git LFS | 現在の最大ファイルが約1.2MBのため不要 |
 
-Gitには基点となるコミットがないため、最初の一回だけは現在の資料を`main`へ直接コミットする。その後はすべて`codex/`接頭辞の短命ブランチで作業する。
+資料ベースラインの初回コミットとB1 bootstrapは完了している。以後は`codex/`接頭辞の短命ブランチで作業する。
 
 推奨初回コミット：
 
@@ -116,6 +116,7 @@ Phase 0ではCore AudioとタスクバーSpikeを並行開始できる。Bluetoo
 | 項目 | 内容 |
 |---|---|
 | 目的 | Spikeを独立して追加できる最小開発基盤を作る |
+| 状態 | **完了** — `main`の`5d441e3`、PR #3 |
 | 主な成果物 | `.gitignore`、`.gitattributes`、`.editorconfig`、`global.json`、`Directory.Build.props`、`Directory.Packages.props`、`QuickPods.sln`、`spikes/`、最小テスト構成、Windows CI |
 | 設定 | .NET SDK `10.0.302`系列、`net10.0-windows`、x64、nullable、analyzers、warnings as errors |
 | CI | restore、Release build、test、format検証 |
@@ -129,6 +130,7 @@ Phase 0ではCore AudioとタスクバーSpikeを並行開始できる。Bluetoo
 | 項目 | 内容 |
 |---|---|
 | 目的 | 公開Core Audio APIによる中核機能の成立性とCOMスレッドモデルを確定する |
+| 状態 | **Gate待ち** — Issue #4、Draft PR #7。実機試験未完了 |
 | Spike | `spikes/QuickPods.Spike.CoreAudio/` |
 | 実装 | 既定Endpoint取得、音量・ミュート取得／変更、変更通知、既定デバイス変更、再バインド |
 | 自動試験 | Scalar変換、クランプ、自通知GUID、コールバックキュー、世代破棄 |
@@ -152,6 +154,7 @@ No-Go時：原因を分類し、解消するまでPhase 1以降へ進まない�
 | 項目 | 内容 |
 |---|---|
 | 目的 | MediaTekドライバーとAirPods Proで個別接続・切断が成立するか確定する |
+| 状態 | **Gate待ち** — Issue #5、Draft PR #8。実機試験未完了 |
 | Spike | `spikes/QuickPods.Spike.BluetoothKs/` |
 | 実装 | Container ID探索、DeviceTopology、KS Filter対応付け、Basic Support、Reconnect／Disconnect、MMDevice実状態確認 |
 | 実機試験 | 接続10回、切断10回、圏外、ケース内、他端末接続、Bluetooth無線OFF、他機器影響 |
@@ -182,8 +185,9 @@ No-Go時：Bluetoothボタンは`ms-settings:bluetooth`等のWindows設定ラン
 | 項目 | 内容 |
 |---|---|
 | 目的 | `SetParent`とUI Automationを使ったネイティブ表示のGate Bを判定する |
+| 状態 | **進行中** — Issue #6。自動試験189件と現在環境のChild／Popup各30秒attach・UIA復旧は完了、手動Gateは未完了 |
 | Spike | `spikes/QuickPods.Spike.TaskbarHost/` |
-| 実装 | ランドマーク探索、安全領域可視化、raw HWND、透過描画、入力、`WS_POPUP`／`WS_CHILD`比較、Explorer復旧 |
+| 実装 | ランドマーク探索、安全領域可視化、raw HWND、透過描画、入力、`WS_POPUP`／`WS_CHILD`比較、UIA即時監視、hide-first復旧、Watchdog／churn fail closed |
 | 実機試験 | DPI 100／125／150／200%、Start中央／左寄せ、Widgets ON／OFF、検索3形式、空き不足、Explorer再起動10回 |
 | 完了成果物 | Spikeコード、配置スクリーンショット、計測結果、採用スタイル、Gate B判断 |
 
@@ -456,4 +460,4 @@ dotnet publish src/QuickPods.TaskbarHost/QuickPods.TaskbarHost.csproj -c Release
 
 ---
 
-資料ベースラインは`main`の初回コミット`1f63aa1`として作成・Push済みである。現在の実装対象は`codex/phase-0-bootstrap`である。
+資料ベースラインは`main`の初回コミット`1f63aa1`、B1 bootstrapは`5d441e3`として統合済みである。現在の実装対象は`codex/phase-0c-taskbar-host-spike`で、B4は自動試験と現在環境の150%限定試験まで完了し、Gate BはPendingである。B2／B3／B4の実機Gateが完了するまでB5およびPhase 1へ進めない。

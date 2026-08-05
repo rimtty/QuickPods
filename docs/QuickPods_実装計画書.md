@@ -731,7 +731,7 @@ Style:    WS_POPUP | WS_VISIBLE | WS_CLIPSIBLINGS
 1. `RegisterClassExW`
 2. `CreateWindowExW`
 3. `SetParent(widgetHwnd, taskbarHwnd)`
-4. `GetParent`で親子関係を確認
+4. `GetAncestor(widgetHwnd, GA_PARENT)`で実親を確認し、`WS_CHILD`方式では`GetParent`でも一致を確認
 5. `SetLayeredWindowAttributes`または`UpdateLayeredWindow`を初期化
 6. `MapWindowPoints`で画面座標を親クライアント座標へ変換
 7. `SetWindowPos(..., SWP_NOACTIVATE | SWP_SHOWWINDOW)`
@@ -772,7 +772,7 @@ Watchdog確認項目：
 
 - タスクバーHWNDが有効か
 - ホストHWNDが有効か
-- `GetParent(widget) == taskbar`か
+- `GetAncestor(widget, GA_PARENT) == taskbar`か（`WS_CHILD`方式では`GetParent`も一致するか）
 - タスクバーの位置、サイズ、DPIが変化していないか
 - 安全領域へ新しい障害物が入っていないか
 - Explorerプロセスが入れ替わっていないか
@@ -870,7 +870,7 @@ Watchdog確認項目：
 | `E_NOINTERFACE` on `IKsControl` | Bluetooth直接操作未対応 |
 | KS Basic Supportなし | 機能を無効化し、設定画面へ案内 |
 | KS要求成功後に状態不変 | 成功扱いせずタイムアウト |
-| `SetParent`失敗 | `GetParent`で再確認し、失敗ならフォールバック |
+| `SetParent`失敗 | `GetAncestor(..., GA_PARENT)`で実親を再確認し、`WS_CHILD`方式では`GetParent`も確認して、失敗ならフォールバック |
 | UI Automationランドマーク欠落 | 推測配置せず再試行またはフォールバック |
 
 ## 13. 実装計画
