@@ -4,17 +4,17 @@
 
 | 項目 | 結果 |
 |---|---|
-| 実行日 | 2026-08-05 |
+| 実行日 | 2026-08-05～2026-08-06 |
 | ブランチ | `codex/phase-0b-bluetooth-ks-spike` |
 | .NET | SDK `10.0.302` / Runtime `10.0.10` |
 | Release build | Pass、警告0、エラー0 |
-| 自動試験 | Pass、Bluetooth KS 58件 + solution smoke 1件 |
+| 自動試験 | Pass、Bluetooth KS 61件 + solution smoke 1件 |
 | format / diff check | Pass |
 | 読み取り専用inventory | Pass |
 | KS Basic Support | Pending（未実行） |
 | Reconnect / Disconnect | Pending（未実行） |
 
-## 読み取り専用inventory
+## 初回の読み取り専用inventory（2026-08-05）
 
 `inventory`は外側の隔離プロセスとkill-on-close Job Object内で実行した。`IKsControl::KsProperty`は呼び出していない。
 
@@ -26,11 +26,22 @@
 - セッショントークンと24桁エイリアスは実行ごとに変わるため、本書には値を保存していない。
 - 生のContainer ID、Endpoint ID、Adapter/PnP ID、MACアドレスは標準出力、標準エラー、文書へ保存していない。
 
+## Issue #20修正後の読み取り専用inventory（2026-08-06）
+
+現在のセッションはRemote Audioだけを公開しており、BluetoothオーディオContainerは0件だった。この構成で再実行し、次を確認した。
+
+- `PKEY_Device_ContainerId`欠落は所有権へ影響しないglobal faultとして分類した。
+- `IDeviceTopology`の`E_NOINTERFACE`は、失敗したEndpointのレポートスコープHMAC別名へ限定されたownership faultとして分類した。
+- 生Endpoint ID、Container ID、PnP ID、MACアドレスは出力しなかった。
+- targetが存在しないためKS Basic Support、Reconnect、Disconnectは0件だった。
+- scoped faultまたは未帰属Adapterが選択対象と重ならない場合は完全な対象を妨げず、選択対象と重なる場合またはglobal faultの場合は従来どおりKS子プロセス開始前に拒否することを自動試験で確認した。
+
 ## 自動試験で確認した安全条件
 
 - 引数確認前に探索またはKS操作を開始しない。
 - 未知target、複数Render候補、複数Containerで共有される候補をfail closedで拒否する。
-- 所有権へ影響する探索fault、または同じAdapterをContainerへ帰属できないsnapshotではKS子プロセスを開始しない。
+- globalまたは選択対象に重なる所有権fault、および選択対象と重なる未帰属AdapterではKS子プロセスを開始しない。
+- 無関係EndpointへスコープされたTopology faultや無関係な未帰属Adapterは、完全に証明できた選択対象の操作能力へ波及させない。
 - Basic Supportの片方でも非対応ならReconnect／Disconnectを発行しない。
 - KS HRESULTが失敗の場合、MMDeviceが期待状態へ変化しても成功扱いしない。
 - 操作後の観測に所有権faultまたはContainer未帰属Adapterがあれば、残存EndpointがUnpluggedでも`Unknown`へ倒す。

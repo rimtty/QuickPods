@@ -43,8 +43,13 @@ public sealed class DiscoveryBluetoothStateObserverTests
             faults);
         var result = new BluetoothKsDiscoveryResult(
             inventory,
-            new Dictionary<string, RawKsTarget>(StringComparer.Ordinal),
-            unassignedAdapter ? ["unassigned-adapter"] : []);
+            new Dictionary<string, RawKsTarget>(StringComparer.Ordinal)
+            {
+                [TargetHash] = new RawKsTarget(
+                    TargetHash,
+                    [new RawKsCandidate("target-adapter", NativeDataFlow.Render)]),
+            },
+            unassignedAdapter ? ["target-adapter"] : []);
         var observer = new DiscoveryBluetoothStateObserver(new FakeDiscovery(result));
 
         BluetoothStateObservation observation = await observer.ObserveAsync(
@@ -55,6 +60,54 @@ public sealed class DiscoveryBluetoothStateObserverTests
         Assert.False(observation.Evidence.EnumerationComplete);
         Assert.Equal(
             BluetoothAudioState.Unknown,
+            BluetoothStateClassifier.Classify(observation.Evidence));
+    }
+
+    [Fact]
+    public async Task UnrelatedIncompleteEvidenceDoesNotHideDisconnectedTargetState()
+    {
+        var inventory = new BluetoothKsInventory(
+            "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
+            [
+                new BluetoothDeviceGroup(
+                    TargetHash,
+                    "Bluetooth audio",
+                    [
+                        new SanitizedAudioEndpoint(
+                            "00112233445566778899AABB",
+                            "Bluetooth audio",
+                            NativeDataFlow.Render,
+                            NativeConstants.DeviceStateUnplugged),
+                    ],
+                    []),
+            ],
+            [
+                new DiscoveryFault(
+                    "IDeviceTopology",
+                    unchecked((int)0x80004002),
+                    AffectsOwnership: true,
+                    EndpointHash: "FFEEDDCCBBAA998877665544",
+                    ContainerHash: "11223344556677889900AABB"),
+            ]);
+        var result = new BluetoothKsDiscoveryResult(
+            inventory,
+            new Dictionary<string, RawKsTarget>(StringComparer.Ordinal)
+            {
+                [TargetHash] = new RawKsTarget(
+                    TargetHash,
+                    [new RawKsCandidate("target-adapter", NativeDataFlow.Render)]),
+            },
+            ["unrelated-adapter"]);
+        var observer = new DiscoveryBluetoothStateObserver(new FakeDiscovery(result));
+
+        BluetoothStateObservation observation = await observer.ObserveAsync(
+            TargetHash,
+            generation: 8,
+            CancellationToken.None);
+
+        Assert.True(observation.Evidence.EnumerationComplete);
+        Assert.Equal(
+            BluetoothAudioState.Disconnected,
             BluetoothStateClassifier.Classify(observation.Evidence));
     }
 

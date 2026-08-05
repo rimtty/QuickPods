@@ -145,7 +145,15 @@ internal sealed class BluetoothKsDiscoveryService(IdentifierHasher hasher) : IBl
             ComObject.Release(properties);
         }
 
-        string[] adapterIds = ReadAdapterDeviceIds(device, faults);
+        string endpointHash = hasher.Hash(endpointId);
+        string? containerHash = containerId is Guid value
+            ? hasher.Hash(value.ToString("D"))
+            : null;
+        string[] adapterIds = ReadAdapterDeviceIds(
+            device,
+            faults,
+            endpointHash,
+            containerHash);
         return new RawEndpoint(
             containerId == Guid.Empty ? null : containerId,
             endpointId,
@@ -202,7 +210,9 @@ internal sealed class BluetoothKsDiscoveryService(IdentifierHasher hasher) : IBl
 
     private static string[] ReadAdapterDeviceIds(
         IMMDevice device,
-        List<DiscoveryFault> faults)
+        List<DiscoveryFault> faults,
+        string endpointHash,
+        string? containerHash)
     {
         var adapterIds = new HashSet<string>(StringComparer.Ordinal);
         IDeviceTopology? topology = null;
@@ -217,7 +227,12 @@ internal sealed class BluetoothKsDiscoveryService(IdentifierHasher hasher) : IBl
                 out activatedInterface);
             if (activationResult < 0)
             {
-                faults.Add(new DiscoveryFault(nameof(IDeviceTopology), activationResult));
+                faults.Add(new DiscoveryFault(
+                    nameof(IDeviceTopology),
+                    activationResult,
+                    AffectsOwnership: true,
+                    EndpointHash: endpointHash,
+                    ContainerHash: containerHash));
                 return [];
             }
 
@@ -255,14 +270,28 @@ internal sealed class BluetoothKsDiscoveryService(IdentifierHasher hasher) : IBl
                     CoTaskMemory.Free(ref adapterIdPointer);
                 }
             }
-            catch (NativeCallException exception)
-            {
-                faults.Add(new DiscoveryFault(exception.Operation, exception.NativeHResult));
-            }
             finally
             {
                 ComObject.Release(connector);
             }
+        }
+        catch (NativeCallException exception)
+        {
+            faults.Add(new DiscoveryFault(
+                exception.Operation,
+                exception.NativeHResult,
+                AffectsOwnership: true,
+                EndpointHash: endpointHash,
+                ContainerHash: containerHash));
+        }
+        catch (InvalidCastException)
+        {
+            faults.Add(new DiscoveryFault(
+                "IDeviceTopology.QueryInterface",
+                unchecked((int)0x80004002),
+                AffectsOwnership: true,
+                EndpointHash: endpointHash,
+                ContainerHash: containerHash));
         }
         finally
         {

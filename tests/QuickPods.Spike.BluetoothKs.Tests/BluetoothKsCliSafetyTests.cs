@@ -9,6 +9,7 @@ public sealed class BluetoothKsCliSafetyTests
     private const string SessionToken =
         "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF";
     private const string TargetHash = "A1B2C3D4E5F60123456789AB";
+    private const string TargetEndpointHash = "00112233445566778899AABB";
 
     [Fact]
     public async Task InventoryNeverStartsAKsChildOperation()
@@ -208,8 +209,11 @@ public sealed class BluetoothKsCliSafetyTests
         Assert.Contains("was not attempted", error.ToString(), StringComparison.Ordinal);
     }
 
-    [Fact]
-    public async Task OwnershipAffectingDiscoveryFaultRejectsBeforeStartingAChildOperation()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task GlobalOrTargetScopedOwnershipFaultRejectsBeforeStartingAChildOperation(
+        bool globalFault)
     {
         BluetoothKsDiscoveryResult complete = ResultWithTarget(
             RenderCandidate("adapter-render"));
@@ -222,7 +226,8 @@ public sealed class BluetoothKsCliSafetyTests
                     new DiscoveryFault(
                         "IDeviceTopology.GetConnector",
                         unchecked((int)0x80004005),
-                        AffectsOwnership: true),
+                        AffectsOwnership: true,
+                        EndpointHash: globalFault ? null : TargetEndpointHash),
                 ],
             },
         };
@@ -241,6 +246,44 @@ public sealed class BluetoothKsCliSafetyTests
         Assert.Equal(1, exitCode);
         Assert.Empty(childRunner.Calls);
         Assert.Contains("ownership proof is incomplete", error.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task UnrelatedScopedFaultAndAdapterDoNotBlockACompleteSelectedTarget()
+    {
+        BluetoothKsDiscoveryResult complete = ResultWithTarget(
+            RenderCandidate("adapter-render"));
+        BluetoothKsDiscoveryResult result = complete with
+        {
+            Inventory = complete.Inventory with
+            {
+                Faults =
+                [
+                    new DiscoveryFault(
+                        "IDeviceTopology",
+                        unchecked((int)0x80004002),
+                        AffectsOwnership: true,
+                        EndpointHash: "FFEEDDCCBBAA998877665544",
+                        ContainerHash: "11223344556677889900AABB"),
+                ],
+            },
+            UnassignedAdapterDeviceIds = ["adapter-unrelated"],
+        };
+        var childRunner = new FakeChildRunner(_ => Supported());
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        int exitCode = await BluetoothKsCli.ExecuteAsync(
+            ProbeOptions(),
+            new FakeDiscovery(result),
+            childRunner,
+            output,
+            error,
+            CancellationToken.None);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(2, childRunner.Calls.Count);
+        Assert.Empty(error.ToString());
     }
 
     [Fact]
@@ -311,7 +354,22 @@ public sealed class BluetoothKsCliSafetyTests
             TargetHash,
             candidates);
         return new BluetoothKsDiscoveryResult(
-            EmptyInventory(),
+            new BluetoothKsInventory(
+                SessionToken,
+                [
+                    new BluetoothDeviceGroup(
+                        TargetHash,
+                        "Bluetooth audio",
+                        [
+                            new SanitizedAudioEndpoint(
+                                TargetEndpointHash,
+                                "Bluetooth audio",
+                                NativeDataFlow.Render,
+                                NativeConstants.DeviceStateUnplugged),
+                        ],
+                        []),
+                ],
+                []),
             new Dictionary<string, RawKsTarget>(StringComparer.Ordinal)
             {
                 [TargetHash] = target,

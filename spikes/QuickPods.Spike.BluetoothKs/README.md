@@ -11,7 +11,7 @@ This isolated diagnostic determines whether the documented Windows KS and Device
 - `connect` and `disconnect` additionally require the report-scoped target alias to be repeated with `--confirm-target` and require `--confirm-playback-stopped`.
 - A successful KS HRESULT is never treated as a successful connection change without an independent MMDevice state transition.
 - Only one explicitly selected Container ID may be operated on. Display names are never identity keys.
-- A topology fault that can affect KS-filter ownership, or a selected adapter that cannot be assigned to a Container, makes the entire snapshot ineligible for KS operations.
+- An unscoped topology fault still makes the entire snapshot ineligible. A scoped fault or unassigned adapter blocks only a selected Container whose endpoints or KS candidates overlap that incomplete evidence; unrelated endpoints and unsupported devices do not disable a complete target.
 - MAC addresses and full Container, endpoint, adapter, and PnP identifiers are never printed or persisted.
 - `inventory` creates a random report session token. All 24-character aliases use session-keyed HMAC, so an alias can be reused with that token but cannot be linked across reports.
 - Internal child requests carry a version, nonce, exact operation, target alias, and consent flags. Real KS children also require a parent process running the same executable.

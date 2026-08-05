@@ -58,9 +58,10 @@ internal sealed class DiscoveryBluetoothStateObserver(
                 candidate.ContainerHash,
                 containerKey,
                 StringComparison.Ordinal));
-        bool enumerationComplete =
-            !result.Inventory.Faults.Any(fault => fault.AffectsOwnership) &&
-            result.UnassignedAdapterDeviceIds.Count == 0;
+        TargetOwnershipStatus ownership = BluetoothKsOwnershipVerifier.Evaluate(
+            result,
+            containerKey);
+        bool enumerationComplete = ownership.IsComplete;
         IReadOnlyList<BluetoothEndpointState> endpointStates = group?.Endpoints
             .Where(endpoint => endpoint.Flow == NativeDataFlow.Render)
             .Select(endpoint => MapState(endpoint.State))

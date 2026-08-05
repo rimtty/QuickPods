@@ -28,7 +28,12 @@ internal sealed record BluetoothDeviceGroup(
 internal sealed record DiscoveryFault(
     string Operation,
     int HResult,
-    bool AffectsOwnership = true);
+    bool AffectsOwnership = true,
+    string? EndpointHash = null,
+    string? ContainerHash = null)
+{
+    public bool IsGlobal => EndpointHash is null && ContainerHash is null;
+}
 
 internal sealed record BluetoothKsInventory(
     string SessionToken,
@@ -47,3 +52,66 @@ internal sealed record BluetoothKsDiscoveryResult(
     BluetoothKsInventory Inventory,
     IReadOnlyDictionary<string, RawKsTarget> Targets,
     IReadOnlyList<string> UnassignedAdapterDeviceIds);
+
+internal sealed record TargetOwnershipStatus(
+    bool HasRelevantFault,
+    bool HasUnassignedCandidateOverlap)
+{
+    public bool IsComplete => !HasRelevantFault && !HasUnassignedCandidateOverlap;
+}
+
+internal static class BluetoothKsOwnershipVerifier
+{
+    public static TargetOwnershipStatus Evaluate(
+        BluetoothKsDiscoveryResult result,
+        string targetContainerHash)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentException.ThrowIfNullOrWhiteSpace(targetContainerHash);
+
+        BluetoothDeviceGroup? group = result.Inventory.Groups.SingleOrDefault(candidate =>
+            string.Equals(
+                candidate.ContainerHash,
+                targetContainerHash,
+                StringComparison.Ordinal));
+        var targetEndpointHashes = new HashSet<string>(
+            group?.Endpoints.Select(endpoint => endpoint.EndpointHash) ?? [],
+            StringComparer.Ordinal);
+        bool hasRelevantFault = result.Inventory.Faults.Any(fault =>
+            FaultAffectsTarget(fault, targetContainerHash, targetEndpointHashes));
+
+        bool hasUnassignedCandidateOverlap =
+            result.Targets.TryGetValue(targetContainerHash, out RawKsTarget? target) &&
+            target.Candidates.Any(candidate => result.UnassignedAdapterDeviceIds.Contains(
+                candidate.AdapterDeviceId,
+                StringComparer.Ordinal));
+
+        return new TargetOwnershipStatus(
+            hasRelevantFault,
+            hasUnassignedCandidateOverlap);
+    }
+
+    private static bool FaultAffectsTarget(
+        DiscoveryFault fault,
+        string targetContainerHash,
+        HashSet<string> targetEndpointHashes)
+    {
+        if (!fault.AffectsOwnership)
+        {
+            return false;
+        }
+
+        if (fault.IsGlobal)
+        {
+            return true;
+        }
+
+        return fault.ContainerHash is not null &&
+                string.Equals(
+                    fault.ContainerHash,
+                    targetContainerHash,
+                    StringComparison.Ordinal) ||
+            fault.EndpointHash is not null &&
+                targetEndpointHashes.Contains(fault.EndpointHash);
+    }
+}

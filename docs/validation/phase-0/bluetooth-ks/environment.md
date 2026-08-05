@@ -8,11 +8,13 @@
 | 対象 | GitHub Issue #5 — Bluetooth KS接続・切断の成立性確認 |
 | ブランチ | `codex/phase-0b-bluetooth-ks-spike` |
 | 記録日 | 2026-08-05 |
-| 実行日 | 2026-08-05（読み取り専用・自動試験のみ） |
+| 実行日 | 2026-08-05～2026-08-06（読み取り専用・自動試験のみ） |
 | 実行者 | Codex |
 | 検証コミット | Phase 0Bブランチの当該実装コミット |
 
 読み取り専用inventory、サニタイズ、純粋ロジック、Job Object watchdogの停止・異常終了シミュレーションまでは実行済みである。KS Basic Support、接続要求、切断要求は実行しておらず、実機のMMDevice状態遷移は未検証である。
+
+2026-08-06の再検証時点では現在のWindowsセッションがRemote Audioだけを公開しており、BluetoothオーディオContainerは0件だった。この実行はIssue #20のEndpoint-scoped faultと非操作性の確認に使用し、AirPods実操作の証拠には使用しない。
 
 ## ホスト環境
 
@@ -51,7 +53,7 @@
 - [x] 実行者と実行日時を記録した
 - [x] .NET SDK / Runtimeを記録した
 - [x] Medium integrityかつ非管理者であることを確認した
-- [x] AirPods Proがペアリング済みであることを読み取り専用inventoryで確認した
+- [x] 2026-08-05の初回inventoryでAirPods Proのペアリング済みContainerを確認した（2026-08-06のRemote Audioセッションでは非公開）
 - [ ] MediaTekの2つのドライバーバージョンを再確認した
 - [x] Bluetooth無線がONであることを読み取り専用inventoryで確認した
 - [x] 対象をレポートスコープのエイリアスへ割り当てられることを確認した

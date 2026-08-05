@@ -209,16 +209,26 @@ internal static class BluetoothKsCli
         string targetHash,
         TextWriter error)
     {
-        if (result.Inventory.Faults.Any(fault => fault.AffectsOwnership))
-        {
-            error.WriteLine(
-                "KS ownership proof is incomplete in the current inventory; refusing all KS operations.");
-            return null;
-        }
-
         if (!result.Targets.TryGetValue(targetHash, out RawKsTarget? target))
         {
             error.WriteLine($"Target {targetHash} was not found in the current sanitized inventory.");
+            return null;
+        }
+
+        TargetOwnershipStatus ownership = BluetoothKsOwnershipVerifier.Evaluate(
+            result,
+            targetHash);
+        if (ownership.HasRelevantFault)
+        {
+            error.WriteLine(
+                $"KS ownership proof is incomplete for target {targetHash}; refusing the selected operation.");
+            return null;
+        }
+
+        if (ownership.HasUnassignedCandidateOverlap)
+        {
+            error.WriteLine(
+                $"Target {targetHash} uses a KS candidate whose Container ownership is incomplete; refusing to guess.");
             return null;
         }
 
@@ -230,15 +240,6 @@ internal static class BluetoothKsCli
         {
             error.WriteLine(
                 $"Target {targetHash} has {renderCandidates.Length.ToString(CultureInfo.InvariantCulture)} render KS candidates; refusing to guess.");
-            return null;
-        }
-
-        if (result.UnassignedAdapterDeviceIds.Contains(
-            renderCandidates[0],
-            StringComparer.Ordinal))
-        {
-            error.WriteLine(
-                $"Target {targetHash} uses a KS candidate whose Container ownership is incomplete; refusing to guess.");
             return null;
         }
 
@@ -308,8 +309,13 @@ internal static class BluetoothKsCli
 
         foreach (DiscoveryFault fault in inventory.Faults)
         {
+            string scope = fault.ContainerHash is not null
+                ? $"container:{fault.ContainerHash}"
+                : fault.EndpointHash is not null
+                    ? $"endpoint:{fault.EndpointHash}"
+                    : "global";
             output.WriteLine(
-                $"fault={fault.Operation} hresult={FormatHResult(fault.HResult)} ownership-impact={fault.AffectsOwnership.ToString(CultureInfo.InvariantCulture).ToLowerInvariant()}");
+                $"fault={fault.Operation} hresult={FormatHResult(fault.HResult)} ownership-impact={fault.AffectsOwnership.ToString(CultureInfo.InvariantCulture).ToLowerInvariant()} scope={scope}");
         }
     }
 
