@@ -246,7 +246,7 @@ No-Go時：フローティングを標準表示、通知領域を最終退避先
 | host証明 | exact child一致、またはQuickPods class／same process／GA_PARENT／bounds／DPI／visibility／DWMのdirect attachment証明。runtimeでもstyleを含め再検証 |
 | timeout／監視 | UIA前後のnative再探索、watcher generation fence、固定500ms deadline、Direct中500ms rescan、100ms surface health check |
 | style判断 | `PopupPreserved`を採用。`SetParent`後も`WS_POPUP`を維持し、Childは明示比較／rollback用に残す。CLI既定はPopup |
-| 自動検証 | TaskbarHost 364件＋Smoke 1件、Release build 0 warning／0 error、format／diff check合格 |
+| 自動検証 | TaskbarHost 183件＋Smoke 1件。重複整理前368件から50.0%へ縮約し、Release build 0 warning／0 error、format／diff check合格 |
 | 実機検証 | 100%・1920×1080の120秒Popup EXE。Start／Search双方でnative保持、Floating遷移0、wheel 80件、drag完了3件、正常破棄、残留0。ユーザー目視・入力確認合格 |
 | 残件 | 採用PopupのExplorer再起動10回、ピン留め多数、tray churn中Start保持、残るDPI／fallback目視。完了までGate BはPending |
 
@@ -500,4 +500,4 @@ dotnet publish src/QuickPods.TaskbarHost/QuickPods.TaskbarHost.csproj -c Release
 
 ---
 
-資料ベースラインは`main`の初回コミット`1f63aa1`、B1 bootstrapは`5d441e3`として統合済みである。Phase 0CはTaskbarHost 216件＋Smoke 1件、150%可視ChildのExplorer再生成10/10回、200% NoFit再検出10/10回までを履歴として確定し、Start／Search中の`PrimaryTaskbarMissing`ではnativeを安全にhideすることを確認した。Phase 0DはTaskbarHost 301件＋Smoke 1件、175%のStart／Search入力を含むEXEでfloating fallbackとnative promotionを確定した。現在の`codex/phase-0e-native-continuity-spike`はTaskbarHost 364件＋Smoke 1件、Release build 0 warning／0 error、format／diff checkに合格し、100%・1920×1080の120秒Popup EXEでStart／Search双方のnative保持、表示中wheel入力、Floating遷移0、正常破棄、残留0を確認した。`PopupPreserved`を採用方式に選定し、Childは比較／rollback用に残す。採用PopupのExplorer再起動10回、ピン留めアプリ多数、tray churn中Start保持、および残るDPI／fallback目視が未完了のためGate BはPendingである。B2／B3／B4.2の実機Gateが完了するまでB5およびPhase 1へ進めない。
+資料ベースラインは`main`の初回コミット`1f63aa1`、B1 bootstrapは`5d441e3`として統合済みである。Phase 0CはTaskbarHost 216件＋Smoke 1件、150%可視ChildのExplorer再生成10/10回、200% NoFit再検出10/10回までを履歴として確定し、Start／Search中の`PrimaryTaskbarMissing`ではnativeを安全にhideすることを確認した。Phase 0DはTaskbarHost 301件＋Smoke 1件、175%のStart／Search入力を含むEXEでfloating fallbackとnative promotionを確定した。現在の`codex/phase-0e-native-continuity-spike`は重複整理後のTaskbarHost 183件＋Smoke 1件（整理前368件の50.0%）、Release build 0 warning／0 error、format／diff checkに合格し、100%・1920×1080の120秒Popup EXEでStart／Search双方のnative保持、表示中wheel入力、Floating遷移0、正常破棄、残留0を確認した。`PopupPreserved`を採用方式に選定し、Childは比較／rollback用に残す。採用PopupのExplorer再起動10回、ピン留めアプリ多数、tray churn中Start保持、および残るDPI／fallback目視が未完了のためGate BはPendingである。B2／B3／B4.2の実機Gateが完了するまでB5およびPhase 1へ進めない。

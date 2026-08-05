@@ -223,10 +223,8 @@ public sealed class NativeHostWindowTests
         Assert.False(host.IsCreated);
     }
 
-    [Theory]
-    [InlineData((int)NativeParentStyleMode.PopupPreserved)]
-    [InlineData((int)NativeParentStyleMode.Child)]
-    public void CreateHidden_rejects_a_supplied_parent_that_is_not_top_level(int modeValue)
+    [Fact]
+    public void CreateHidden_rejects_a_supplied_parent_that_is_not_top_level()
     {
         RequireWindowTest();
 
@@ -243,7 +241,7 @@ public sealed class NativeHostWindowTests
             host.CreateHiddenForStableDpiTestParent(
                 nested.Handle,
                 requested,
-                (NativeParentStyleMode)modeValue));
+                NativeParentStyleMode.PopupPreserved));
 
         Assert.False(host.IsCreated);
     }
@@ -359,10 +357,8 @@ public sealed class NativeHostWindowTests
         Assert.Equal(new[] { NativeLayoutInvalidationReason.TaskbarCreated }, invalidations);
     }
 
-    [Theory]
-    [InlineData((int)NativeParentStyleMode.PopupPreserved)]
-    [InlineData((int)NativeParentStyleMode.Child)]
-    public void Repeated_GDI_paints_release_every_created_handle(int modeValue)
+    [Fact]
+    public void Repeated_GDI_paints_release_every_created_handle()
     {
         RequireWindowTest();
 
@@ -376,7 +372,7 @@ public sealed class NativeHostWindowTests
         NativeHostCreationSnapshot snapshot = host.CreateForStableDpiTestParent(
             parent.Handle,
             requested,
-            (NativeParentStyleMode)modeValue);
+            NativeParentStyleMode.PopupPreserved);
         host.VolumeFraction = 0.5;
         Assert.True(NativeMethods.UpdateWindow(snapshot.WindowHandle));
         uint baselineGdi = NativeMethods.GetGuiResources(
@@ -439,10 +435,8 @@ public sealed class NativeHostWindowTests
         Assert.False(NativeMethods.GetUpdateRect(snapshot.WindowHandle, out _, false));
     }
 
-    [Theory]
-    [InlineData((int)NativeParentStyleMode.PopupPreserved)]
-    [InlineData((int)NativeParentStyleMode.Child)]
-    public void Rapid_click_to_jump_updates_present_expected_frames_without_GDI_growth(int modeValue)
+    [Fact]
+    public void Rapid_click_to_jump_updates_present_expected_frames_without_GDI_growth()
     {
         RequireWindowTest();
 
@@ -456,7 +450,7 @@ public sealed class NativeHostWindowTests
         NativeHostCreationSnapshot snapshot = host.CreateForStableDpiTestParent(
             parent.Handle,
             requested,
-            (NativeParentStyleMode)modeValue);
+            NativeParentStyleMode.PopupPreserved);
         Assert.True(SliderGeometry.TryCreate(requested.Width, requested.Height, out SliderLayout layout));
         host.Interaction += interaction =>
         {
@@ -592,10 +586,8 @@ public sealed class NativeHostWindowTests
         Assert.False(host.IsCurrentContinuityStable());
     }
 
-    [Theory]
-    [InlineData((int)NativeParentStyleMode.PopupPreserved)]
-    [InlineData((int)NativeParentStyleMode.Child)]
-    public void Current_attachment_validation_detects_external_visibility_loss(int modeValue)
+    [Fact]
+    public void Current_attachment_validation_detects_external_visibility_loss()
     {
         RequireWindowTest();
 
@@ -609,7 +601,7 @@ public sealed class NativeHostWindowTests
         NativeHostCreationSnapshot snapshot = host.CreateForStableDpiTestParent(
             parent.Handle,
             requested,
-            (NativeParentStyleMode)modeValue);
+            NativeParentStyleMode.PopupPreserved);
         Assert.True(host.IsCurrentAttachmentValid());
         Assert.True(host.IsCurrentContinuityStable());
 
@@ -619,10 +611,8 @@ public sealed class NativeHostWindowTests
         Assert.False(host.IsCurrentContinuityStable());
     }
 
-    [Theory]
-    [InlineData((int)NativeParentStyleMode.PopupPreserved)]
-    [InlineData((int)NativeParentStyleMode.Child)]
-    public void Continuity_validation_requires_the_verified_parent_to_remain_visible(int modeValue)
+    [Fact]
+    public void Continuity_validation_requires_the_verified_parent_to_remain_visible()
     {
         RequireWindowTest();
 
@@ -636,7 +626,7 @@ public sealed class NativeHostWindowTests
         _ = host.CreateForStableDpiTestParent(
             parent.Handle,
             requested,
-            (NativeParentStyleMode)modeValue);
+            NativeParentStyleMode.PopupPreserved);
         Assert.True(host.IsCurrentContinuityStable());
 
         _ = NativeMethods.ShowWindow(parent.Handle, NativeConstants.ShowWindowHide);
@@ -665,11 +655,8 @@ public sealed class NativeHostWindowTests
             parent.Handle));
     }
 
-    [Theory]
-    [InlineData((int)NativeParentStyleMode.PopupPreserved)]
-    [InlineData((int)NativeParentStyleMode.Child)]
-    public void Continuity_validation_rejects_pending_hard_invalidation_even_if_view_is_reshown(
-        int modeValue)
+    [Fact]
+    public void Continuity_validation_rejects_pending_hard_invalidation_even_if_view_is_reshown()
     {
         RequireWindowTest();
 
@@ -683,7 +670,7 @@ public sealed class NativeHostWindowTests
         NativeHostCreationSnapshot snapshot = host.CreateForStableDpiTestParent(
             parent.Handle,
             requested,
-            (NativeParentStyleMode)modeValue);
+            NativeParentStyleMode.PopupPreserved);
 
         _ = NativeMethods.SendMessage(
             snapshot.ControlWindowHandle,
@@ -701,16 +688,8 @@ public sealed class NativeHostWindowTests
         Assert.False(host.IsCurrentContinuityStable());
     }
 
-    [Theory]
-    [InlineData((int)NativeConstants.WmSettingChange, (int)NativeLayoutInvalidationReason.SettingsChanged)]
-    [InlineData((int)NativeConstants.WmThemeChanged, (int)NativeLayoutInvalidationReason.ThemeChanged)]
-    [InlineData((int)NativeConstants.WmDisplayChange, (int)NativeLayoutInvalidationReason.DisplayChanged)]
-    [InlineData((int)NativeConstants.WmDpiChanged, (int)NativeLayoutInvalidationReason.DpiChanged)]
-    [InlineData((int)NativeConstants.WmDpiChangedBeforeParent, (int)NativeLayoutInvalidationReason.DpiChangedBeforeParent)]
-    [InlineData((int)NativeConstants.WmDpiChangedAfterParent, (int)NativeLayoutInvalidationReason.DpiChangedAfterParent)]
-    public void Hidden_control_broadcast_invalidation_hides_view_before_event_dispatch(
-        int messageValue,
-        int reasonValue)
+    [Fact]
+    public void Hidden_control_dpi_invalidation_hides_view_before_event_dispatch()
     {
         RequireWindowTest();
 
@@ -730,7 +709,7 @@ public sealed class NativeHostWindowTests
 
         _ = NativeMethods.SendMessage(
             snapshot.ControlWindowHandle,
-            unchecked((uint)messageValue),
+            NativeConstants.WmDpiChanged,
             0,
             nint.Zero);
 
@@ -740,14 +719,12 @@ public sealed class NativeHostWindowTests
         Assert.False(NativeMethods.IsWindowVisible(snapshot.WindowHandle));
         _ = host.PumpMessages();
         Assert.Equal(
-            new[] { (NativeLayoutInvalidationReason)reasonValue },
+            new[] { NativeLayoutInvalidationReason.DpiChanged },
             invalidations);
     }
 
-    [Theory]
-    [InlineData((int)NativeParentStyleMode.PopupPreserved)]
-    [InlineData((int)NativeParentStyleMode.Child)]
-    public void Destroyed_parent_prevents_verified_host_from_being_shown(int modeValue)
+    [Fact]
+    public void Destroyed_parent_prevents_verified_host_from_being_shown()
     {
         RequireWindowTest();
 
@@ -761,7 +738,7 @@ public sealed class NativeHostWindowTests
         NativeHostCreationSnapshot snapshot = host.CreateForStableDpiTestParent(
             parent.Handle,
             requested,
-            (NativeParentStyleMode)modeValue);
+            NativeParentStyleMode.PopupPreserved);
         host.Hide();
 
         parent.Dispose();

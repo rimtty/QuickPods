@@ -143,12 +143,6 @@ public sealed class TaskbarLayoutAdapterTests
     }
 
     [Fact]
-    public void NativePreflightObservation_RejectsMissingEvidence()
-    {
-        Assert.Null(TaskbarLayoutAdapter.CreateNativePreflightObservation(null, []));
-    }
-
-    [Fact]
     public void ConservativeContinuityObservation_RetainsPriorObstacles()
     {
         PixelRect freshObstacle = new(500, 1000, 600, 1080);

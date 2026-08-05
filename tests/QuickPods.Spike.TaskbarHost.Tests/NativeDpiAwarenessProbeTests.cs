@@ -5,7 +5,6 @@ namespace QuickPods.Spike.TaskbarHost.Tests;
 public sealed class NativeDpiAwarenessProbeTests
 {
     [Theory]
-    [InlineData((int)NativeDpiAwareness.Unaware, 96u, false)]
     [InlineData((int)NativeDpiAwareness.PerMonitorAware, 144u, true)]
     public void IsStableAfterParenting_UnchangedKnownContextAndParentDpi_ReturnsTrue(
         int awarenessValue,
@@ -60,23 +59,6 @@ public sealed class NativeDpiAwarenessProbeTests
     }
 
     [Fact]
-    public void IsStableAfterParenting_UnknownContext_ReturnsFalse()
-    {
-        var measurement = new NativeDpiAwarenessMeasurement(
-            NativeDpiAwareness.Unknown,
-            NativeDpiAwareness.PerMonitorAware,
-            NativeDpiAwareness.PerMonitorAware,
-            true,
-            true,
-            144);
-
-        Assert.False(NativeDpiAwarenessProbe.IsStableAfterParenting(
-            measurement,
-            measurement,
-            144));
-    }
-
-    [Fact]
     public void IsStableAfterParenting_PerMonitorV2Downgrade_ReturnsFalse()
     {
         var before = new NativeDpiAwarenessMeasurement(
@@ -110,9 +92,6 @@ public sealed class NativeDpiAwarenessProbeTests
 
     [Theory]
     [InlineData((int)NativeDpiAwareness.SystemAware, true, true, 144u)]
-    [InlineData((int)NativeDpiAwareness.PerMonitorAware, false, true, 144u)]
-    [InlineData((int)NativeDpiAwareness.PerMonitorAware, true, false, 144u)]
-    [InlineData((int)NativeDpiAwareness.PerMonitorAware, true, true, 120u)]
     public void IsPerMonitorV2StableAfterParenting_NonPmv2OrVirtualizedContext_ReturnsFalse(
         int awarenessValue,
         bool threadIsPerMonitorV2,

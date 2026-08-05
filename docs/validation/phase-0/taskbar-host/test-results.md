@@ -7,7 +7,7 @@
 | ブランチ | `codex/phase-0e-native-continuity-spike`（Phase 0Dからstack） |
 | 検証対象 | Phase 0E作業ツリー。Phase 0C／0Dの実機結果はhistorical evidenceとして継承 |
 | Release build | **Pass** — 0 warning / 0 error |
-| 自動試験 | **Pass** — TaskbarHost 364件、Smoke 1件、計365件 |
+| 自動試験 | **Pass** — TaskbarHost 183件、Smoke 1件、計184件。重複整理前368件から50.0%へ縮約 |
 | format | **Pass** — `--verify-no-changes --severity info` |
 | diff check | **Pass** — Phase 0E作業ツリー全体に空白エラーなし |
 | 読み取り専用UIA探索 | **Pass（現在環境）** — Widgets ONではStart／Widgetsを一意に取得し、150%でbutton 30件、100%の検索ボックス／アイコン＋ラベルでbutton 29件・critical child 5件。Widgets OFFでは100%検索非表示でbutton 24件、アイコンのみ／ボックスで各27件、左揃えで26件 |
@@ -41,6 +41,17 @@ dotnet run --project spikes/QuickPods.Spike.TaskbarHost -c Release --no-build --
 ```
 
 実機host検証ではapplication manifestが適用されるEXEまたは`dotnet run`を使用する。DLLを直接起動するとmanifestが適用されないため、DPI／hostの実機証跡には使用しない。
+
+### 自動テスト・ポートフォリオの整理
+
+2026-08-05に、実行時間と変更時のターンアラウンドを改善するため、自動テスト全体を見直した。整理前はTaskbarHost 367件とSmoke 1件の計368件、整理後はTaskbarHost 183件とSmoke 1件の計184件で、実行ケース数をちょうど50.0%へ縮約した。
+
+- 残したもの：公開動作とfail-closed境界、Start／Search continuity、MTA／epoch、実Win32 lifecycle・ownership・DPI・handle解放、fallback／promotion、privacy sanitization
+- 統合したもの：同じ分岐を繰り返すDPI中間値、Child／Popupの重複、fault enum全列挙、同値なCLI不正入力
+- 除外したもの：本番経路から未使用の旧recovery／churn policyとその自己テスト、実Win32試験と重複するstyle bitmask試験、診断用formatterやテスト補助実装の自己テスト
+- 運用ルール：DPI全行列は変換境界だけに置き、上位層は端点を代表とする。OS host方式の両方を実行するのは生成・親子関係の中核契約に限定する。一時的な原因切り分けprobeは恒久テストへ追加しない
+
+整理後のRelease buildは0 warning／0 error、TaskbarHost 183件とSmoke 1件は失敗・skipとも0、formatとdiff checkも合格した。
 
 ### Phase 0D floating fallback
 

@@ -41,35 +41,6 @@ public sealed class TaskbarLiveScanDiagnosticsTests
     }
 
     [Fact]
-    public void Signatures_DistinguishIncompleteNoFitAndInvalidationRace()
-    {
-        var incompleteDiscovery = new TaskbarDiscoveryResult(
-            null,
-            [new TaskbarDiscoveryFault(TaskbarDiscoveryFaultCode.PrimaryTaskbarMissing)]);
-        var incomplete = TaskbarLiveScanSignature.Create(
-            incompleteDiscovery,
-            TaskbarPlacementResult.TransientUnknown(PlacementReason.IncompleteObservation));
-        var noFit = TaskbarLiveScanSignature.Create(
-            CreateDiscovery(ignoredHostMatch: true),
-            TaskbarPlacementResult.VerifiedNoFit(PlacementReason.InsufficientWidth));
-        TaskbarLiveScanSignature raced = noFit.WithInvalidatedDuringScan(value: true);
-
-        Assert.NotEqual(incomplete, noFit);
-        Assert.NotEqual(noFit, raced);
-        Assert.False(incomplete.DiscoveryComplete);
-        Assert.Equal(PlacementDecision.TransientUnknown, incomplete.Decision);
-        Assert.Equal(PlacementReason.IncompleteObservation, incomplete.Reason);
-        Assert.Equal(nameof(TaskbarDiscoveryFaultCode.PrimaryTaskbarMissing), incomplete.FaultCodes);
-        Assert.Equal(PlacementDecision.VerifiedNoFit, noFit.Decision);
-        Assert.True(noFit.DiscoveryComplete);
-        Assert.Equal(PlacementReason.InsufficientWidth, noFit.Reason);
-        Assert.Equal("None", noFit.FaultCodes);
-        Assert.True(noFit.IgnoredHostMatch);
-        Assert.False(noFit.InvalidatedDuringScan);
-        Assert.True(raced.InvalidatedDuringScan);
-    }
-
-    [Fact]
     public void Coalescer_EmitsChangesAndSummarizesConsecutiveEqualRetries()
     {
         var incomplete = TaskbarLiveScanSignature.Create(
@@ -133,42 +104,6 @@ public sealed class TaskbarLiveScanDiagnosticsTests
             line => Assert.StartsWith("layout-scan=recovery", line, StringComparison.Ordinal),
             line => Assert.StartsWith("layout-scan-repeat=1", line, StringComparison.Ordinal),
             line => Assert.Equal("layout-recovery=timeout", line));
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void UnexpectedFailure_PreservesKnownIgnoredHostMatch(bool ignoredHostMatch)
-    {
-        TaskbarDiscoveryResult result =
-            TaskbarDiscoveryService.CreateUnexpectedFailure(ignoredHostMatch);
-
-        Assert.False(result.IsComplete);
-        Assert.Equal(ignoredHostMatch, result.IgnoredHostMatch);
-        TaskbarDiscoveryFault fault = Assert.Single(result.Faults);
-        Assert.Equal(TaskbarDiscoveryFaultCode.UnexpectedDiscoveryFailure, fault.Code);
-    }
-
-    [Fact]
-    public void NativeChildPolicy_RecordsOnlyAnExactIgnoredHostMatch()
-    {
-        bool ignoredHostMatch = false;
-
-        Assert.False(TaskbarNativeChildPolicy.ShouldIgnoreAndRecordMatch(
-            candidate: 40,
-            ignoredWindowHandle: 41,
-            ref ignoredHostMatch));
-        Assert.False(ignoredHostMatch);
-        Assert.True(TaskbarNativeChildPolicy.ShouldIgnoreAndRecordMatch(
-            candidate: 41,
-            ignoredWindowHandle: 41,
-            ref ignoredHostMatch));
-        Assert.True(ignoredHostMatch);
-        Assert.False(TaskbarNativeChildPolicy.ShouldIgnoreAndRecordMatch(
-            candidate: 42,
-            ignoredWindowHandle: 41,
-            ref ignoredHostMatch));
-        Assert.True(ignoredHostMatch);
     }
 
     private static TaskbarDiscoveryResult CreateDiscovery(

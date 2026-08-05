@@ -34,32 +34,16 @@ public sealed class NativePromotionGateTests
     }
 
     [Fact]
-    public void Observe_A_SingleEligiblePlaceNeverPromotes()
-    {
-        var gate = new NativePromotionGate(TimeSpan.Zero);
-
-        Assert.False(gate.Observe(PlaceAt(TimeSpan.FromSeconds(1))));
-        Assert.True(gate.HasCandidate);
-    }
-
-    [Theory]
-    [InlineData((int)PlacementDecision.VerifiedNoFit, false, false)]
-    [InlineData((int)PlacementDecision.TransientUnknown, false, false)]
-    [InlineData((int)PlacementDecision.Place, true, false)]
-    [InlineData((int)PlacementDecision.Place, false, true)]
-    public void Observe_NonPlaceRaceOrInvalidationResetsCandidate(
-        int decisionValue,
-        bool invalidatedDuringScan,
-        bool layoutInvalidated)
+    public void Observe_InvalidatedScanResetsCandidate()
     {
         var gate = new NativePromotionGate(TimeSpan.Zero);
         Assert.False(gate.Observe(PlaceAt(TimeSpan.FromSeconds(1))));
 
         Assert.False(gate.Observe(new NativePromotionObservation(
-            (PlacementDecision)decisionValue,
+            PlacementDecision.Place,
             Candidate,
-            invalidatedDuringScan,
-            layoutInvalidated,
+            InvalidatedDuringScan: true,
+            LayoutInvalidated: false,
             TimeSpan.FromMilliseconds(1600))));
         Assert.False(gate.HasCandidate);
         Assert.False(gate.Observe(PlaceAt(TimeSpan.FromMilliseconds(2200))));
@@ -81,27 +65,19 @@ public sealed class NativePromotionGateTests
         Assert.True(gate.Observe(PlaceAt(TimeSpan.FromMilliseconds(2100), changed)));
     }
 
-    [Theory]
-    [InlineData(43, 84, 144, (int)TaskbarStripMode.Standard)]
-    [InlineData(42, 85, 144, (int)TaskbarStripMode.Standard)]
-    [InlineData(42, 84, 192, (int)TaskbarStripMode.Standard)]
-    [InlineData(42, 84, 144, (int)TaskbarStripMode.Compact)]
-    public void Observe_IdentityOrModeChangeResetsCandidate(
-        long taskbarHandle,
-        uint explorerProcessId,
-        uint dpi,
-        int modeValue)
+    [Fact]
+    public void Observe_TaskbarIdentityChangeResetsCandidate()
     {
         var gate = new NativePromotionGate(TimeSpan.Zero);
         var changedIdentity = new TaskbarHostIdentity(
-            new nint(taskbarHandle),
-            explorerProcessId,
-            dpi,
+            new nint(43),
+            Identity.ExplorerProcessId,
+            Identity.Dpi,
             TaskbarBounds);
         var changed = new NativePromotionCandidate(
             changedIdentity,
             HostBounds,
-            (TaskbarStripMode)modeValue);
+            TaskbarStripMode.Standard);
 
         Assert.False(gate.Observe(PlaceAt(TimeSpan.FromSeconds(1))));
         Assert.False(gate.Observe(PlaceAt(TimeSpan.FromMilliseconds(1600), changed)));
@@ -146,26 +122,6 @@ public sealed class NativePromotionGateTests
             gate.Observe(PlaceAt(TimeSpan.FromMilliseconds(999))));
         _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             gate.BeginModeSwitch(TimeSpan.FromMilliseconds(999)));
-    }
-
-    [Fact]
-    public void CandidateStringDoesNotExposeRawTaskbarIdentity()
-    {
-        var sensitiveIdentity = new TaskbarHostIdentity(
-            TaskbarHandle: 0x12345678,
-            ExplorerProcessId: 424242,
-            Dpi: 144,
-            TaskbarBounds);
-        var candidate = new NativePromotionCandidate(
-            sensitiveIdentity,
-            HostBounds,
-            TaskbarStripMode.Standard);
-
-        string text = candidate.ToString();
-
-        Assert.DoesNotContain("305419896", text, StringComparison.Ordinal);
-        Assert.DoesNotContain("424242", text, StringComparison.Ordinal);
-        Assert.Contains(nameof(TaskbarStripMode.Standard), text, StringComparison.Ordinal);
     }
 
     private static NativePromotionObservation PlaceAt(

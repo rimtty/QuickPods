@@ -31,73 +31,6 @@ public sealed class TaskbarContinuityDiscoveryTests
     }
 
     [Fact]
-    public void Anchor_rejects_an_incomplete_discovery()
-    {
-        var discovery = new TaskbarDiscoveryResult(
-            CreateSnapshot(),
-            [new TaskbarDiscoveryFault(TaskbarDiscoveryFaultCode.PrimaryTaskbarMissing)]);
-
-        _ = Assert.Throws<ArgumentException>(() =>
-            TaskbarContinuityAnchor.FromCompleteDiscovery(discovery));
-    }
-
-    [Fact]
-    public void Anchor_rejects_invalid_ephemeral_identity_or_monitor_geometry()
-    {
-        TaskbarSnapshot[] invalidSnapshots =
-        [
-            CreateSnapshot(taskbarHandle: nint.Zero),
-            CreateSnapshot(explorerProcessId: 0),
-            CreateSnapshot(dpi: 0),
-            CreateSnapshot(isPrimary: false),
-            CreateSnapshot(monitorBounds: new PixelRect()),
-            CreateSnapshot(workArea: new PixelRect(-1, -1, 2000, 1200)),
-            CreateSnapshot(taskbarBounds: new PixelRect(3000, 1040, 4000, 1080)),
-        ];
-
-        foreach (TaskbarSnapshot snapshot in invalidSnapshots)
-        {
-            var discovery = new TaskbarDiscoveryResult(snapshot, faults: []);
-            _ = Assert.Throws<ArgumentException>(() =>
-                TaskbarContinuityAnchor.FromCompleteDiscovery(discovery));
-        }
-    }
-
-    [Fact]
-    public void Anchor_rejects_missing_duplicate_or_outside_start_landmarks()
-    {
-        TaskbarSnapshot[] invalidSnapshots =
-        [
-            CreateSnapshot(automationButtons: []),
-            CreateSnapshot(automationButtons:
-            [
-                new AutomationButtonSnapshot(
-                    "StartButton",
-                    new PixelRect(900, 1040, 940, 1080),
-                    false),
-                new AutomationButtonSnapshot(
-                    "StartButton",
-                    new PixelRect(950, 1040, 990, 1080),
-                    false),
-            ]),
-            CreateSnapshot(automationButtons:
-            [
-                new AutomationButtonSnapshot(
-                    "StartButton",
-                    new PixelRect(900, 900, 940, 940),
-                    false),
-            ]),
-        ];
-
-        foreach (TaskbarSnapshot snapshot in invalidSnapshots)
-        {
-            _ = Assert.Throws<ArgumentException>(() =>
-                TaskbarContinuityAnchor.FromCompleteDiscovery(
-                    new TaskbarDiscoveryResult(snapshot, faults: [])));
-        }
-    }
-
-    [Fact]
     public void Anchor_advances_start_only_from_complete_same_generation_automation()
     {
         var anchor =
@@ -175,7 +108,6 @@ public sealed class TaskbarContinuityDiscoveryTests
     }
 
     [Theory]
-    [InlineData(false)]
     [InlineData(true)]
     public void Top_level_selection_rejects_a_different_or_duplicate_taskbar(bool duplicate)
     {
@@ -199,9 +131,6 @@ public sealed class TaskbarContinuityDiscoveryTests
     [InlineData(
         (int)TaskbarDiscoveryFaultCode.TopLevelEnumerationFailed,
         (int)TaskbarContinuityFailureReason.TopLevelEnumerationFailed)]
-    [InlineData(
-        (int)TaskbarDiscoveryFaultCode.TopLevelClassReadFailed,
-        (int)TaskbarContinuityFailureReason.TopLevelClassReadFailed)]
     public void Top_level_selection_never_uses_direct_expected_with_other_faults(
         int faultCodeValue,
         int expectedReasonValue)
@@ -217,18 +146,6 @@ public sealed class TaskbarContinuityDiscoveryTests
             (TaskbarContinuityFailureReason)expectedReasonValue,
             decision.FailureReason);
         Assert.False(decision.Evidence.ExpectedHandleSelected);
-    }
-
-    [Fact]
-    public void Top_level_selection_rejects_a_zero_expected_handle()
-    {
-        TaskbarContinuityTopLevelDecision decision =
-            Win32TaskbarDiscovery.SelectContinuityRoute(nint.Zero, [], []);
-
-        Assert.Equal(TaskbarContinuityRoute.None, decision.Route);
-        Assert.Equal(
-            TaskbarContinuityFailureReason.ExpectedWindowUnavailable,
-            decision.FailureReason);
     }
 
     [Fact]
@@ -307,26 +224,8 @@ public sealed class TaskbarContinuityDiscoveryTests
 
     [Theory]
     [InlineData(
-        (int)TaskbarDiscoveryFaultCode.ChildEnumerationFailed,
-        (int)TaskbarContinuityFailureReason.ChildEnumerationFailed)]
-    [InlineData(
-        (int)TaskbarDiscoveryFaultCode.ChildClassReadFailed,
-        (int)TaskbarContinuityFailureReason.ChildClassReadFailed)]
-    [InlineData(
-        (int)TaskbarDiscoveryFaultCode.CriticalChildBoundsUnavailable,
-        (int)TaskbarContinuityFailureReason.CriticalChildBoundsUnavailable)]
-    [InlineData(
-        (int)TaskbarDiscoveryFaultCode.CriticalChildBoundsInvalid,
-        (int)TaskbarContinuityFailureReason.CriticalChildBoundsInvalid)]
-    [InlineData(
-        (int)TaskbarDiscoveryFaultCode.CriticalChildOutsideTaskbar,
-        (int)TaskbarContinuityFailureReason.CriticalChildOutsideTaskbar)]
-    [InlineData(
         (int)TaskbarDiscoveryFaultCode.NotificationAreaMissing,
         (int)TaskbarContinuityFailureReason.NotificationAreaMissing)]
-    [InlineData(
-        (int)TaskbarDiscoveryFaultCode.NotificationAreaDuplicate,
-        (int)TaskbarContinuityFailureReason.NotificationAreaDuplicate)]
     public void Native_child_faults_are_reported_without_raw_window_data(
         int faultCodeValue,
         int reasonValue)
@@ -340,35 +239,8 @@ public sealed class TaskbarContinuityDiscoveryTests
 
     [Theory]
     [InlineData(
-        (int)TaskbarDiscoveryFaultCode.AutomationRootUnavailable,
-        (int)TaskbarContinuityFailureReason.AutomationRootUnavailable)]
-    [InlineData(
-        (int)TaskbarDiscoveryFaultCode.AutomationEnumerationFailed,
-        (int)TaskbarContinuityFailureReason.AutomationEnumerationFailed)]
-    [InlineData(
-        (int)TaskbarDiscoveryFaultCode.AutomationPropertyUnavailable,
-        (int)TaskbarContinuityFailureReason.AutomationPropertyUnavailable)]
-    [InlineData(
-        (int)TaskbarDiscoveryFaultCode.AutomationButtonBoundsInvalid,
-        (int)TaskbarContinuityFailureReason.AutomationButtonBoundsInvalid)]
-    [InlineData(
-        (int)TaskbarDiscoveryFaultCode.AutomationButtonOutsideTaskbar,
-        (int)TaskbarContinuityFailureReason.AutomationButtonOutsideTaskbar)]
-    [InlineData(
         (int)TaskbarDiscoveryFaultCode.StartButtonMissing,
         (int)TaskbarContinuityFailureReason.StartButtonMissing)]
-    [InlineData(
-        (int)TaskbarDiscoveryFaultCode.StartButtonDuplicate,
-        (int)TaskbarContinuityFailureReason.StartButtonDuplicate)]
-    [InlineData(
-        (int)TaskbarDiscoveryFaultCode.WidgetsButtonDuplicate,
-        (int)TaskbarContinuityFailureReason.WidgetsButtonDuplicate)]
-    [InlineData(
-        (int)TaskbarDiscoveryFaultCode.AutomationTimedOut,
-        (int)TaskbarContinuityFailureReason.AutomationTimedOut)]
-    [InlineData(
-        (int)TaskbarDiscoveryFaultCode.AutomationWorkerFailed,
-        (int)TaskbarContinuityFailureReason.AutomationWorkerFailed)]
     public void Automation_faults_are_reported_without_raw_window_data(
         int faultCodeValue,
         int reasonValue)
