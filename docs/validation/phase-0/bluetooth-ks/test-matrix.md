@@ -39,9 +39,12 @@
 | ID | 分類 | 前提・操作 | 期待結果 | 証跡 | 状態 |
 |---|---|---|---|---|---|
 | BTKS-ENV-001 | 環境 | Medium integrity、非管理者でSpikeを起動 | 昇格なしで起動し、権限情報を記録できる | `environment.md` | Pass |
-| BTKS-DISC-001 | 探索 | ペアリング済みオーディオ機器を列挙 | AirPods Proを対象候補として識別し、Container単位で関連Endpointをまとめられる | report-scoped aliasのみのinventory | Pass |
+| BTKS-DISC-001 | 探索 | ペアリング済みオーディオ機器を列挙 | 参照機器を対象候補として識別し、Container単位で関連Endpointをまとめられる | report-scoped aliasのみのinventory | Pass |
 | BTKS-DISC-002 | 探索 | DeviceTopology connector 0からAdapter DeviceとKS Filter候補を辿る | 対象ContainerでRender/Capture候補を区別し、Render候補を1件へ絞れる | サニタイズ済み候補とflow | Pass |
 | BTKS-DISC-003 | 探索 | EndpointのTopologyまたはContainer帰属が不完全なsnapshotを模擬 | 所有権へ影響するfault、または同じAdapterをContainerへ帰属できない場合はKS子プロセスを開始しない | fail-closed自動試験 | Pass（自動） |
+| BTKS-DISC-004 | 探索 | 0／1／複数／同名ContainerとA2DP/HFP Endpoint群を模擬 | 1物理Containerを1候補へ集約し、表示名ではなく内部キーで一意に選択できる | catalog自動試験 | Pending |
+| BTKS-DISC-005 | 探索 | 無関係EndpointだけにTopology ownership faultを発生させる | faultを該当Endpointへスコープし、完全確認できた選択Containerの操作能力を阻害しない | scoped-fault自動試験 | Pending（Issue #20） |
+| BTKS-SEL-001 | 選択 | 機器選択と読み取り専用更新を反復 | KS子プロセス起動と変更要求が0件で、選択とフォーカスを維持する | coordinator自動試験 | Pending |
 | BTKS-SUP-001 | 対応確認 | ReconnectのBasic Supportを照会 | 対応・非対応・エラーを明確に分類する | HRESULTと分類 | Pending |
 | BTKS-SUP-002 | 対応確認 | DisconnectのBasic Supportを照会 | 対応・非対応・エラーを明確に分類する | HRESULTと分類 | Pending |
 | BTKS-CON-001 | 接続 | 到達可能かつ切断状態からReconnectを有効10回実施 | 10回中9回以上、各15秒以内に`DEVICE_STATE_ACTIVE`を確認 | 接続試行表 | Pending |
@@ -52,8 +55,8 @@
 | BTKS-SER-002 | 直列化 | 2つのSpike実行プロセスからmachine-wide固定名Mutexを同時取得 | 1つ目だけが取得し、2つ目は固定名Jobへ合流せず隔離コマンド開始前に拒否される | 2プロセス統合試験 | Pass（自動） |
 | BTKS-SER-003 | 直列化 | Mutex所有プロセスの異常終了と待機cancelを模擬 | 放棄／cancelされた試行はoperation delegateを実行せず、前Job回収後の別試行だけを許可する | abandonment／cancel自動試験 | Pass（自動） |
 | BTKS-ISO-001 | 影響確認 | 各接続・切断の前後で比較対象機器を確認 | 他のBluetooth機器への影響が0件 | 前後状態チェック | Pending |
-| BTKS-ERR-001 | 異常系 | AirPods Proをケース内または到達不能にして接続 | 15秒以内に成功しなければTimeout／Unavailableで終了し、成功表示しない | 状態遷移ログ | Pending |
-| BTKS-ERR-002 | 異常系 | AirPods Proが他端末へ接続中の状態で接続 | 実状態を確認できない限り成功表示しない | 状態遷移ログ | Pending |
+| BTKS-ERR-001 | 異常系 | 参照機器をケース内または到達不能にして接続 | 15秒以内に成功しなければTimeout／Unavailableで終了し、成功表示しない | 状態遷移ログ | Pending |
+| BTKS-ERR-002 | 異常系 | 参照機器が他端末へ接続中の状態で接続 | 実状態を確認できない限り成功表示しない | 状態遷移ログ | Pending |
 | BTKS-ERR-003 | 異常系 | Bluetooth無線OFFで探索・操作 | 自動で無線をONにせず、RadioOff等へ分類する | エラー分類ログ | Pending |
 | BTKS-WD-001 | watchdog | 試験用の停止子プロセスを起動 | Job Objectでプロセスツリーを終了確認し、Timeoutとして記録 | PID消滅を確認する自動試験 | Pass（simulation） |
 | BTKS-WD-002 | watchdog | 子プロセスを異常終了させる | 成功へ読み替えず、自動再試行しない | 非0終了コードの自動試験 | Pass（simulation） |

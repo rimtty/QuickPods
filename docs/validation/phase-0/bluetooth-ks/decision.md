@@ -15,7 +15,7 @@
 
 ## Gate Aの目的
 
-MediaTek Bluetooth Adapter／Bluetooth Audio DeviceとAirPods Proの組み合わせで、Bluetooth無線全体や他の機器へ影響せず、非管理者プロセスから対象Bluetoothオーディオ接続だけを安全かつ再現可能に接続・切断できるかを確定する。
+選択したContainerだけを対象に、Bluetooth無線全体や他の機器へ影響せず、非管理者プロセスからBluetoothオーディオ接続を安全かつ再現可能に接続・切断できる方式と機器単位の能力判定を確定する。MediaTek Bluetooth Adapter／Bluetooth Audio DeviceとAirPods Proは最初の参照構成であり、製品対象を特定ブランドへ限定しない。
 
 KS要求のHRESULTが成功しても、実際の接続・切断成功とはみなさない。対象のMMDevice実状態が期限内に変化した場合だけ、その試行を成功とする。
 
@@ -32,7 +32,7 @@ KS要求のHRESULTが成功しても、実際の接続・切断成功とはみ�
 7. 子プロセスwatchdogが停止・異常終了を捕捉し、親プロセスを拘束しない。
 8. 証跡に生のContainer ID、Endpoint ID、PnP ID、MACアドレスまたは個人情報が含まれない。
 
-接続または切断の片方向だけが成功する場合はConditional Goにせず、直接操作全体をNo-Goとする。
+接続または切断の片方向だけが成功する場合はConditional Goにせず、その機器の直接操作をNo-Goとする。他のContainerの能力判定には波及させない。
 
 ## No-Go条件
 

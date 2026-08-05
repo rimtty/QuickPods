@@ -9,7 +9,7 @@
 | 作成日 | 2026-08-05 |
 | 対象環境 | Windows 11 x64 / .NET 10 / WPF + Win32 |
 | 基本文書 | `QuickPods_実装計画書.md` |
-| ステータス | 実装開始前 |
+| ステータス | Phase 0進行中・Bluetooth v2 UIへ再編 |
 
 ## 1. 目的
 
@@ -52,7 +52,7 @@ docs: add QuickPods planning and branding assets
 6. PR本文には対象の`FR-*`、`NFR-*`、`AC-*`、実行したテスト、実機条件、既知の制限を記載する。
 7. ハードウェア依存試験ではWindowsビルド、Bluetoothアダプター、ドライバー版、対象機器、コミットSHAを記録する。
 8. Endpoint ID、PnP ID、Container ID、MACアドレス等はそのまま保存せず、ハッシュまたは末尾だけを記録する。
-9. Gate AまたはGate BがNo-Goでも、縮退仕様と決定記録を`main`へ統合して開発を継続する。
+9. Gate A、A2、BのいずれかがNo-Goでも、縮退仕様と決定記録を`main`へ統合して開発を継続する。
 10. Core Audioが成立しない場合だけはアプリの中核要件を満たせないため、原因解消まで製品実装へ進まない。
 
 推奨コミット形式はConventional Commitsとする。
@@ -76,14 +76,15 @@ flowchart TD
     Bootstrap --> TaskbarSpike["phase-0c-taskbar-host-spike"]
     AudioSpike --> BluetoothSpike["phase-0b-bluetooth-ks-spike"]
     AudioSpike --> Gate["phase-0-gate-decisions"]
-    BluetoothSpike --> Gate
+    BluetoothSpike --> DefaultPolicySpike["phase-0d-default-endpoint-policy-spike"]
+    DefaultPolicySpike --> Gate
     TaskbarSpike --> Gate
     Gate --> Foundation["phase-1-solution-foundation"]
     Foundation --> AudioMvp["phase-2-audio-mvp"]
     AudioMvp --> DisplayHost["phase-3a-display-host"]
-    AudioMvp --> BluetoothService["phase-4a-bluetooth-service"]
+    AudioMvp --> BluetoothService["phase-4a-bluetooth-device-catalog"]
     DisplayHost --> Runtime["phase-3b-ipc-recovery"]
-    Runtime --> BluetoothIntegration["phase-4b-bluetooth-integration"]
+    Runtime --> BluetoothIntegration["phase-4b-bluetooth-control-integration"]
     BluetoothService --> BluetoothIntegration
     BluetoothIntegration --> ProductUi["phase-5a-product-ui"]
     ProductUi --> Resilience["phase-5b-resilience-accessibility"]
@@ -93,7 +94,7 @@ flowchart TD
     Distribution --> Release
 ```
 
-Phase 0ではCore AudioとタスクバーSpikeを並行開始できる。Bluetooth Spikeは、Core Audio Spikeで確認したMMDevice列挙・状態監視の知見を利用するため、その結果を受けて実行する。Phase 3aとPhase 4aはPhase 2後に並行実装できるが、一人で進める場合は表の番号順を標準とする。
+Phase 0ではCore AudioとタスクバーSpikeを並行開始できる。Bluetooth SpikeはCore Audio SpikeのMMDevice知見を利用する。既定出力設定Spikeは、Bluetooth側で選択ContainerのActive再生Endpointを一意に特定できる設計を確認してから実行する。Phase 3aとPhase 4aはPhase 2後に並行実装できるが、一人で進める場合は表の番号順を標準とする。
 
 ## 5. フェーズとブランチ
 
@@ -151,10 +152,11 @@ No-Go時：原因を分類し、解消するまでPhase 1以降へ進まない�
 
 | 項目 | 内容 |
 |---|---|
-| 目的 | MediaTekドライバーとAirPods Proで個別接続・切断が成立するか確定する |
+| 目的 | Container単位のBluetoothオーディオ選択と個別接続・切断方式を確定する。AirPods Pro＋MediaTekは最初の参照実機 |
 | Spike | `spikes/QuickPods.Spike.BluetoothKs/` |
-| 実装 | Container ID探索、DeviceTopology、KS Filter対応付け、Basic Support、Reconnect／Disconnect、MMDevice実状態確認 |
-| 実機試験 | 接続10回、切断10回、圏外、ケース内、他端末接続、Bluetooth無線OFF、他機器影響 |
+| 実装 | Container ID集約、選択対象だけのDeviceTopology／KS Filter対応付け、機器単位Basic Support、Reconnect／Disconnect、実状態確認 |
+| 自動試験 | 0／1／複数／同名機器、A2DP/HFP集約、選択・更新の無操作、世代破棄、無関係Endpoint障害の非波及 |
+| 実機試験 | 参照機器の接続10回、切断10回、圏外、ケース内、他端末、無線OFF、選択外機器影響 |
 | 完了成果物 | Spikeコード、フィルター選択手順、状態遷移ログ、Gate A判断 |
 
 各操作では次を別々に記録する。
@@ -172,10 +174,24 @@ Go条件：
 - 機器が到達可能等の事前条件成立時に、接続・切断がそれぞれ10回中9回以上、15秒以内に実状態で確認できる。
 - KS要求成功を実接続成功と誤表示した件数が0である。
 - 他のBluetooth機器への影響が0件である。
+- 無関係Endpointの探索失敗で、所有関係を完全確認できた選択機器がグローバル失敗にならない。
 
 片方向だけ成功する場合はConditional Goにせず、直接操作はNo-Goとする。
 
-No-Go時：Bluetoothボタンは`ms-settings:bluetooth`等のWindows設定ランチャーへ縮退し、音量と表示機能の開発を継続する。
+No-Go時：該当機器の主アクションは`ms-settings:bluetooth`等のWindows設定ランチャーへ縮退し、一覧、音量、表示機能の開発を継続する。
+
+#### B3.1：`codex/phase-0d-default-endpoint-policy-spike`
+
+| 項目 | 内容 |
+|---|---|
+| 目的 | Bluetooth接続確認後に対象ステレオ再生EndpointをWindows既定出力へ設定できるかGate A2を判定する |
+| Spike | `spikes/QuickPods.Spike.DefaultEndpointPolicy/` |
+| 実装 | Active Endpoint選択、Console／Multimedia設定境界、変更通知、再取得検証、失敗分類 |
+| 自動試験 | ロール指定、A2DP優先、同一Endpoint冪等性、途中失敗、古い世代、対象消失、非対象ロール不変 |
+| 実機試験 | 2つ以上のActive再生EndpointでA→Bluetooth→A、既に既定、接続直後、設定失敗、通常権限 |
+| 完了成果物 | 隔離アダプター契約、Windowsビルド別結果、Gate A2判断、サウンド設定フォールバック |
+
+Go条件：Console／Multimediaを意図したEndpointへ変更し、通知と再取得で一致を確認できる。Capture、Communications、選択外Endpointは変更しない。No-Go時もBluetooth接続は維持し、`接続済み・非既定`と`ms-settings:sound`導線へ縮退する。
 
 #### B4：`codex/phase-0c-taskbar-host-spike`
 
@@ -212,8 +228,8 @@ No-Go時：フローティングを標準表示、通知領域を最終退避先
 
 | 項目 | 内容 |
 |---|---|
-| 目的 | 3件のSpike結果を製品仕様へ反映する |
-| 成果物 | Gate A／B、Core Audio判定、ADR、縮退仕様、未解決リスク、更新済みロードマップ |
+| 目的 | 4件のSpike結果を製品仕様へ反映する |
+| 成果物 | Gate A／A2／B、Core Audio判定、ADR、縮退仕様、未解決リスク、更新済みロードマップ |
 | コード | 原則なし。必要なら機能フラグとCapabilityモデルの契約案だけを記載 |
 | 完了条件 | Phase 1で実装する構成が一意に決まり、未検証の前提が必須要件として残っていない |
 
@@ -229,6 +245,7 @@ docs/validation/phase-0/
 │  ├─ logs/
 │  └─ screenshots/
 ├─ bluetooth-ks/
+├─ default-endpoint-policy/
 └─ taskbar-host/
 ```
 
@@ -240,11 +257,11 @@ docs/validation/phase-0/
 |---|---|
 | 目的 | OS依存実装を差し替え可能な製品構造を作る |
 | プロジェクト | `QuickPods.App`、`QuickPods.Core`、`QuickPods.Windows`、`QuickPods.TaskbarHost`、`QuickPods.Contracts`、`QuickPods.Infrastructure`、対応テスト |
-| Core | 状態モデル、`StateCoordinator`骨格、エラー分類、Capability、設定モデル |
+| Core | Bluetoothカタログ、選択／接続／既定出力の複合状態、`StateCoordinator`骨格、エラー分類、Capability、設定モデル |
 | Contracts | IPC DTO、`ProtocolVersion = 1`、Sequence、Interaction契約 |
 | Infrastructure | 構造化ログ、設定保存、単一インスタンス、ホスト起動監視の骨格 |
 | CI | NuGet locked restore、format、Release/x64 build、unit test、TRX／coverage保存 |
-| 完了条件 | 警告0、CI成功、OS依存サービスをテストダブルへ交換可能、Gate A／Bの縮退状態を表現可能 |
+| 完了条件 | 警告0、CI成功、OS依存サービスをテストダブルへ交換可能、Gate A／A2／Bの縮退状態を表現可能 |
 
 このブランチではUIの完成やWindows APIの本実装を行わない。
 
@@ -288,25 +305,26 @@ docs/validation/phase-0/
 | テスト | IPC順序逆転、切断再接続、Explorer再起動10回、空き消失、ホスト異常終了 |
 | 完了条件 | AC-014～AC-021のうちBluetooth非依存項目を満たし、音量を選択された表示モードから操作可能 |
 
-### Phase 4：Bluetoothサービスと統合
+### Phase 4：Bluetoothカタログ、操作、v2 UI統合
 
-#### B10：`codex/phase-4a-bluetooth-service`
-
-| 項目 | 内容 |
-|---|---|
-| 目的 | Bluetooth機器管理をUIと表示ホストから独立して完成させる |
-| Gate AがGo | 機器列挙、Container IDグルーピング、DeviceTopology／IKsControl、状態機械、15秒タイムアウト |
-| Gate AがNo-Go | `BluetoothDriverUnsupported`を返すCapabilityサービスとWindows設定ランチャー |
-| テスト | 状態遷移、キャンセル、古い世代結果、二重要求、同名機器、タイムアウト、未対応経路 |
-| 完了条件 | 対応／未対応の双方でサービス層の結果が一意で、失敗を成功として返さない |
-
-#### B11：`codex/phase-4b-bluetooth-integration`
+#### B10：`codex/phase-4a-bluetooth-device-catalog`
 
 | 項目 | 内容 |
 |---|---|
-| 目的 | Bluetooth状態と操作を本体、診断UI、表示ホストへ統合する |
-| 実装 | 対象機器選択、接続状態表示、接続／切断、連打防止、設定導線、StateSnapshot反映 |
-| 実機試験 | AirPods接続／切断、圏外、ケース内、他端末、無線OFF、再ペアリング、他機器影響 |
+| 目的 | 複数Bluetoothオーディオの列挙、集約、選択、能力をUIから独立して完成させる |
+| 実装 | Container ID集約、A2DP/HFP統合、単一選択、永続化、読み取り専用更新、カタログ世代、機器単位Capability |
+| Gate AがNo-Go | 非対応機器だけ`BluetoothDriverUnsupported`とし、一覧とWindows設定導線は維持 |
+| テスト | 0／1／複数／同名、選択復元、再ペアリング、選択・更新の無操作、古い世代、無関係Endpoint障害の非波及 |
+| 完了条件 | 一覧の1行が1物理Containerに対応し、選択以外のOS状態を変更せず、機器ごとの結果が独立する |
+
+#### B11：`codex/phase-4b-bluetooth-control-integration`
+
+| 項目 | 内容 |
+|---|---|
+| 目的 | 選択機器の接続、既定出力設定、切断を複合操作として本体と表示ホストへ統合する |
+| 実装 | KS操作、実状態確認、Console／Multimedia既定出力設定、部分成功、連打防止、StateSnapshot、設定導線 |
+| Gate A2がNo-Go | 接続済み・非既定を表示し、サウンド設定ランチャーを提供 |
+| 実機試験 | 参照機器接続→既定出力、切断、A→B→A、圏外、ケース内、他端末、無線OFF、再ペアリング、選択外影響 |
 | 完了条件 | AC-007～AC-013を満たし、未対応環境でもアプリが停止しない |
 
 完了後にGate Cを判定し、`0.1.0-beta.1`相当の内部成果物を作成する。
@@ -317,14 +335,14 @@ docs/validation/phase-0/
 
 | 項目 | 内容 |
 |---|---|
-| 目的 | モックアップに沿った日常利用可能な製品シェルを完成させる |
-| UI | WPFフライアウト、設定画面、通知領域メニュー、ツールチップ、エラーと再試行 |
-| 設定 | 表示モード、対象機器、ホイール刻み、テーマ、切断確認、自動起動 |
+| 目的 | v2モックアップに沿った日常利用可能な製品シェルを完成させる |
+| UI | Bluetooth単一選択リスト、読み取り専用更新、状態別主ボタン、音量、設定、Tray、エラーと再試行 |
+| 設定 | 表示モード、選択機器、接続後の既定出力化、ホイール刻み、テーマ、切断確認、自動起動 |
 | 常駐 | 単一インスタンス、トレイ常駐、Windowsログイン時のユーザー単位自動起動 |
 | 導線 | Windowsサウンド設定、Bluetooth設定、ログ表示／コピー |
 | ブランド | 承認済みQuickPodsアイコン、製品名、バージョン情報 |
-| テスト | ViewModel、設定永続化、自動起動ON／OFF、二重登録防止、Tray終了／再試行 |
-| 完了条件 | FR-UI-001～007を満たし、再起動後も設定が保持される |
+| テスト | ViewModel、複数／同名／空一覧、選択と更新の無操作、設定永続化、自動起動ON／OFF、Tray終了／再試行 |
+| 完了条件 | FR-UI-001～008とv2機能仕様を満たし、再起動後も選択と設定が保持される |
 
 自動起動の初期値はOFFとし、本体`QuickPods.exe`だけをユーザー単位で登録する。`QuickPods.TaskbarHost.exe`は本体が起動・監視する。
 
@@ -444,7 +462,7 @@ dotnet publish src/QuickPods.TaskbarHost/QuickPods.TaskbarHost.csproj -c Release
 5. B1を検証して`main`へSquash Mergeする。
 6. Core Audio SpikeとTaskbar Host Spikeを最新`main`から作成する。
 7. Core Audioの結果を受けてBluetooth KS Spikeを開始する。
-8. 3件のSpike完了後に`codex/phase-0-gate-decisions`で製品構成を確定する。
+8. 4件のSpike完了後に`codex/phase-0-gate-decisions`で製品構成を確定する。
 
 ## 10. 計画変更ルール
 
