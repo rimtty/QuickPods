@@ -24,6 +24,7 @@
 | 検索：アイコン＋ラベル | **Pass（Phase 0E／100／150% Popup）** — Start／Searchをそれぞれ表示した状態でnative位置を保持し、表示中のwheel入力も成功。継続証明が成立し、Floating遷移0 |
 | 125% | **Pass（現在構成）** — `Place / Standard`。Child／Popupの17秒samplingとPopup 150回clickでhidden 0、重複・残留0。ユーザーの連続click-to-jump／ホイールでもちらつきなし。Issue #12はClose済み |
 | 150% | **Pass（採用Popup continuity）** — DPI 144、中央揃え、検索アイコン＋ラベル、Task View／Widgets ON。自動監査はstyle／taskbar parent／ownerなし／DWM／drag／wheel、exit 0、残留0。120秒目視runはnative継続3回、Floating遷移0、wheel 273件、drag開始／完了12／12、fatal 0、自然終了後残留0 |
+| ピン留めアプリ多数 | **Pass（150%採用Popup）** — button 27→52、Start X 1919→1094、fault 0、`Place / Standard (440, 6, 450, 60)`。自動監査と75秒手動runに合格。native継続3回、Floating遷移0、wheel 18件、drag開始／完了18／18、move 188件、fatal 0、自然破棄、残留0 |
 | 200% | **Pass（NoFit＋floating）** — 左揃え・検索非表示・Task View／Widgets OFFで`VerifiedNoFit / InsufficientWidth`を再現。floatingのstyle／ownership／DWM／入力を自動監査し、ユーザー目視、drag 11回、wheel 125件、自然破棄、残留0に合格 |
 | Explorer再起動 | **Pass（現在環境／採用Popup）** — 10/10回、最大5.395秒。全回で旧View消失、新Explorer世代、View／Control各1、Popup style／実親／DWMを確認し、exit 0、残留0。200% NoFitと150%可視Childの各10回も履歴Pass |
 | Explorer世代別GUI資源 | **既知P2（Issue #18）** — Popup 10回でUSER 22→32、GDI 10→10。通常HWND 5、message-only HWND 1、クラス構成は全回不変。discovery-onlyは増加0、watcher-onlyで再現し、強制GCでも不変 |
@@ -78,7 +79,8 @@ dotnet run --project spikes/QuickPods.Spike.TaskbarHost -c Release --no-build --
 - 採用PopupでExplorerを10回再起動した。全回で旧View消失と新しいExplorer世代を確認し、View／Control各1、Popup style、実親、DWM uncloakedを300ms連続で再証明した。全回10秒以内で最大5.395秒、host attach／destroyは各11回、exit 0、重複・孤立・終了後残留0、Explorer 1プロセスだった。
 - 同じ10回でUSER objectは22→32と世代ごとに1増えた一方、GDIは10、通常HWNDは5、message-only HWNDは1、クラス構成は不変だった。discovery-only `3→3`、watcher-only `13→14`、native／floating各20回create／destroyは増加0、強制GCでも不変だったため、managed UIA event subscriptionのprovider世代寿命に限定した。公開cleanup API以上の強制解放は行わず、Issue #18で製品化前の隔離方式を追跡する。このP2の追加診断で単体テストを再拡張しない。
 - 150%・DPI 144・中央揃え・検索アイコン＋ラベル・Task View／Widgets ONで採用Popupを120秒実行した。StartとSearchを各10～15秒表示しても同じタスクバー位置を目視維持し、表示中wheel入力に成功した。ログはnative継続3回（`DirectExpected`を含む）、Floating遷移0、wheel 273件、drag開始／完了12／12、fatal 0、`native-host=destroyed`、終了後プロセス残留0だった。事前の12秒自動監査もPopup style、実親、ownerなし、non-topmost、DWM uncloaked、drag／wheel、exit 0、残留0に合格した。
-- Gate B全体は、ピン留めアプリ多数とtray churn中のStart保持が未完了のためPendingとする。
+- 150%のままユーザーがタスクバーへ多数のアプリを追加した。読み取り専用探索はUIA button 27→52、Start X 1919→1094、fault 0、`Place / Standard (440, 6, 450, 60)`となった。12秒自動監査はPopup style、実親、ownerなし、non-topmost、DWM、drag／wheel、exit 0、残留0に合格した。75秒手動runはnative継続3回、Floating遷移0、wheel 18件、drag開始／完了18／18、move 188件、fatal 0、正常破棄、残留0で、ユーザーは多数アイコンとの重なり、ちらつき、click／drag／wheelすべて問題なしと確認した。一時UI中のbutton 1観測から52件へ安全に復帰した。
+- Gate B全体は、tray churn中のStart保持が未完了のためPendingとする。
 
 ### Phase 0C historical evidence
 
@@ -135,7 +137,7 @@ dotnet run --project spikes/QuickPods.Spike.TaskbarHost -c Release --no-build --
 
 外部監査は接続、可視性、現Shellとの親子関係、一意性、残留を独立検証したもので、UIA安全領域を再計算してはいない。各cycleの配置安全性はRunner内部のfresh complete scan、`SafeRegionCalculator`の最終交差検証、およびnative側の実bounds／parent／DPI検証を根拠とする。世代ごとの推奨X座標変化は、旧矩形がunsafeなら安全な新矩形へ再生成し、旧矩形がsafeならsticky placementで不要な移動を抑えるpolicyどおりだった。
 
-Childの150%での静止画とドラッグ／ホイール、および125%両方式の入力ログは確認済みで、Issue #12はClose済みである。100%の検索4形式、Task View／Widgets ON検索ボックス、100／200%左揃えNoFit floatingは自動・手動確認と終了後残留0に合格し、Issue #11の受入条件を満たした。Phase 0Eでは100／150% PopupでStart／Search双方のnative continuityと表示中wheel入力に合格し、PopupPreservedを最終方式に選定した。採用PopupのExplorer再起動10回も機能要件に合格し、UIA watcherの世代別資源寿命はIssue #18へ分離した。ピン留めアプリ多数とtray churnが未完了のため、Gate BをGoとして扱わない。
+Childの150%での静止画とドラッグ／ホイール、および125%両方式の入力ログは確認済みで、Issue #12はClose済みである。100%の検索4形式、Task View／Widgets ON検索ボックス、100／200%左揃えNoFit floatingは自動・手動確認と終了後残留0に合格し、Issue #11の受入条件を満たした。Phase 0Eでは100／150% PopupでStart／Search双方のnative continuityと表示中wheel入力、多数ピン留めstressに合格し、PopupPreservedを最終方式に選定した。採用PopupのExplorer再起動10回も機能要件に合格し、UIA watcherの世代別資源寿命はIssue #18へ分離した。tray churnが未完了のため、Gate BをGoとして扱わない。
 
 以下は実画面を含まないサニタイズ済み配置図である。実画面スクリーンショットの代替ではなく、相対座標証跡の確認用とする。
 

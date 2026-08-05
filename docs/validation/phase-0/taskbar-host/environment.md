@@ -75,6 +75,12 @@
 
 ユーザーは両一時UIの表示中もPopupが同じタスクバー位置に残り、wheel入力、描画、重なり、ちらつきのすべてに問題がないことを確認した。一時的にUIA button観測が1件まで減った区間でも、同一generationの証明を維持して通常の27件へ復帰した。監査スクリプトはPopupの実親を`GetParent`ではなく`GetAncestor(..., GA_PARENT)`で判定し、ownerは`GetWindow(..., GW_OWNER)`で独立確認した。
 
+## Phase 0E実機観測：150% 多数ピン留めstress
+
+同じ150%・中央揃え構成でユーザーが多数のアプリを追加した結果、UIA button数は27から52へ増え、Startの相対Xは1919から1094へ移動した。読み取り専用探索はcomplete、fault 0で、相対矩形`(440, 6, 450, 60)`を`Place / Standard`と判定した。
+
+12秒の自動監査はPopup style、taskbar実親、ownerなし、non-topmost、DWM uncloaked、drag／wheel、exit 0、View／Control／process残留0に合格した。75秒の手動runはnative継続3回、Floating遷移0、wheel 18件、drag開始／完了18／18、move 188件、fatal 0、`native-host=destroyed`、終了後プロセス残留0だった。ユーザーは多数のタスクバーアイコンとの重なり、ちらつき、click／drag／wheelにすべて問題がないことを確認した。
+
 ## Phase 0C historical：初回観測 150%（Widgets ON）
 
 | 項目 | 値 |
@@ -155,4 +161,4 @@ Childを17秒間、起動時に確定した同一HWNDで監視して1088 samples
 
 Start／Windows一時UIと検索アイコン＋ラベルの検索一時UIを個別に開く制御runでは、どちらも一時的な`PrimaryTaskbarMissing`を再現した。再現区間の外部inspectは57/57回が`TransientUnknown / IncompleteObservation`であり、Runnerは不完全観測中に推測配置せずhostを安全にhideした。その後、Startでは7.796秒、検索では6.757秒で同じhostを再表示した。観測不能が10秒を超えるケースは既存のFail Closed timeoutへ到達して安全停止する。
 
-Phase 0Cでは、10秒未満の制御runはhostプロセスが存続したまま安全に一時非表示となり、観測不能が10秒を超えるとSpikeは設計どおり安全停止した。この二つがユーザーには同じ「落ちた」ように見える復帰UXの問題だった。これはhistorical behaviorであり、Phase 0Dでは安全なfloatingまたはhidden fallbackへ遷移してセッションを継続する。Phase 0Eでは100／150% Popup native continuity、最終style選定、採用PopupのExplorer再起動10回、および100／200%左揃えNoFit floatingの目視・入力まで完了した。ピン留め多数とtray churnが残るためGate BはPendingである。
+Phase 0Cでは、10秒未満の制御runはhostプロセスが存続したまま安全に一時非表示となり、観測不能が10秒を超えるとSpikeは設計どおり安全停止した。この二つがユーザーには同じ「落ちた」ように見える復帰UXの問題だった。これはhistorical behaviorであり、Phase 0Dでは安全なfloatingまたはhidden fallbackへ遷移してセッションを継続する。Phase 0Eでは100／150% Popup native continuity、多数ピン留めstress、最終style選定、採用PopupのExplorer再起動10回、および100／200%左揃えNoFit floatingの目視・入力まで完了した。tray churnが残るためGate BはPendingである。
