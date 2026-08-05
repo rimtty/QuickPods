@@ -51,8 +51,9 @@ KS要求のHRESULTが成功しても、実際の接続・切断成功とはみ�
 | 検証項目 | 結果 | 備考 |
 |---|---|---|
 | 読み取り専用探索 | Pass | AirPods Container、Render/Capture、connector 0候補をreport-scoped aliasで識別 |
-| 自動安全試験 | Pass | Bluetooth KS 61件、solution smoke 1件 |
+| 自動安全試験 | Pass | Bluetooth KS 63件、solution smoke 1件 |
 | 対象スコープ所有権 | Pass | global／選択Endpointは遮断し、無関係Endpoint faultと未帰属Adapterは非波及 |
+| 複数機器カタログ契約 | Pass | 0／1／複数／同名、A2DP/HFP集約、選択保持、操作層非依存 |
 | Reconnect Basic Support | Pending | 未実行 |
 | Disconnect Basic Support | Pending | 未実行 |
 | 接続10回 | Pending | 0回実行 |

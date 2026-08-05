@@ -19,4 +19,17 @@ This isolated diagnostic determines whether the documented Windows KS and Device
 
 The Gate A decision remains pending until the MediaTek/AirPods hardware matrix is completed. A No-Go result falls back to the Windows Bluetooth settings page (`ms-settings:bluetooth`).
 
+## Multi-device catalog contract
+
+The `Catalog` folder is a pure Phase 0 contract for the v2 selector. It accepts endpoint facts from a future paired-device adapter and:
+
+- excludes entries not explicitly marked as paired Bluetooth audio;
+- groups stereo/A2DP and hands-free/HFP endpoint variants by Container key;
+- keeps same-name physical devices distinct because display names are never identity;
+- derives a conservative connection state from render endpoints;
+- preserves an explicit selection across refresh and temporary disappearance;
+- has no dependency on the KS child runner or command invoker, so selection and refresh cannot mutate Windows state.
+
+The product implementation must populate `IsPaired`, `IsBluetooth`, display name, kind, profile, and Container identity from Windows device metadata. It must not infer Bluetooth identity from the friendly-name string.
+
 Run `inventory` first, then copy its `session` value and target alias into a separately confirmed `probe`, `connect`, or `disconnect` command. Do not commit the session token or runtime output.

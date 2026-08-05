@@ -8,7 +8,7 @@
 | ブランチ | `codex/phase-0b-bluetooth-ks-spike` |
 | .NET | SDK `10.0.302` / Runtime `10.0.10` |
 | Release build | Pass、警告0、エラー0 |
-| 自動試験 | Pass、Bluetooth KS 61件 + solution smoke 1件 |
+| 自動試験 | Pass、Bluetooth KS 63件 + solution smoke 1件 |
 | format / diff check | Pass |
 | 読み取り専用inventory | Pass |
 | KS Basic Support | Pending（未実行） |
@@ -42,6 +42,8 @@
 - 未知target、複数Render候補、複数Containerで共有される候補をfail closedで拒否する。
 - globalまたは選択対象に重なる所有権fault、および選択対象と重なる未帰属AdapterではKS子プロセスを開始しない。
 - 無関係EndpointへスコープされたTopology faultや無関係な未帰属Adapterは、完全に証明できた選択対象の操作能力へ波及させない。
+- 0／1／複数／同名のBluetoothオーディオ候補をContainer単位へ集約し、Stereo/A2DPとHands-Free/HFPを1物理機器へまとめる。
+- 選択と更新をKS操作層から構造的に分離し、選択機器が一時消失しても永続キーを保持する。
 - Basic Supportの片方でも非対応ならReconnect／Disconnectを発行しない。
 - KS HRESULTが失敗の場合、MMDeviceが期待状態へ変化しても成功扱いしない。
 - 操作後の観測に所有権faultまたはContainer未帰属Adapterがあれば、残存EndpointがUnpluggedでも`Unknown`へ倒す。

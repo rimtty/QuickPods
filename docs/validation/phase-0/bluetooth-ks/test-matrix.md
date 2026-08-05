@@ -42,9 +42,9 @@
 | BTKS-DISC-001 | 探索 | ペアリング済みオーディオ機器を列挙 | 参照機器を対象候補として識別し、Container単位で関連Endpointをまとめられる | report-scoped aliasのみのinventory | Pass |
 | BTKS-DISC-002 | 探索 | DeviceTopology connector 0からAdapter DeviceとKS Filter候補を辿る | 対象ContainerでRender/Capture候補を区別し、Render候補を1件へ絞れる | サニタイズ済み候補とflow | Pass |
 | BTKS-DISC-003 | 探索 | EndpointのTopologyまたはContainer帰属が不完全なsnapshotを模擬 | 所有権へ影響するfault、または同じAdapterをContainerへ帰属できない場合はKS子プロセスを開始しない | fail-closed自動試験 | Pass（自動） |
-| BTKS-DISC-004 | 探索 | 0／1／複数／同名ContainerとA2DP/HFP Endpoint群を模擬 | 1物理Containerを1候補へ集約し、表示名ではなく内部キーで一意に選択できる | catalog自動試験 | Pending |
+| BTKS-DISC-004 | 探索 | 0／1／複数／同名ContainerとA2DP/HFP Endpoint群を模擬 | 1物理Containerを1候補へ集約し、表示名ではなく内部キーで一意に選択できる | catalog自動試験 | Pass（自動） |
 | BTKS-DISC-005 | 探索 | 無関係EndpointだけにTopology ownership faultを発生させる | faultを該当Endpointへスコープし、完全確認できた選択Containerの操作能力を阻害しない | scoped-fault自動試験＋Remote Audio read-only inventory | Pass（Issue #20） |
-| BTKS-SEL-001 | 選択 | 機器選択と読み取り専用更新を反復 | KS子プロセス起動と変更要求が0件で、選択とフォーカスを維持する | coordinator自動試験 | Pending |
+| BTKS-SEL-001 | 選択 | 機器選択と読み取り専用更新を反復 | カタログ層がKS操作依存を持たず、選択を維持し、変更要求経路を持たない | catalog state自動試験＋依存境界 | Pass（自動） |
 | BTKS-SUP-001 | 対応確認 | ReconnectのBasic Supportを照会 | 対応・非対応・エラーを明確に分類する | HRESULTと分類 | Pending |
 | BTKS-SUP-002 | 対応確認 | DisconnectのBasic Supportを照会 | 対応・非対応・エラーを明確に分類する | HRESULTと分類 | Pending |
 | BTKS-CON-001 | 接続 | 到達可能かつ切断状態からReconnectを有効10回実施 | 10回中9回以上、各15秒以内に`DEVICE_STATE_ACTIVE`を確認 | 接続試行表 | Pending |
