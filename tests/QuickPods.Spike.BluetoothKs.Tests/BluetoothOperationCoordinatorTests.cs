@@ -226,9 +226,10 @@ public sealed class BluetoothOperationCoordinatorTests
 
     private static async Task WaitUntilAsync(Func<bool> predicate)
     {
-        for (int attempt = 0; attempt < 100 && !predicate(); attempt++)
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (!predicate() && !timeout.IsCancellationRequested)
         {
-            await Task.Yield();
+            await Task.Delay(TimeSpan.FromMilliseconds(10), CancellationToken.None);
         }
 
         Assert.True(predicate());
@@ -237,11 +238,13 @@ public sealed class BluetoothOperationCoordinatorTests
     private sealed class StubInvoker(Func<BluetoothOperationRequest, Task<int>> invoke)
         : IBluetoothKsCommandInvoker
     {
-        public int Calls { get; private set; }
+        private int _calls;
+
+        public int Calls => Volatile.Read(ref _calls);
 
         public Task<int> InvokeAsync(BluetoothOperationRequest request)
         {
-            Calls++;
+            Interlocked.Increment(ref _calls);
             return invoke(request);
         }
     }
