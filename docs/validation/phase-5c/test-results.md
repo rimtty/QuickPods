@@ -28,10 +28,16 @@ hover leaveの不定残留は、dismiss timerがflyout上で一度発火した�
 
 Bluetooth empty-state cardとvolume dividerの間は0 pxから18 pxへ拡張した。自己完結型の確認payload `0.1.0-visual.60`（495 files、SHA-256 `07b244a0845548f0c136108e8efe7b3e9e8271a1f0563ebb7657025ab0c608f9`）を起動し、App／TaskbarHost／TaskbarObserverの全processが同payloadから稼働していることを確認した。
 
-## 未確認
+## 2026-08-07 最終UI Gate
 
-- tray右クリックの`QuickPods 設定...`から独立settings windowを開き、保存操作ができること
-- hover flyoutからsettingsが消え、empty-state card下の18 px余白が視覚的に十分であること
-- taskbar面→flyout→外側の反復で、previewが毎回一定時間内に閉じること
+自己完結payload `0.1.0-rc.62`（495 files、SHA-256 `214767c21180bd7291b992ea887d6f915d0c42e9d9640b42e456a996299fb5eb`）で、通常起動時はflyoutを表示せずtray常駐し、taskbar面へのhover時だけ同面へanchorされたflyoutを表示することをユーザーが確認した。Startを10秒以上開いた状態でもtaskbar内QuickPodsは残り、Startを閉じた後も重複や遅延再生成を起こさなかった。
+
+flyout外へpointerを移した際のdismiss、empty-state card下18 px余白、slider、mute、主button、境界線、全体の視覚をユーザーが合格と判定した。Windows Settings URIは`Process.Start`がprocess instanceを返さない正常なShell activationを成功として扱うよう修正し、物理pointerとWindow rectによるdismiss、tray-first startup、native continuity retentionをfocused contractへ追加した。
+
+最終stackはRelease build警告0／error 0、全回帰380／380、format、dependency audit、self-contained RC、per-user MSI生成に合格した。PR #54 CIは成功し、2026-08-07にPhase 6BへSquash commit `cc6b99b`として統合した。
+
+## 後続Gate
+
+- local-consoleでtray右クリックの`QuickPods 設定...`から独立settings windowを開き、保存操作ができること（Issue #43）
 - 実Bluetooth 1台／複数台でのrow密度、long-name ellipsis、接続状態
-- local-consoleでの100／125／150／200%最終描画
+- local-consoleでの100／125／150／200%最終描画、keyboard、screen reader、High Contrast（Issue #43）

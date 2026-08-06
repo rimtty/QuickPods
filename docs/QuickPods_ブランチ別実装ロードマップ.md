@@ -9,7 +9,7 @@
 | 作成日 | 2026-08-05 |
 | 対象環境 | Windows 11 x64 / .NET 10 / WPF + Win32 |
 | 基本文書 | `QuickPods_実装計画書.md` |
-| ステータス | Phase 0～6A実装済み。Phase 5C UI fidelity／Phase 6B配布をDraft PRで検証中、実機・署名・耐久Gateは未完了 |
+| ステータス | Phase 0～6A実装済み。Phase 5C UI fidelityはPhase 6Bへ統合済み。Phase 6B配布はDraft PRでGate待ち、実機・署名・耐久Gateは未完了 |
 
 ## 1. 目的
 
@@ -23,7 +23,7 @@
 
 | 項目 | 状態 |
 |---|---|
-| Git | `main`はPhase 6A（PR #49）まで統合済み。Phase 5CはPR #54、Phase 6BはPR #51で個別に検証中 |
+| Git | `main`はPhase 6A（PR #49）まで統合済み。Phase 5C PR #54はPhase 6BへSquash統合済み。Phase 6BはPR #51で最終Gate待ち |
 | Remote | `origin/main`へPhase 0～6Aの実装PRを統合済み。全体進捗はIssue #2、残存Gateは#33／#34／#38／#41／#43／#48／#50／#53で管理 |
 | 追跡対象 | 計画資料、ブランド資産、製品コード、インストーラー、検証証跡、既知の制限 |
 | ソース／テスト／CI | .NET 10製品solution、Windows CI、RC／MSI生成、focused regressionを運用中 |
@@ -432,10 +432,10 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 承認済みモックに沿ってタスクバー常設面、hover flyout、Bluetooth空／一覧状態の視覚・操作忠実度を完成させる |
-| 状態 | **Draft検証中（2026-08-06）** — Issue #53／PR #54。実pointer anchor、grace、Release build、focused regressionは合格。ユーザー目視と実Bluetooth一覧は未完了 |
+| 状態 | **実装・UI手動Gate完了（2026-08-07）** — PR #54をPhase 6BへSquash統合。実pointer anchor、hover dismiss、tray-first起動、Start 10秒超continuity、Release build、380件回帰、ユーザー目視に合格。実Bluetooth一覧はIssue #38／#41、local-console DPI／keyboardはIssue #43へ継続 |
 | 実装 | タスクバー内volume／device表示、non-activating hover、surface anchor、borderless flyout、空一覧、device rows、主操作、設定導線 |
 | 境界 | 左揃え非対応policyを維持。実BluetoothはIssue #38／#41、local-console DPIはIssue #43で判定 |
-| 完了条件 | ユーザー目視に合格し、PR #54のCIが成功。物理機器／DPIの明示的な後続Gateを閉じずに残す |
+| 完了条件 | **達成** — ユーザー目視とPR #54 CIに合格し、物理機器／DPIの明示的な後続Gateを閉じずにPhase 6Bへ統合 |
 
 ### Phase 6：Release Candidateと配布
 
@@ -471,7 +471,7 @@ B15はB13後に準備を開始できるが、最終マージはB14のGate D通�
 | 項目 | 内容 |
 |---|---|
 | 目的 | RC固有のバージョン、リリースノート、最終スモーク試験だけを行う |
-| 状態 | **未着手** — Phase 5C、Phase 6B、Gate D、実機／DPI／Bluetooth最終Gateの完了後に開始 |
+| 状態 | **未着手** — Phase 6B、Gate D、実機／DPI／Bluetooth最終Gateの完了後に開始 |
 | バージョン | `0.1.0-rc.1` |
 | 完了条件 | RC配布物が再生成でき、重大な既知不具合がなく、最終承認後に`v0.1.0`タグを作成可能 |
 
