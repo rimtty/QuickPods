@@ -76,7 +76,10 @@ internal sealed class MMDeviceEnumeratorComObject
 internal interface IMMDeviceEnumerator
 {
     [PreserveSig]
-    int EnumAudioEndpoints(AudioDataFlow dataFlow, AudioDeviceState stateMask, out nint devices);
+    int EnumAudioEndpoints(
+        AudioDataFlow dataFlow,
+        AudioDeviceState stateMask,
+        out IMMDeviceCollection devices);
 
     [PreserveSig]
     int GetDefaultAudioEndpoint(AudioDataFlow dataFlow, AudioRole role, out IMMDevice device);
@@ -89,6 +92,27 @@ internal interface IMMDeviceEnumerator
 
     [PreserveSig]
     int UnregisterEndpointNotificationCallback(IMMNotificationClient client);
+}
+
+[ComImport]
+[Guid("0BD7A1BE-7A1A-44DB-8397-C0A5FBCBFDCC")]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+internal interface IMMDeviceCollection
+{
+    [PreserveSig]
+    int GetCount(out uint deviceCount);
+
+    [PreserveSig]
+    int Item(uint deviceIndex, out IMMDevice device);
+}
+
+[ComImport]
+[Guid("1BE09788-6894-4089-8586-9A2A6C265AC5")]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+internal interface IMMEndpoint
+{
+    [PreserveSig]
+    int GetDataFlow(out AudioDataFlow dataFlow);
 }
 
 [ComImport]

@@ -2,7 +2,8 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.22000.0</TargetPlatformMinVersion>
     <RootNamespace>QuickPods.App</RootNamespace>
     <UseWPF>true</UseWPF>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -22,7 +23,7 @@
   <Target Name="CopyTaskbarHostManagedAssembly" AfterTargets="Build">
     <MSBuild Projects="..\QuickPods.TaskbarHost\QuickPods.TaskbarHost.csproj"
              Targets="GetTargetPath"
-             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)">
+             Properties="Configuration=$(Configuration)">
       <Output TaskParameter="TargetOutputs" ItemName="_TaskbarHostTargetPath" />
     </MSBuild>
     <Copy SourceFiles="@(_TaskbarHostTargetPath)"
@@ -33,7 +34,7 @@
   <Target Name="CopyTaskbarObserverManagedAssembly" AfterTargets="Build">
     <MSBuild Projects="..\QuickPods.TaskbarObserver\QuickPods.TaskbarObserver.csproj"
              Targets="GetTargetPath"
-             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)">
+             Properties="Configuration=$(Configuration)">
       <Output TaskParameter="TargetOutputs" ItemName="_TaskbarObserverTargetPath" />
     </MSBuild>
     <Copy SourceFiles="@(_TaskbarObserverTargetPath)"
