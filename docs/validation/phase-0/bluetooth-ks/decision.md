@@ -11,7 +11,7 @@
 | 判断日 | 未定 |
 | 判断者 | 未記入 |
 
-読み取り専用探索、Render候補の一意選択、純粋ロジック、Job Object watchdogシミュレーションは確認済みである。KS Basic Support、Reconnect、Disconnect、実機のMMDevice状態遷移、他機器への影響は未実行なので、GoまたはNo-Goを決める証拠はまだ不足している。
+読み取り専用探索、Render候補の一意選択、純粋ロジック、Job Object watchdogシミュレーション、Reconnect／Disconnect Basic Support、操作者確認付きの初回実機操作を確認した。探索的試験でRenderのみの一時Unpluggedを誤成功とする欠陥を検出し、Render/Capture両候補の切断、全Endpoint観測、5秒安定窓、期限切れ成功拒否へ修正した。修正版のDisconnectは1回Pass、Reconnectは1回DeadlineExceededであり、各10回のGate母数が未達なので判断はPendingである。
 
 ## Gate Aの目的
 
@@ -51,17 +51,17 @@ KS要求のHRESULTが成功しても、実際の接続・切断成功とはみ�
 | 検証項目 | 結果 | 備考 |
 |---|---|---|
 | 読み取り専用探索 | Pass | AirPods Container、Render/Capture、connector 0候補をreport-scoped aliasで識別 |
-| 自動安全試験 | Pass | Bluetooth KS 63件、solution smoke 1件 |
+| 自動安全試験 | Pass | Bluetooth KS 65件、solution smoke 1件 |
 | 対象スコープ所有権 | Pass | global／選択Endpointは遮断し、無関係Endpoint faultと未帰属Adapterは非波及 |
 | 複数機器カタログ契約 | Pass | 0／1／複数／同名、A2DP/HFP集約、選択保持、操作層非依存 |
-| Reconnect Basic Support | Pending | 未実行 |
-| Disconnect Basic Support | Pending | 未実行 |
-| 接続10回 | Pending | 0回実行 |
-| 切断10回 | Pending | 0回実行 |
-| 実状態確認 | Pending | 未観測 |
-| 誤成功表示 | Pending | 未観測 |
-| 他機器影響 | Pending | 未観測 |
-| 非管理者での実操作 | Pending | 実操作未実行 |
+| Reconnect Basic Support | Pass | Render候補で`S_OK`、GET対応 |
+| Disconnect Basic Support | Pass | Render／Capture両候補で`S_OK`、GET対応 |
+| 接続10回 | In progress | 探索的Pass 1回、修正版Fail 1回。正式10回は未達 |
+| 切断10回 | In progress | 修正版Pass 1回。正式10回は未達 |
+| 実状態確認 | In progress | Active／両Endpoint Unpluggedを観測、反復未達 |
+| 誤成功表示 | In progress | 探索的欠陥1件を修正し回帰試験化。修正版Gate反復未達 |
+| 他機器影響 | In progress | 操作者が1組の前後比較で変化0を確認、反復未達 |
+| 非管理者での実操作 | Pass | 昇格なしでBasic Support／Reconnect／Disconnectを実行 |
 | 子プロセスwatchdog | Pass（simulation） | kill-on-close Job Object、Job全体の空状態、孫PID消滅、異常終了、machine-wide排他を確認 |
 | 異常系 | Pending | 未実行 |
 

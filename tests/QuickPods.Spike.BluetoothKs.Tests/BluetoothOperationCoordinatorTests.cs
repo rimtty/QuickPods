@@ -27,7 +27,7 @@ public sealed class BluetoothOperationCoordinatorTests
         Assert.Equal(KsCallWatchdogStatus.Completed, result.KsCallStatus);
         Assert.Equal(0, result.KsHResult);
         Assert.Equal(BluetoothAudioState.Disconnected, result.ActualState);
-        Assert.True(observer.Calls > 2);
+        Assert.True(observer.Calls >= 2);
     }
 
     [Fact]
@@ -152,6 +152,40 @@ public sealed class BluetoothOperationCoordinatorTests
     }
 
     [Fact]
+    public async Task TransientUnpluggedStateCannotClaimSuccessfulDisconnect()
+    {
+        var clock = new ManualOperationClock();
+        var states = new Queue<BluetoothAudioState>([
+            BluetoothAudioState.Connected,
+            BluetoothAudioState.Disconnected,
+            BluetoothAudioState.Connected,
+        ]);
+        var observer = new StubObserver(_ => states.Count > 0
+            ? states.Dequeue()
+            : BluetoothAudioState.Connected);
+        var coordinator = new BluetoothOperationCoordinator(
+            new StubInvoker(_ => Task.FromResult(0)),
+            observer,
+            clock: clock);
+
+        Task<BluetoothOperationResult> pending = coordinator.ExecuteAsync(
+            "container-a",
+            BluetoothOperationKind.Disconnect,
+            CancellationToken.None);
+        await WaitUntilAsync(() => observer.Calls >= 2);
+        Assert.False(pending.IsCompleted);
+
+        clock.Advance(BluetoothOperationCoordinator.ObservationInterval);
+        await WaitUntilAsync(() => observer.Calls >= 3);
+        await DriveToDeadlineAsync(pending, clock);
+        BluetoothOperationResult result = await pending.WaitAsync(TestCompletionTimeout);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(BluetoothOperationOutcome.DeadlineExceeded, result.Outcome);
+        Assert.Equal(BluetoothAudioState.Connected, result.ActualState);
+    }
+
+    [Fact]
     public async Task ResultFromSupersededGenerationIsDiscardedBeforeKsRequest()
     {
         var clock = new ManualOperationClock();
@@ -219,11 +253,15 @@ public sealed class BluetoothOperationCoordinatorTests
         Task operation,
         ManualOperationClock clock)
     {
-        for (int interval = 0; interval < 60 && !operation.IsCompleted; interval++)
+        if (operation.IsCompleted)
         {
-            clock.Advance(TimeSpan.FromMilliseconds(250));
-            await Task.Yield();
+            return;
         }
+
+        await WaitUntilAsync(() => clock.PendingDelayCount > 0 || operation.IsCompleted);
+        clock.Advance(
+            BluetoothOperationCoordinator.OperationDeadline +
+            BluetoothOperationCoordinator.ObservationInterval);
     }
 
     private static async Task WaitUntilAsync(Func<bool> predicate)

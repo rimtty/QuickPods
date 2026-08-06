@@ -111,6 +111,56 @@ public sealed class DiscoveryBluetoothStateObserverTests
             BluetoothStateClassifier.Classify(observation.Evidence));
     }
 
+    [Fact]
+    public async Task FullDisconnectObservationIncludesCaptureEndpoints()
+    {
+        var inventory = new BluetoothKsInventory(
+            "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
+            [
+                new BluetoothDeviceGroup(
+                    TargetHash,
+                    "AirPods audio",
+                    [
+                        new SanitizedAudioEndpoint(
+                            "00112233445566778899AABB",
+                            "AirPods audio",
+                            NativeDataFlow.Render,
+                            NativeConstants.DeviceStateUnplugged),
+                        new SanitizedAudioEndpoint(
+                            "112233445566778899AABBCC",
+                            "AirPods audio",
+                            NativeDataFlow.Capture,
+                            NativeConstants.DeviceStateActive),
+                    ],
+                    []),
+            ],
+            []);
+        var result = new BluetoothKsDiscoveryResult(
+            inventory,
+            new Dictionary<string, RawKsTarget>(StringComparer.Ordinal)
+            {
+                [TargetHash] = new RawKsTarget(
+                    TargetHash,
+                    [
+                        new RawKsCandidate("render-adapter", NativeDataFlow.Render),
+                        new RawKsCandidate("capture-adapter", NativeDataFlow.Capture),
+                    ]),
+            },
+            []);
+        var observer = new DiscoveryBluetoothStateObserver(
+            new FakeDiscovery(result),
+            includeCapture: true);
+
+        BluetoothStateObservation observation = await observer.ObserveAsync(
+            TargetHash,
+            generation: 9,
+            CancellationToken.None);
+
+        Assert.Equal(
+            BluetoothAudioState.Connected,
+            BluetoothStateClassifier.Classify(observation.Evidence));
+    }
+
     private sealed class FakeDiscovery(BluetoothKsDiscoveryResult result)
         : IBluetoothKsDiscovery
     {

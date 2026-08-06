@@ -8,11 +8,11 @@
 | ブランチ | `codex/phase-0b-bluetooth-ks-spike` |
 | .NET | SDK `10.0.302` / Runtime `10.0.10` |
 | Release build | Pass、警告0、エラー0 |
-| 自動試験 | Pass、Bluetooth KS 63件 + solution smoke 1件 |
+| 自動試験 | Pass、Bluetooth KS 65件 + solution smoke 1件 |
 | format / diff check | Pass |
 | 読み取り専用inventory | Pass |
-| KS Basic Support | Pending（未実行） |
-| Reconnect / Disconnect | Pending（未実行） |
+| KS Basic Support | Pass（Reconnect Render、Disconnect Render/Capture） |
+| Reconnect / Disconnect | Live Gate in progress |
 
 ## 初回の読み取り専用inventory（2026-08-05）
 
@@ -58,6 +58,15 @@
 - `--ks-child`の未定義数値を実操作へフォールスルーさせない。
 - 実KS子プロセスは、同一実行ファイルの親と操作に対応した同意capabilityを必要とする。
 
-## 未実行項目
+## 2026-08-06 操作者確認付き実機KS
 
-Basic Supportもドライバーへの読み取り要求であるため、`--confirm-ks-operation`を伴う操作者判断までは実行しない。Reconnect／Disconnectはさらに、音声再生と通話を停止したことの明示確認が必要である。Gate Aは接続・切断各10回を完了するまでPendingのままとする。
+- 初回Reconnectは`S_OK`後13.647秒でRender/Capture Activeとなり、Windows画面でもAirPods接続と選択外Bluetooth機器の維持を確認した。
+- 旧Disconnect判定はRenderの一時Unpluggedだけで成功を返し、その後Activeへ戻る欠陥があった。別試行ではRenderだけがUnplugged、CaptureがActiveの部分切断も確認した。
+- 切断対象を選択Container所有のRender/Capture両KS候補へ拡張し、切断観測も両flowを含め、5秒の連続非Activeを必須とした。期限切れ時に最後の一時状態で成功しない条件も追加した。
+- 修正版Disconnectは7.167秒で両EndpointのUnpluggedを5秒維持しPassした。
+- 直後のReconnectはKS `S_OK`でも15秒以内にActiveにならず`DeadlineExceeded`となった。AirPodsを再度到達可能にした上で反復を継続する。
+- この実機不具合に直接対応する回帰試験2件だけを追加し、Bluetooth KS 65件が合格した。
+
+## 未完了項目
+
+修正版の接続・切断各10回、到達不能、他端末接続中、無線OFF、および反復中の選択外機器影響確認は未完了である。Gate Aはこれらを完了するまでPendingのままとする。

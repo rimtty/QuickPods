@@ -2,7 +2,7 @@
 
 ## ステータス
 
-**Partial** — 読み取り専用探索、58件の自動試験、watchdogシミュレーションはPass。KS Basic Supportと実機の接続・切断は、操作者による再生停止確認前のためPendingである。
+**Live Gate in progress** — 読み取り専用探索、65件の自動試験、watchdogシミュレーション、KS Basic Support、操作者確認付きの単発実機操作まで実施した。修正版の正式な接続・切断各10回は未達である。
 
 この文書の`Pass`は、KS要求が受理されたことではなく、期限内に対象オーディオEndpointの実状態が期待どおり変化したことを意味する。空欄や未観測結果を成功として扱わない。
 
@@ -45,8 +45,8 @@
 | BTKS-DISC-004 | 探索 | 0／1／複数／同名ContainerとA2DP/HFP Endpoint群を模擬 | 1物理Containerを1候補へ集約し、表示名ではなく内部キーで一意に選択できる | catalog自動試験 | Pass（自動） |
 | BTKS-DISC-005 | 探索 | 無関係EndpointだけにTopology ownership faultを発生させる | faultを該当Endpointへスコープし、完全確認できた選択Containerの操作能力を阻害しない | scoped-fault自動試験＋Remote Audio read-only inventory | Pass（Issue #20） |
 | BTKS-SEL-001 | 選択 | 機器選択と読み取り専用更新を反復 | カタログ層がKS操作依存を持たず、選択を維持し、変更要求経路を持たない | catalog state自動試験＋依存境界 | Pass（自動） |
-| BTKS-SUP-001 | 対応確認 | ReconnectのBasic Supportを照会 | 対応・非対応・エラーを明確に分類する | HRESULTと分類 | Pending |
-| BTKS-SUP-002 | 対応確認 | DisconnectのBasic Supportを照会 | 対応・非対応・エラーを明確に分類する | HRESULTと分類 | Pending |
+| BTKS-SUP-001 | 対応確認 | ReconnectのBasic Supportを照会 | 対応・非対応・エラーを明確に分類する | Render候補 `S_OK` / GET対応 | Pass |
+| BTKS-SUP-002 | 対応確認 | DisconnectのBasic Supportを照会 | 対応・非対応・エラーを明確に分類する | Render／Capture候補 `S_OK` / GET対応 | Pass |
 | BTKS-CON-001 | 接続 | 到達可能かつ切断状態からReconnectを有効10回実施 | 10回中9回以上、各15秒以内に`DEVICE_STATE_ACTIVE`を確認 | 接続試行表 | Pending |
 | BTKS-DIS-001 | 切断 | 接続状態からDisconnectを有効10回実施 | 10回中9回以上、各15秒以内に非Activeを確認 | 切断試行表 | Pending |
 | BTKS-OBS-001 | 成功判定 | KS要求成功後も実状態を監視 | 実状態不変を成功表示した件数が0 | 要求結果と観測結果の対照表 | Pending |
@@ -70,8 +70,8 @@
 
 | 試行 | KS要求 | HRESULT | MMDevice最終状態 | 確定時間 | watchdog | 他機器影響 | 結果 |
 |---:|---|---|---|---:|---|---|---|
-| 1 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
-| 2 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
+| 1 | Reconnect | `S_OK` | Render/Capture Active | 13.647秒 | 正常 | 変化0（操作者確認） | 探索的Pass |
+| 2 | Reconnect | `S_OK` | Unplugged維持 | 15.001秒 | 正常 | 未観測 | Fail（正しくDeadlineExceeded） |
 | 3 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
 | 4 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
 | 5 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
@@ -87,9 +87,9 @@
 
 | 試行 | KS要求 | HRESULT | MMDevice最終状態 | 確定時間 | watchdog | 他機器影響 | 結果 |
 |---:|---|---|---|---:|---|---|---|
-| 1 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
-| 2 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
-| 3 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
+| 1 | Render Disconnect | `S_OK` | 一時Unplugged後Active | 1.788秒（旧判定） | 正常 | 変化0 | Fail（探索的誤成功、修正済み） |
+| 2 | Render Disconnect | `S_OK` | Render Unplugged / Capture Active | 0.175秒（旧判定） | 正常 | 未観測 | Fail（部分切断、修正済み） |
+| 3 | Render/Capture Disconnect | `S_OK` | 両Endpoint Unpluggedを5秒維持 | 7.167秒 | 正常 | 未観測 | 修正版Pass |
 | 4 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
 | 5 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
 | 6 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
@@ -102,13 +102,13 @@
 
 | 指標 | Go基準 | 現在値 |
 |---|---:|---|
-| Reconnect Basic Support | 対応 | Pending |
-| Disconnect Basic Support | 対応 | Pending |
-| 接続成功 | 10回中9回以上、各15秒以内 | 0 / 0（未実行） |
-| 切断成功 | 10回中9回以上、各15秒以内 | 0 / 0（未実行） |
-| 誤成功表示 | 0件 | 未観測 |
-| 他機器への影響 | 0件 | 未観測 |
-| 管理者権限 | 不要 | 実操作未確認 |
+| Reconnect Basic Support | 対応 | Pass |
+| Disconnect Basic Support | 対応 | Pass（Render／Capture） |
+| 接続成功 | 10回中9回以上、各15秒以内 | 正式反復Pending（探索2回中1回Pass） |
+| 切断成功 | 10回中9回以上、各15秒以内 | 正式反復Pending（修正版1回Pass） |
+| 誤成功表示 | 0件 | 探索的1件を修正、修正版反復Pending |
+| 他機器への影響 | 0件 | 初回比較0件、反復Pending |
+| 管理者権限 | 不要 | Pass |
 | watchdog未処理停止 | 0件 | 0件（停止・異常終了simulationはPass） |
 
 片方向だけ成功した場合、成功率不足、実状態未確認、他機器への影響、管理者権限要求のいずれかがある場合はConditional Goにしない。直接操作をNo-Goとし、製品では`ms-settings:bluetooth`を開く縮退経路を使用する。

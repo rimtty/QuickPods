@@ -4,15 +4,17 @@
 
 | 項目 | 値 |
 |---|---|
-| Status | **Partially validated** |
+| Status | **Live Gate A in progress** |
 | 対象 | GitHub Issue #5 — Bluetooth KS接続・切断の成立性確認 |
 | ブランチ | `codex/phase-0b-bluetooth-ks-spike` |
 | 記録日 | 2026-08-05 |
-| 実行日 | 2026-08-05～2026-08-06（読み取り専用・自動試験のみ） |
+| 実行日 | 2026-08-05～2026-08-06（読み取り専用・自動試験・操作者確認付き実機KS） |
 | 実行者 | Codex |
 | 検証コミット | Phase 0Bブランチの当該実装コミット |
 
-読み取り専用inventory、サニタイズ、純粋ロジック、Job Object watchdogの停止・異常終了シミュレーションまでは実行済みである。KS Basic Support、接続要求、切断要求は実行しておらず、実機のMMDevice状態遷移は未検証である。
+読み取り専用inventory、サニタイズ、純粋ロジック、Job Object watchdogの停止・異常終了シミュレーションに加え、AirPods ProのReconnect／Disconnect Basic Supportと操作者確認付き実機KS要求を開始した。初回Reconnectは13.647秒でRender/Capture Activeとなり、Windows画面でも接続と選択外機器の維持を確認した。
+
+探索的DisconnectではRenderだけの一時Unpluggedを成功とする欠陥が判明した。対象ContainerのRender/Capture両KS候補を切断し、両Endpointの非Activeを5秒間連続確認するよう修正した。修正版のDisconnectは7.167秒で両Endpoint Unpluggedを確認した。その後のReconnect 1回はKS `S_OK`でも15秒以内にActiveにならず、正しく`DeadlineExceeded`とした。AirPodsを再度到達可能状態にして接続→切断を継続するため、Gate判定はPendingである。
 
 2026-08-06の再検証時点では現在のWindowsセッションがRemote Audioだけを公開しており、BluetoothオーディオContainerは0件だった。この実行はIssue #20のEndpoint-scoped faultと非操作性の確認に使用し、AirPods実操作の証拠には使用しない。
 
@@ -57,8 +59,8 @@
 - [ ] MediaTekの2つのドライバーバージョンを再確認した
 - [x] Bluetooth無線がONであることを読み取り専用inventoryで確認した
 - [x] 対象をレポートスコープのエイリアスへ割り当てられることを確認した
-- [ ] 比較対象となる他のBluetooth機器の接続状態を、識別子を含めず記録した
-- [ ] 音声再生や通話を停止し、接続・切断しても安全な状態にした
+- [x] 比較対象となる他のBluetooth機器が操作前後で維持されることを操作者が画面確認した
+- [x] 音声再生や通話を停止し、接続・切断しても安全な状態にした
 - [x] 出力ログのサニタイズとプロトコル必須フィールドを自動試験で確認した
 
 ## 子プロセスwatchdog方針
@@ -71,7 +73,7 @@
 4. `inventory`を含む全診断コマンドをmachine-wide固定名のcross-process Mutexで囲み、固定名Jobへ複数のコマンドツリーを混在させない。別Windowsセッションからの同時要求、待機中または放棄されたMutexはfail closedで拒否する。
 5. 内側のプロセスはversion、nonce、操作、対象エイリアス、同意フラグを結び付けた単一JSONフレームだけを受け付ける。実KS操作では同一実行ファイルの親も必須とする。
 6. 外側のJob Objectにもmachine-wide固定名を付け、`ActiveProcesses == 0`を1秒以内に確認できない場合はcontainment failureとする。前所有者の異常終了後に名前付きJobが残る場合は、ツリーの終了確認ができるまで次のKS操作を開始しない。
-7. KS HRESULTが`S_OK`であり、かつ250ms補助ポーリングでMMDevice実状態を15秒以内に確認した場合だけ成功とする。HRESULTと状態を別々に記録する。
+7. KS HRESULTが`S_OK`であり、かつ250ms補助ポーリングでMMDevice実状態を15秒以内に確認した場合だけ成功とする。ConnectはRender Active、Disconnectは対象ContainerのRender/Capture全Endpointが5秒間連続で非Activeであることを要求する。HRESULTと状態を別々に記録する。
 8. タイムアウト、異常終了、nonce不一致、必須フィールド欠落、解析不能出力では自動再試行しない。
 9. watchdogからBluetooth無線の切り替え、再ペアリング、管理者昇格を行わない。
 
