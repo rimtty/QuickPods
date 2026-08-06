@@ -59,6 +59,14 @@ MSIの二回buildは正規化したProductCode、PackageCode、summary timestamp
 
 同じ監査で、実行中のQuickPodsが既定のproject `bin`をロックするとローカルRC publishが失敗することを検出した。RC生成はoutput directory配下の一時`--artifacts-path`へrestore／publish中間成果物を隔離し、成功／失敗後に削除するよう変更した。これにより目視確認用QuickPodsを停止せず、配布payloadを別経路で再生成できる。
 
+2026-08-06、開発用framework-dependent `bin/Release`から起動したTaskbarHost／Observerがx64 .NET runtime未導入時にruntime取得を要求したことを受け、配布境界を再検証した。CI run 31109912595のRCは`includedFrameworks`として`Microsoft.NETCore.App 10.0.10`と`Microsoft.WindowsDesktop.App 10.0.10`を持ち、`hostfxr.dll`、`hostpolicy.dll`、`coreclr.dll`、`PresentationFramework.dll`を同梱し、ZIP checksumも一致した。`DOTNET_ROOT`／`DOTNET_ROOT_X64`を存在しないdirectoryへ固定し、multilevel lookupを無効にしたsmokeではTaskbarHostがhelp exit 0、Observer／BluetoothWorkerがそれぞれアプリ定義のinvalid-argument exit 2へ到達し、新しいruntime-missing eventは0件だった。
+
+この境界を将来も維持するため、RC生成とMSI payload取込の双方で全4 runtime configに外部`framework`／`frameworks`参照がなく、必要な`includedFrameworks`とapp-local runtime fileが存在することを必須化した。MSI database検証も同じruntime file群のFile table収録を要求する。したがって利用者へ.NET 10 Desktop Runtimeの別途導入を要求しない。開発用`bin/Release`はこの保証対象ではない。
+
+強化後の`0.1.0-rc.2`を再生成し、payload 495 files、manifest entries 494、PDB 0、ZIP SHA-256 `354c7132e762c9667d61abed05fa42127aaa2766b5a787494c356b2743a3d9ce`、checksum一致、一時build artifacts 0件を確認した。存在しない`DOTNET_ROOT`／`DOTNET_ROOT_X64`とmultilevel lookup無効の環境で、TaskbarHost helpはexit 0、Observer／BluetoothWorkerの不正引数は製品定義どおりexit 2、runtime-missing eventは0件だった。外部`framework`／`frameworks`参照へ差し替えたpayloadと`hostfxr.dll`欠落payloadは、どちらも意図した理由でMSI生成前に拒否された。
+
+同じpayloadから生成したMSIは63,897,600 bytes、SHA-256 `049d8bbbae8d82aa9f7f5e279776362103957347d23ccf2628862ef12a698f4`、WiX警告0／error 0、File table 495件、per-user／x64／昇格不要、署名status `NotSigned`である。package検証は4 executable、4 runtime config、`hostfxr.dll`、`hostpolicy.dll`、`coreclr.dll`、`PresentationFramework.dll`の収録を確認した。これは未署名RCの構造検証であり、実証明書Gateやclean user lifecycle Gateの代替ではない。
+
 固定per-user file packageに対するWiX公式既知制約のためICE64／ICE91だけを抑止し、他のICE検証は有効である。
 
 ## 未実施

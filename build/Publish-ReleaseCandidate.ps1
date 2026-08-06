@@ -79,17 +79,9 @@ try {
     }
 }
 
-$requiredFiles = @(
-    "QuickPods.exe",
-    "QuickPods.TaskbarHost.exe",
-    "QuickPods.TaskbarObserver.exe",
-    "QuickPods.BluetoothWorker.exe"
-)
-foreach ($requiredFile in $requiredFiles) {
-    if (-not (Test-Path -LiteralPath (Join-Path $payloadDirectory $requiredFile))) {
-        throw "Release candidate is missing $requiredFile."
-    }
-}
+$selfContainedProof = & (Join-Path $PSScriptRoot "Test-SelfContainedPayload.ps1") `
+    -PayloadDirectory $payloadDirectory
+$requiredExecutables = @($selfContainedProof.Executables)
 
 $dotnetRoot = Split-Path -Parent (Get-Command dotnet).Source
 $legalFiles = [ordered]@{
@@ -105,7 +97,7 @@ foreach ($legalFile in $legalFiles.GetEnumerator()) {
     Copy-Item -LiteralPath $legalFile.Key -Destination (Join-Path $payloadDirectory $legalFile.Value)
 }
 
-$executables = foreach ($requiredFile in $requiredFiles) {
+$executables = foreach ($requiredFile in $requiredExecutables) {
     $versionInfo = (Get-Item -LiteralPath (Join-Path $payloadDirectory $requiredFile)).VersionInfo
     if (-not $versionInfo.ProductVersion.StartsWith($Version, [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "$requiredFile has product version '$($versionInfo.ProductVersion)', expected '$Version'."
@@ -135,6 +127,7 @@ $manifest = [ordered]@{
     version = $Version
     runtimeIdentifier = "win-x64"
     selfContained = $true
+    includedFrameworks = $selfContainedProof.IncludedFrameworks
     signed = $false
     executables = @($executables)
     files = @($files)
