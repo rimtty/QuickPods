@@ -69,6 +69,32 @@ MSIの二回buildは正規化したProductCode、PackageCode、summary timestamp
 
 固定per-user file packageに対するWiX公式既知制約のためICE64／ICE91だけを抑止し、他のICE検証は有効である。
 
+## 2026-08-07 Phase 5C統合後の再検証
+
+Phase 5C PR #54をSquash commit `cc6b99b`としてPhase 6Bへ統合し、同一commitからCI相当のローカル検証と配布物生成を再実行した。
+
+- locked solution／WiX restore：成功
+- NuGet vulnerability audit：20 projects、vulnerable entry 0
+- format verification：差分なし
+- Release `-warnaserror` build：警告0、error 0
+- 全回帰：380／380 Pass
+  - Smoke 1
+  - Core Audio 44
+  - Default Endpoint Policy 7
+  - Foundation 80
+  - Taskbar Host 183
+  - Bluetooth KS 65
+- self-contained RC ZIP：`QuickPods-0.1.0-ci.62001-win-x64.zip`
+  - payload 495 files、manifest entries 494
+  - SHA-256：`6e3b4ed5036b6db85494b5d0d77dd190ddbb4438ee00659b627e9fb144c9312b`
+  - `selfContained: true`、`signed: false`
+- per-user MSI：`QuickPods-0.1.0-ci.62001-win-x64.msi`
+  - 63,905,792 bytes
+  - SHA-256：`e8338c254a37d9453192da6b52ca7d1ffc7ef7a05f3581487abd36ed4291a4f8`
+  - x64、昇格不要、`NotSigned`
+
+GitHub Actions run 31118567631もrestore、toolchain、audit、format、build、test、RC／MSI生成、artifact uploadまで成功した。後続の文書同期commitに対するCIはGitHub Actionsのpartial outageによりrunner割当待ちであり、コード失敗とは判定しない。
+
 ## 未実施
 
 clean local-console環境でのinstall／launch／update／uninstall／startup残骸確認と、署名証明書を用いた署名検証は実施していない。`build/Test-InstallerLifecycle.ps1`は既存user stateを拒否した上で旧版install、常駐中upgrade、常駐中uninstall、startup／user-data境界を一回で検証するが、現ホストにはWindows Sandboxが導入されておらず、通常user環境を変更して結果を代用していない。Phase 6Bの最終mergeはロードマップどおりGate D [#48](https://github.com/rimtty/QuickPods/issues/48)通過後とする。
