@@ -9,6 +9,11 @@ public interface ISettingsStore<T>
     ValueTask SaveAsync(T value, CancellationToken cancellationToken = default);
 }
 
+public sealed record SettingsRecoveryInfo(
+    string OriginalPath,
+    string QuarantinedPath,
+    string FailureType);
+
 public sealed class JsonSettingsStore<T> : ISettingsStore<T>
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.General)
@@ -17,6 +22,10 @@ public sealed class JsonSettingsStore<T> : ISettingsStore<T>
     };
 
     private readonly string path;
+
+    public event EventHandler<SettingsRecoveryInfo>? CorruptSettingsQuarantined;
+
+    public SettingsRecoveryInfo? LastRecovery { get; private set; }
 
     public JsonSettingsStore(string path)
     {
@@ -31,15 +40,33 @@ public sealed class JsonSettingsStore<T> : ISettingsStore<T>
             return default;
         }
 
-        await using FileStream stream = new(
-            path,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            bufferSize: 4096,
-            FileOptions.Asynchronous | FileOptions.SequentialScan);
-        return await JsonSerializer.DeserializeAsync<T>(stream, SerializerOptions, cancellationToken)
-            .ConfigureAwait(false);
+        try
+        {
+            await using FileStream stream = new(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 4096,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            return await JsonSerializer.DeserializeAsync<T>(stream, SerializerOptions, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (JsonException exception)
+        {
+            SettingsRecoveryInfo recovery = QuarantineCorruptSettings(exception);
+            LastRecovery = recovery;
+            try
+            {
+                CorruptSettingsQuarantined?.Invoke(this, recovery);
+            }
+            catch
+            {
+                // Recovery must not depend on diagnostics subscribers.
+            }
+
+            return default;
+        }
     }
 
     public async ValueTask SaveAsync(T value, CancellationToken cancellationToken = default)
@@ -77,5 +104,17 @@ public sealed class JsonSettingsStore<T> : ISettingsStore<T>
                 File.Delete(temporaryPath);
             }
         }
+    }
+
+    private SettingsRecoveryInfo QuarantineCorruptSettings(JsonException exception)
+    {
+        string directory = Path.GetDirectoryName(path) ?? AppContext.BaseDirectory;
+        string name = Path.GetFileNameWithoutExtension(path);
+        string extension = Path.GetExtension(path);
+        string quarantinePath = Path.Combine(
+            directory,
+            $"{name}.corrupt-{DateTimeOffset.UtcNow:yyyyMMddTHHmmssfff}-{Guid.NewGuid():N}{extension}");
+        File.Move(path, quarantinePath);
+        return new SettingsRecoveryInfo(path, quarantinePath, exception.GetType().Name);
     }
 }

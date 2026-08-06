@@ -14,6 +14,9 @@ public sealed class JsonBluetoothSelectionStore : IBluetoothSelectionStore, IDis
         this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
     }
 
+    public SettingsRecoveryInfo? LastRecovery =>
+        (settings as JsonSettingsStore<QuickPodsSettings>)?.LastRecovery;
+
     public async ValueTask<BluetoothDeviceKey?> LoadAsync(
         CancellationToken cancellationToken = default)
     {
@@ -37,9 +40,14 @@ public sealed class JsonBluetoothSelectionStore : IBluetoothSelectionStore, IDis
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            QuickPodsSettings current =
-                await settings.LoadAsync(cancellationToken).ConfigureAwait(false) ??
-                QuickPodsSettings.Default;
+            QuickPodsSettings? loaded =
+                await settings.LoadAsync(cancellationToken).ConfigureAwait(false);
+            QuickPodsSettings current = loaded ?? QuickPodsSettings.Default;
+            if (loaded is null && LastRecovery is not null)
+            {
+                await settings.SaveAsync(current, cancellationToken).ConfigureAwait(false);
+            }
+
             return current.Normalize();
         }
         finally

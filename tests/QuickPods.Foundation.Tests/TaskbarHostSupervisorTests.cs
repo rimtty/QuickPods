@@ -36,4 +36,20 @@ public sealed class TaskbarHostSupervisorTests
 
         Assert.Equal(0, supervisor.State.ConsecutiveFailures);
     }
+
+    [Fact]
+    public void EnvironmentChangeAllowsOneFreshRecoveryBudget()
+    {
+        var supervisor = new TaskbarHostSupervisor(failureLimit: 2);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+
+        supervisor.RecordUnexpectedExit(now);
+        supervisor.RecordUnexpectedExit(now);
+        supervisor.RecordEnvironmentChanged();
+
+        Assert.Equal(TaskbarHostLifecycle.Stopped, supervisor.State.Lifecycle);
+        Assert.Equal(0, supervisor.State.ConsecutiveFailures);
+        supervisor.RecordUnexpectedExit(now);
+        Assert.Equal(TaskbarHostLifecycle.BackingOff, supervisor.State.Lifecycle);
+    }
 }

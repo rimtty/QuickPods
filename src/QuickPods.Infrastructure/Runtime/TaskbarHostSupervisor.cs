@@ -40,6 +40,14 @@ public sealed class TaskbarHostSupervisor
     public void RecordStopped() =>
         State = new TaskbarHostSupervisorState(TaskbarHostLifecycle.Stopped, 0, null);
 
+    public void RecordEnvironmentChanged()
+    {
+        if (State.Lifecycle == TaskbarHostLifecycle.DisabledForSession)
+        {
+            State = new TaskbarHostSupervisorState(TaskbarHostLifecycle.Stopped, 0, null);
+        }
+    }
+
     public void RecordUnexpectedExit(DateTimeOffset now)
     {
         int failures = State.ConsecutiveFailures + 1;

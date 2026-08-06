@@ -11,6 +11,12 @@
         <SolidColorBrush x:Key="PrimaryTextBrush" Color="#F5F7FA" />
         <SolidColorBrush x:Key="SecondaryTextBrush" Color="#AEB5BF" />
         <SolidColorBrush x:Key="AccentBrush" Color="#67D7EA" />
+        <SolidColorBrush x:Key="HoverBrush" Color="#363A41" />
+        <SolidColorBrush x:Key="SelectedBrush" Color="#1E3035" />
+        <SolidColorBrush x:Key="PressedBrush" Color="#40454D" />
+        <SolidColorBrush x:Key="FocusBrush" Color="#B9F4FF" />
+        <SolidColorBrush x:Key="ErrorBrush" Color="#FFB4A9" />
+        <SolidColorBrush x:Key="PrimaryButtonTextBrush" Color="#102126" />
 
         <Style x:Key="QuickPodsIconButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="52" />
@@ -35,11 +41,11 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Surface" Property="Background" Value="#363A41" />
-                                <Setter TargetName="Surface" Property="BorderBrush" Value="#58606A" />
+                                <Setter TargetName="Surface" Property="Background" Value="{StaticResource HoverBrush}" />
+                                <Setter TargetName="Surface" Property="BorderBrush" Value="{StaticResource FocusBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Surface" Property="Background" Value="#40454D" />
+                                <Setter TargetName="Surface" Property="Background" Value="{StaticResource PressedBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.45" />
@@ -67,7 +73,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Surface" Property="Background" Value="#252C31" />
+                                <Setter TargetName="Surface" Property="Background" Value="{StaticResource HoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter Property="Opacity" Value="0.75" />
@@ -82,7 +88,7 @@
             <Setter Property="Padding" Value="18,12" />
             <Setter Property="FontSize" Value="15" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#102126" />
+            <Setter Property="Foreground" Value="{StaticResource PrimaryButtonTextBrush}" />
             <Setter Property="Background" Value="{StaticResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
@@ -98,10 +104,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Surface" Property="Background" Value="#8BE8F6" />
+                                <Setter TargetName="Surface" Property="Background" Value="{StaticResource FocusBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Surface" Property="Background" Value="#4EC7DB" />
+                                <Setter TargetName="Surface" Property="Background" Value="{StaticResource PressedBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.45" />
@@ -136,10 +142,10 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Thumb">
                         <Grid>
-                            <Ellipse Fill="#334A50" />
+                            <Ellipse Fill="{StaticResource ControlSurfaceBrush}" />
                             <Ellipse Margin="2"
                                      Fill="{StaticResource AccentBrush}"
-                                     Stroke="#B9F4FF"
+                                     Stroke="{StaticResource FocusBrush}"
                                      StrokeThickness="1" />
                         </Grid>
                     </ControlTemplate>

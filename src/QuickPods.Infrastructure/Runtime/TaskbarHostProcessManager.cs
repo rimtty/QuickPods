@@ -22,12 +22,14 @@ public sealed class TaskbarHostProcessManager : IAsyncDisposable
             SingleWriter = false,
         });
     private readonly CancellationTokenSource shutdown = new();
+    private readonly SemaphoreSlim environmentRecovery = new(0, 1);
     private readonly object stateLock = new();
     private readonly MonotonicSequenceGate interactionSequence = new();
     private TaskbarStateSnapshot latestSnapshot =
         new(TaskbarSurfaceMode.Hidden, 0, false, null);
     private Task? runTask;
     private long nextStateSequence;
+    private int environmentRecoveryPending;
     private bool disposed;
 
     public TaskbarHostProcessManager(
@@ -68,6 +70,16 @@ public sealed class TaskbarHostProcessManager : IAsyncDisposable
         _ = pendingSnapshots.Writer.TryWrite(snapshot);
     }
 
+    public void RequestEnvironmentRecovery()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (supervisor.State.Lifecycle == TaskbarHostLifecycle.DisabledForSession &&
+            Interlocked.Exchange(ref environmentRecoveryPending, 1) == 0)
+        {
+            environmentRecovery.Release();
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (disposed)
@@ -90,14 +102,30 @@ public sealed class TaskbarHostProcessManager : IAsyncDisposable
         }
 
         shutdown.Dispose();
+        environmentRecovery.Dispose();
         GC.SuppressFinalize(this);
     }
 
     private async Task RunAsync(CancellationToken cancellationToken)
     {
-        while (!cancellationToken.IsCancellationRequested &&
-               supervisor.State.Lifecycle != TaskbarHostLifecycle.DisabledForSession)
+        while (!cancellationToken.IsCancellationRequested)
         {
+            if (supervisor.State.Lifecycle == TaskbarHostLifecycle.DisabledForSession)
+            {
+                try
+                {
+                    await environmentRecovery.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                Interlocked.Exchange(ref environmentRecoveryPending, 0);
+                RecordState(supervisor.RecordEnvironmentChanged);
+                continue;
+            }
+
             Process? process = null;
             try
             {
@@ -139,7 +167,7 @@ public sealed class TaskbarHostProcessManager : IAsyncDisposable
 
             if (supervisor.State.Lifecycle == TaskbarHostLifecycle.DisabledForSession)
             {
-                break;
+                continue;
             }
 
             DateTimeOffset retryAfter = supervisor.State.RetryAfter ?? timeProvider.GetUtcNow();
