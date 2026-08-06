@@ -72,4 +72,41 @@ public sealed class ProtocolContractTests
 
         Assert.Throws<InvalidDataException>(() => QuickPodsProtocolJson.DeserializeState(oversized));
     }
+
+    [Fact]
+    public void ObserverProtocolRoundTripsSanitizedEpochAndInvalidation()
+    {
+        var request = new ObserverSessionRequest(QuickPodsProtocol.Version, 3, 7);
+        var batch = new ObserverInvalidationBatch(
+            QuickPodsProtocol.Version,
+            5,
+            3,
+            7,
+            ObserverInvalidationKind.StructureChanged |
+                ObserverInvalidationKind.BoundingRectangleChanged,
+            ObserverSourceClassification.External);
+
+        Assert.Equal(
+            request,
+            QuickPodsProtocolJson.DeserializeObserverSession(
+                QuickPodsProtocolJson.Serialize(request)));
+        Assert.Equal(
+            batch,
+            QuickPodsProtocolJson.DeserializeObserverInvalidation(
+                QuickPodsProtocolJson.Serialize(batch)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ObserverInvalidationBatch(
+            QuickPodsProtocol.Version,
+            0,
+            0,
+            0,
+            ObserverInvalidationKind.Ready | ObserverInvalidationKind.StructureChanged,
+            ObserverSourceClassification.Unknown));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ObserverInvalidationBatch(
+            QuickPodsProtocol.Version,
+            0,
+            0,
+            0,
+            ObserverInvalidationKind.StructureChanged,
+            (ObserverSourceClassification)99));
+    }
 }

@@ -361,7 +361,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 本体、Core Audio、表示ホストを結合し、表示の復旧とフォールバックを完成させる |
-| 状態 | **進行中（2026-08-06）** — Issue #34。CurrentUserOnly IPC、完全スナップショット、実音量往復、単発Host復旧、連続失敗時Hidden、全残留0まで合格。Observer／Explorer世代GateとIssue #33は未完了 |
+| 状態 | **進行中（2026-08-06）** — Issue #34。CurrentUserOnly IPC、完全スナップショット、実音量往復、単発Host復旧、連続失敗時Hidden、Explorer世代Observer、`TaskbarCreated`合成Gate、Job Object、全残留0まで合格。実Explorer再起動／資源GateとIssue #33は未完了 |
 | IPC | 同一ユーザーSID限定の名前付きパイプ、ProtocolVersion、Sequence、再接続時の完全スナップショット |
 | 入力 | 音量暫定値／最終値、ミュート、フライアウト要求、コンテキストメニュー要求 |
 | 復旧 | `TaskbarCreated`、Watchdog、Explorer世代、ホスト再起動、連続失敗時のセッション無効化 |

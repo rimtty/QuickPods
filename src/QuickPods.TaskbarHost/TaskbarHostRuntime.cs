@@ -8,6 +8,7 @@ using QuickPods.TaskbarHost.Geometry;
 using QuickPods.TaskbarHost.Hosting;
 using QuickPods.TaskbarHost.Placement;
 using QuickPods.TaskbarHost.Presentation;
+using QuickPods.TaskbarHost.Runtime;
 
 namespace QuickPods.TaskbarHost;
 
@@ -23,15 +24,22 @@ internal sealed class TaskbarHostRuntime : IDisposable
     private readonly StreamReader reader;
     private readonly StreamWriter writer;
     private readonly CancellationTokenSource shutdown = new();
+    private readonly string observerExecutablePath;
+    private readonly RuntimeNotificationWindow notificationWindow;
     private NativeTaskbarHost? nativeHost;
     private NativeFloatingHost? floatingHost;
+    private ObserverProcessSession? observer;
     private TaskbarStateSnapshot currentState;
     private RuntimePlacementIdentity currentPlacement;
     private PixelRect? priorNativeBounds;
-    private Task<TaskbarRuntimePlacement>? discoveryTask;
+    private Task<DiscoveryAttempt>? discoveryTask;
     private Task? readTask;
     private DateTimeOffset nextWatchdogAt;
     private long nextInteractionSequence;
+    private long nextObserverGenerationOrdinal;
+    private long nextObserverSubscriptionEpoch;
+    private long discoveryEpoch;
+    private uint observerExplorerProcessId;
     private bool layoutInvalidated;
     private Exception? pipeFailure;
     private bool disposed;
@@ -63,6 +71,10 @@ internal sealed class TaskbarHostRuntime : IDisposable
 
         currentState = initial.Snapshot;
         currentPlacement = RuntimePlacementIdentity.Hidden;
+        observerExecutablePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "QuickPods.TaskbarObserver.exe");
+        notificationWindow = new RuntimeNotificationWindow();
         nextWatchdogAt = DateTimeOffset.UtcNow + WatchdogInterval;
     }
 
@@ -95,6 +107,8 @@ internal sealed class TaskbarHostRuntime : IDisposable
         disposed = true;
         shutdown.Cancel();
         DestroySurface();
+        DisposeObserver();
+        notificationWindow.Dispose();
         try
         {
             readTask?.GetAwaiter().GetResult();
@@ -123,8 +137,17 @@ internal sealed class TaskbarHostRuntime : IDisposable
         {
             ThrowIfPipeFailed();
             DrainStates();
+            _ = notificationWindow.PumpMessages();
             _ = nativeHost?.PumpMessages();
             _ = floatingHost?.PumpMessages();
+            if (notificationWindow.TryConsumeTaskbarCreated())
+            {
+                DestroySurface();
+                DisposeObserver();
+                InvalidateLayout();
+            }
+
+            DrainObserver();
 
             if (layoutInvalidated)
             {
@@ -142,7 +165,14 @@ internal sealed class TaskbarHostRuntime : IDisposable
             if (discoveryTask is { IsCompleted: true } completedDiscovery)
             {
                 discoveryTask = null;
-                TaskbarRuntimePlacement placement = completedDiscovery.GetAwaiter().GetResult();
+                DiscoveryAttempt attempt = completedDiscovery.GetAwaiter().GetResult();
+                if (attempt.Epoch != discoveryEpoch)
+                {
+                    StartDiscoveryIfNeeded();
+                    continue;
+                }
+
+                TaskbarRuntimePlacement placement = attempt.Placement;
                 if (layoutInvalidated || placement.Identity != currentPlacement)
                 {
                     ApplyPlacement(placement);
@@ -213,6 +243,7 @@ internal sealed class TaskbarHostRuntime : IDisposable
             placement.Discovery.Snapshot is LiveTaskbarSnapshot snapshot &&
             placement.Route.Bounds is PixelRect nativeBounds)
         {
+            EnsureObserver(snapshot.ExplorerProcessId);
             nativeHost = new NativeTaskbarHost();
             nativeHost.Interaction += ForwardInteraction;
             nativeHost.LayoutInvalidated += OnLayoutInvalidated;
@@ -227,9 +258,11 @@ internal sealed class TaskbarHostRuntime : IDisposable
         }
 
         if (placement.Route.Surface == TaskbarPresentationSurface.Floating &&
+            placement.Discovery.Snapshot is LiveTaskbarSnapshot floatingSnapshot &&
             placement.Route.Bounds is PixelRect floatingBounds &&
             placement.Route.VerifiedWorkArea is PixelRect workArea)
         {
+            EnsureObserver(floatingSnapshot.ExplorerProcessId);
             floatingHost = new NativeFloatingHost();
             floatingHost.Interaction += ForwardInteraction;
             floatingHost.LayoutInvalidated += OnLayoutInvalidated;
@@ -239,7 +272,10 @@ internal sealed class TaskbarHostRuntime : IDisposable
                 placement.Route.Dpi,
                 StateFor(TaskbarSurfaceMode.Floating));
             floatingHost.Show();
+            return;
         }
+
+        DisposeObserver();
     }
 
     private void ApplyStateToSurface()
@@ -269,12 +305,88 @@ internal sealed class TaskbarHostRuntime : IDisposable
     private void OnLayoutInvalidated(NativeLayoutInvalidationReason reason)
     {
         _ = reason;
-        layoutInvalidated = true;
+        InvalidateLayout();
+    }
+
+    private void DrainObserver()
+    {
+        if (observer is null)
+        {
+            return;
+        }
+
+        bool invalidate = observer.Failure is not null || observer.IsDisconnected;
+        while (observer.TryDequeue(out ObserverInvalidationBatch? batch))
+        {
+            if (batch is null || batch.Source == ObserverSourceClassification.Owned)
+            {
+                continue;
+            }
+
+            ObserverInvalidationKind actionable = batch.Kinds & ~ObserverInvalidationKind.Ready;
+            invalidate |= actionable != ObserverInvalidationKind.None;
+        }
+
+        if (!invalidate)
+        {
+            return;
+        }
+
+        DestroySurface();
+        DisposeObserver();
+        InvalidateLayout();
+        StartDiscoveryIfNeeded();
+    }
+
+    private void EnsureObserver(uint explorerProcessId)
+    {
+        if (explorerProcessId == 0)
+        {
+            throw new InvalidOperationException("The verified Explorer generation is unavailable.");
+        }
+
+        if (observer is { IsDisconnected: false } &&
+            observerExplorerProcessId == explorerProcessId)
+        {
+            return;
+        }
+
+        DisposeObserver();
+        if (nextObserverSubscriptionEpoch == long.MaxValue ||
+            nextObserverGenerationOrdinal == long.MaxValue)
+        {
+            throw new InvalidOperationException("The observer generation sequence was exhausted.");
+        }
+
+        observer = ObserverProcessSession.Start(
+            observerExecutablePath,
+            nextObserverSubscriptionEpoch++,
+            nextObserverGenerationOrdinal++);
+        observerExplorerProcessId = explorerProcessId;
+    }
+
+    private void DisposeObserver()
+    {
+        observer?.Dispose();
+        observer = null;
+        observerExplorerProcessId = 0;
     }
 
     private void StartDiscoveryIfNeeded()
     {
-        discoveryTask ??= Task.Run(DiscoverPlacement);
+        long epoch = discoveryEpoch;
+        discoveryTask ??= Task.Run(() => new DiscoveryAttempt(epoch, DiscoverPlacement()));
+    }
+
+    private void InvalidateLayout()
+    {
+        if (discoveryEpoch == long.MaxValue)
+        {
+            throw new InvalidOperationException("The taskbar discovery epoch was exhausted.");
+        }
+
+        discoveryEpoch++;
+        layoutInvalidated = true;
     }
 
     private TaskbarRuntimePlacement DiscoverPlacement()
@@ -326,6 +438,10 @@ internal sealed class TaskbarHostRuntime : IDisposable
         TaskbarDiscoveryResult Discovery,
         TaskbarPresentationRoute Route,
         RuntimePlacementIdentity Identity);
+
+    private readonly record struct DiscoveryAttempt(
+        long Epoch,
+        TaskbarRuntimePlacement Placement);
 
     private readonly record struct RuntimePlacementIdentity(
         TaskbarPresentationSurface Surface,

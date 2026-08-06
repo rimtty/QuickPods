@@ -2,17 +2,21 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using QuickPods.TaskbarHost.Discovery;
 using QuickPods.TaskbarHost.Interop;
+using QuickPods.TaskbarHost.Runtime;
 
 namespace QuickPods.TaskbarHost.Hosting;
 
 internal static class NativeWindowClassRegistry
 {
     internal const string FloatingViewClassName = "QuickPods.Floating.View";
+    internal const string RuntimeNotificationClassName = "QuickPods.Runtime.Notification";
 
     private static readonly HostNativeMethods.NativeWindowProcedure TaskbarWindowProcedure =
         NativeTaskbarHost.StaticWindowProcedure;
     private static readonly HostNativeMethods.NativeWindowProcedure FloatingWindowProcedure =
         NativeFloatingHost.StaticWindowProcedure;
+    private static readonly HostNativeMethods.NativeWindowProcedure RuntimeNotificationProcedure =
+        RuntimeNotificationWindow.StaticWindowProcedure;
     private static readonly Lazy<Registration> Registered = new(Register, true);
 
     internal static Registration GetRegistration() => Registered.Value;
@@ -27,12 +31,18 @@ internal static class NativeWindowClassRegistry
 
         nint taskbarProcedure = Marshal.GetFunctionPointerForDelegate(TaskbarWindowProcedure);
         nint floatingProcedure = Marshal.GetFunctionPointerForDelegate(FloatingWindowProcedure);
+        nint notificationProcedure = Marshal.GetFunctionPointerForDelegate(RuntimeNotificationProcedure);
         RegisterClass(
             Win32TaskbarDiscovery.HostViewClassName,
             instance,
             taskbarProcedure);
         RegisterClass(FloatingViewClassName, instance, floatingProcedure);
-        return new(Win32TaskbarDiscovery.HostViewClassName, FloatingViewClassName, instance);
+        RegisterClass(RuntimeNotificationClassName, instance, notificationProcedure);
+        return new(
+            Win32TaskbarDiscovery.HostViewClassName,
+            FloatingViewClassName,
+            RuntimeNotificationClassName,
+            instance);
     }
 
     private static void RegisterClass(string className, nint instance, nint procedure)
@@ -73,5 +83,6 @@ internal static class NativeWindowClassRegistry
     internal readonly record struct Registration(
         string TaskbarViewClassName,
         string FloatingViewClassName,
+        string RuntimeNotificationClassName,
         nint Instance);
 }

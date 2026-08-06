@@ -9,7 +9,7 @@
 | Architecture | x64 |
 | Taskbar | Center aligned, DPI 168, 5120 x 84 physical px |
 | Audio safety | Playback stopped; original and restored state 10.0%, mute off |
-| Issue | #34; #33 and #18 remain follow-up gates |
+| Issue | #34; #33 and the physical acceptance portion of #18 remain follow-up gates |
 
 ## Automated evidence
 
@@ -19,9 +19,10 @@
 | Bounded JSON-line round trip | Pass |
 | Oversized message rejection | Pass |
 | Supervisor stable-reset contract | Pass |
-| Focused Foundation tests | Pass — 49/49 at this checkpoint |
-| App and TaskbarHost project builds | Pass — 0 warnings, 0 errors |
-| App output closure | Pass — host EXE, managed DLL, deps, and runtimeconfig present |
+| Observer protocol constructor/round trip/epoch gate | Pass |
+| Focused Foundation tests | Pass — 50/50 at this checkpoint |
+| Full solution Release build | Pass — 0 warnings, 0 errors |
+| App output closure | Pass — host and observer EXE, managed DLL, deps, and runtimeconfig present |
 
 ## Live checkpoint
 
@@ -34,11 +35,21 @@
 - Three forced host exits in one bounded short-failure sequence left App count 1, Host count 0, and surface count 0; no restart occurred after the session limit.
 - Normal app close then left App, Host, native surface, and floating surface counts all zero.
 
+## Observer and TaskbarCreated checkpoint
+
+- One `QuickPods.TaskbarObserver` remained stable beside one App and one Host during a 15-second product run; no self-feedback churn occurred.
+- Killing only the observer produced one replacement observer while preserving one Host and one display surface. A real wheel IPC round trip still restored 10.0% -> 12.0% -> 10.0%, mute off.
+- Killing the Host caused its kill-on-close Job Object to retire the old observer within 700 ms. The App created exactly one replacement Host and observer generation.
+- A synthetic registered `TaskbarCreated` message sent only to the product's hidden top-level control HWND retired observer PID 86384 and created PID 52484 in 2195 ms while preserving Host PID 980 and the same control HWND. The old observer was no longer alive.
+- The synthetic gate exposed and fixed an observer teardown defect: closing the pipe before final `StreamWriter` flush had propagated `ObjectDisposedException` through the Host. Transport retirement is now idempotent and no longer restarts the Host.
+- Every normal close after observer, host, and `TaskbarCreated` recovery left App, Host, Observer, Native, and Floating counts at zero.
+- The independent Core Audio read after all runs remained exactly 10.0%, mute off.
+
 ## Remaining Phase 3B gates
 
-- [ ] implement the ADR-0001 observer helper and sanitized epoch/invalidation protocol;
-- [ ] receive `TaskbarCreated`, retire the old Explorer generation, and recover hidden-first;
-- [ ] verify observer/host ownership and no residue across forced shutdown;
+- [x] implement the ADR-0001 observer helper and sanitized epoch/invalidation protocol;
+- [x] receive `TaskbarCreated`, retire the old Explorer generation, and recover hidden-first;
+- [x] verify observer/host ownership and no residue across forced shutdown;
 - [ ] run the bounded Explorer restart/resource test and record USER/GDI evidence;
 - [ ] resolve or safely downgrade center-aligned NoFit Floating z-order under Issue #33;
 - [ ] rerun Start/Search continuity and user-visible input after the complete runtime is assembled.
