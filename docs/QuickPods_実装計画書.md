@@ -954,6 +954,8 @@ No-Go時：
 - 選択機器の直接操作はWindows Bluetooth設定を開く機能へ縮退する。
 - 音量とタスクバー機能の開発は継続する。
 
+判定（2026-08-06）：**Go**。AirPods Pro＋MediaTek参照環境で、到達可能前提を確認したReconnect／Disconnectが各5回中5回、15秒以内に実状態で成功した。Render／Capture両flowの観測と切断5秒安定窓により探索的誤成功を解消し、通常権限、選択外Bluetooth機器への影響0件を確認した。製品実装では同じContainer所有権、Basic Support、独立したMMDevice実状態確認を必須とし、非対応機器だけWindows設定へ縮退する。
+
 #### P0-B2：既定出力設定PoC（Gate A2）
 
 - Activeな対象Containerからステレオ再生Endpointを一意に選ぶ

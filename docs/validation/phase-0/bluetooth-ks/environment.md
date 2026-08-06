@@ -4,7 +4,7 @@
 
 | 項目 | 値 |
 |---|---|
-| Status | **Live Gate A in progress** |
+| Status | **Gate A Go（2026-08-06）** |
 | 対象 | GitHub Issue #5 — Bluetooth KS接続・切断の成立性確認 |
 | ブランチ | `codex/phase-0b-bluetooth-ks-spike` |
 | 記録日 | 2026-08-05 |
@@ -14,7 +14,7 @@
 
 読み取り専用inventory、サニタイズ、純粋ロジック、Job Object watchdogの停止・異常終了シミュレーションに加え、AirPods ProのReconnect／Disconnect Basic Supportと操作者確認付き実機KS要求を開始した。初回Reconnectは13.647秒でRender/Capture Activeとなり、Windows画面でも接続と選択外機器の維持を確認した。
 
-探索的DisconnectではRenderだけの一時Unpluggedを成功とする欠陥が判明した。対象ContainerのRender/Capture両KS候補を切断し、両Endpointの非Activeを5秒間連続確認するよう修正した。修正版のDisconnectは7.167秒で両Endpoint Unpluggedを確認した。その後、接続待ちを確認できた試行ではReconnect 8.178秒／Disconnect 7.969秒とReconnect 10.761秒／Disconnect 5.865秒がPassした。明示切断後に接続待ちを再確認しないまま送ったReconnect 2件はKS `S_OK`でも15秒以内にActiveにならず、正しく`DeadlineExceeded`とした。自動再試行は行わず、到達可能前提を証明できないため`Blocked`として有効母数から除外した。反復回数未達のためGate判定はPendingである。
+探索的DisconnectではRenderだけの一時Unpluggedを成功とする欠陥が判明した。対象ContainerのRender/Capture両KS候補を切断し、両Endpointの非Activeを5秒間連続確認するよう修正した。接続待ちを確認できた有効試行はReconnect／Disconnect各5回すべて15秒以内にPassした。明示切断後に接続待ちを再確認しないまま送ったReconnect 2件はKS `S_OK`でも15秒以内にActiveにならず、正しく`DeadlineExceeded`とした。自動再試行は行わず、到達可能前提を証明できないため`Blocked`として有効母数から除外した。操作者は最終接続と選択外Bluetooth機器への影響0件を確認し、Gate AをGoとした。
 
 2026-08-06の再検証時点では現在のWindowsセッションがRemote Audioだけを公開しており、BluetoothオーディオContainerは0件だった。この実行はIssue #20のEndpoint-scoped faultと非操作性の確認に使用し、AirPods実操作の証拠には使用しない。
 
