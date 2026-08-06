@@ -1,0 +1,114 @@
+<Window x:Class="QuickPods.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="QuickPods Audio MVP"
+        Width="440"
+        MinWidth="400"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource WindowBrush}"
+        Foreground="{StaticResource PrimaryTextBrush}"
+        Loaded="OnLoaded"
+        Closed="OnClosed">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="16" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="16" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock FontSize="24" FontWeight="SemiBold" Text="オーディオ" />
+                <TextBlock x:Name="EndpointNameText"
+                           Margin="0,8,0,0"
+                           FontSize="14"
+                           Foreground="{StaticResource SecondaryTextBrush}"
+                           Text="既定の出力を確認しています…"
+                           TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+            <Button Grid.Column="1"
+                    Width="36"
+                    Height="36"
+                    Margin="12,0,0,0"
+                    AutomationProperties.Name="オーディオ情報を更新"
+                    Click="OnRefresh"
+                    Style="{StaticResource QuickPodsIconButtonStyle}">
+                <TextBlock FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                           FontSize="18"
+                           Text="&#xE72C;" />
+            </Button>
+        </Grid>
+
+        <Border Grid.Row="2"
+                Padding="18"
+                Background="{StaticResource PanelBrush}"
+                BorderBrush="{StaticResource PanelBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="14">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="12" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="8" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock FontSize="15" FontWeight="SemiBold" Text="音量" />
+                <TextBlock x:Name="VolumePercentText"
+                           Grid.Column="2"
+                           FontSize="15"
+                           Text="--%" />
+
+                <Slider x:Name="VolumeSlider"
+                        Grid.Row="2"
+                        Grid.Column="0"
+                        Minimum="0"
+                        Maximum="100"
+                        SmallChange="1"
+                        LargeChange="5"
+                        IsSnapToTickEnabled="True"
+                        PreviewMouseWheel="OnVolumeMouseWheel"
+                        Style="{StaticResource QuickPodsSliderStyle}"
+                        ValueChanged="OnVolumeChanged"
+                        PreviewMouseLeftButtonUp="OnVolumeCommit" />
+
+                <Button x:Name="MuteButton"
+                        Grid.Row="2"
+                        Grid.Column="2"
+                        AutomationProperties.Name="ミュート切り替え"
+                        Click="OnToggleMute"
+                        Style="{StaticResource QuickPodsIconButtonStyle}">
+                    <TextBlock x:Name="MuteGlyph"
+                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                               FontSize="24"
+                               Text="&#xE767;" />
+                </Button>
+
+                <TextBlock x:Name="StatusText"
+                           Grid.Row="4"
+                           Grid.ColumnSpan="3"
+                           HorizontalAlignment="Right"
+                           Foreground="{StaticResource SecondaryTextBrush}"
+                           Text="初期化中" />
+            </Grid>
+        </Border>
+
+        <TextBlock x:Name="DiagnosticText"
+                   Grid.Row="4"
+                   Foreground="#FFB4A9"
+                   TextWrapping="Wrap" />
+    </Grid>
+</Window>

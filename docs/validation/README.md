@@ -26,3 +26,11 @@ phase-0/
 ├─ default-endpoint-policy/
 └─ taskbar-host/
 ```
+
+Product-phase evidence follows the implemented slice:
+
+```text
+phase-2/
+└─ audio-mvp/
+   └─ test-results.md
+```

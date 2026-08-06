@@ -100,8 +100,24 @@ public sealed class StateCoordinatorTests
 
     private sealed class FakeAudioPort : IAudioEndpointPort
     {
+        public event EventHandler<AudioStateChangedEventArgs>? StateChanged
+        {
+            add { }
+            remove { }
+        }
+
         public ValueTask<AudioState> ReadAsync(CancellationToken cancellationToken) =>
             ValueTask.FromResult(new AudioState(AudioCapability.Available, 42, false, "Output"));
+
+        public ValueTask<AudioState> SetVolumeAsync(
+            int volumePercent,
+            CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new AudioState(AudioCapability.Available, volumePercent, false, "Output"));
+
+        public ValueTask<AudioState> SetMuteAsync(
+            bool isMuted,
+            CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new AudioState(AudioCapability.Available, 42, isMuted, "Output"));
     }
 
     private sealed class FakeBluetoothPort : IBluetoothAudioPort
