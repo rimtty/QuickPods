@@ -133,6 +133,7 @@ public partial class App : WpfApplication, IDisposable
             trayIcon = new TrayIconController(
                 ShowMainWindow,
                 () => _ = window.RequestRefreshAsync(),
+                window.ShowSettingsWindow,
                 visible => _ = window.SetTaskbarSurfaceVisibleAsync(visible),
                 () => settingsLauncher.TryOpenSoundSettings(),
                 () => settingsLauncher.TryOpenBluetoothSettings(),
@@ -792,7 +793,7 @@ public partial class App : WpfApplication, IDisposable
     }
 
     private void OnFlyoutPointerEntered(object? sender, EventArgs eventArgs) =>
-        flyoutPreviewDismissTimer?.Stop();
+        ScheduleFlyoutPreviewDismiss();
 
     private void OnFlyoutPointerExited(object? sender, EventArgs eventArgs) =>
         ScheduleFlyoutPreviewDismiss();
@@ -811,13 +812,23 @@ public partial class App : WpfApplication, IDisposable
     private void OnFlyoutPreviewDismissTick(object? sender, EventArgs eventArgs)
     {
         flyoutPreviewDismissTimer?.Stop();
-        if (!flyoutPreviewActive || MainWindow is not MainWindow window || window.IsMouseOver)
+        if (MainWindow is not MainWindow window)
         {
             return;
         }
 
-        flyoutPreviewActive = false;
-        window.Hide();
+        switch (FlyoutDismissPolicy.Decide(
+            flyoutPreviewActive,
+            window.IsPointerWithinFlyoutBounds()))
+        {
+            case FlyoutDismissAction.Rearm:
+                ScheduleFlyoutPreviewDismiss();
+                break;
+            case FlyoutDismissAction.Hide:
+                flyoutPreviewActive = false;
+                window.Hide();
+                break;
+        }
     }
 
     private void ExitApplication()

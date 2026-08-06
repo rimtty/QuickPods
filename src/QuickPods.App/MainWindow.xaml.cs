@@ -15,7 +15,6 @@ using QuickPods.Core.Ports;
 using QuickPods.Infrastructure.Settings;
 using QuickPods.Presentation;
 using QuickPods.Windows.Settings;
-using WpfClipboard = System.Windows.Clipboard;
 using WpfKeyEventArgs = System.Windows.Input.KeyEventArgs;
 using WpfMessageBox = System.Windows.MessageBox;
 
@@ -33,13 +32,14 @@ public partial class MainWindow : Window
     private readonly string logsDirectory;
     private bool applyingAudioState;
     private bool applyingBluetoothState;
-    private bool applyingSettings;
     private bool bluetoothRefreshing;
     private string? bluetoothCatalogError;
     private BluetoothProductPresentation bluetoothView;
     private QuickPodsSettings productSettings = QuickPodsSettings.Default;
     private TaskbarSurfaceAnchor? placementAnchor;
     private bool placementRefreshPending;
+    private SettingsWindow? settingsWindow;
+    private string settingsDiagnostic = string.Empty;
     private Task? initialization;
 
     internal event Action<QuickPodsSettings>? SettingsChanged;
@@ -82,8 +82,6 @@ public partial class MainWindow : Window
             bluetoothCatalogError);
 
         InitializeComponent();
-        InitializeSettingsChoices();
-        VersionText.Text = $"QuickPods {GetProductVersion()}";
         AudioDiagnosticText.Text = startupDiagnostic ?? string.Empty;
         audio.StateChanged += OnAudioStateChanged;
         if (bluetoothCatalog is not null)
@@ -110,7 +108,34 @@ public partial class MainWindow : Window
 
     internal void ReportSettingsFailure(string message)
     {
-        SettingsDiagnosticText.Text = message;
+        settingsDiagnostic = message ?? string.Empty;
+        SettingsDiagnosticText.Text = settingsDiagnostic;
+        settingsWindow?.ReportDiagnostic(settingsDiagnostic);
+    }
+
+    internal void ShowSettingsWindow()
+    {
+        if (settingsWindow is null)
+        {
+            settingsWindow = new SettingsWindow(
+                () => productSettings,
+                UpdateProductSettingsAsync,
+                UpdateStartupSettingAsync,
+                OpenLogs,
+                CreateDiagnosticSummary,
+                GetProductVersion());
+            settingsWindow.Closed += OnSettingsWindowClosed;
+        }
+
+        settingsWindow.ApplySettings(productSettings);
+        settingsWindow.ReportDiagnostic(settingsDiagnostic);
+        settingsWindow.Show();
+        if (settingsWindow.WindowState == WindowState.Minimized)
+        {
+            settingsWindow.WindowState = WindowState.Normal;
+        }
+
+        _ = settingsWindow.Activate();
     }
 
     internal Task InitializeAsync() => initialization ??= InitializeCoreAsync();
@@ -142,6 +167,22 @@ public partial class MainWindow : Window
         if (bluetoothOperations is not null)
         {
             bluetoothOperations.StateChanged -= OnBluetoothOperationStateChanged;
+        }
+
+        if (settingsWindow is not null)
+        {
+            settingsWindow.Closed -= OnSettingsWindowClosed;
+            settingsWindow.Close();
+            settingsWindow = null;
+        }
+    }
+
+    private void OnSettingsWindowClosed(object? sender, EventArgs eventArgs)
+    {
+        if (settingsWindow is not null)
+        {
+            settingsWindow.Closed -= OnSettingsWindowClosed;
+            settingsWindow = null;
         }
     }
 
@@ -233,6 +274,15 @@ public partial class MainWindow : Window
     {
         placementAnchor = anchor;
         PositionAboveTaskbarCore(anchor);
+    }
+
+    internal bool IsPointerWithinFlyoutBounds()
+    {
+        System.Windows.Point pointer = Mouse.GetPosition(this);
+        return pointer.X >= 0d &&
+            pointer.Y >= 0d &&
+            pointer.X < ActualWidth &&
+            pointer.Y < ActualHeight;
     }
 
     private void PositionAboveTaskbarCore(TaskbarSurfaceAnchor? anchor)
@@ -380,101 +430,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void OnStartWithWindowsChanged(object sender, RoutedEventArgs eventArgs)
-    {
-        if (applyingSettings)
-        {
-            return;
-        }
-
-        bool requested = StartWithWindowsCheckBox.IsChecked == true;
-        bool previous = productSettings.StartWithWindows;
-        StartWithWindowsCheckBox.IsEnabled = false;
-        SettingsDiagnosticText.Text = string.Empty;
-        try
-        {
-            await startupRegistration.SetEnabledAsync(requested);
-            bool actual = await startupRegistration.IsEnabledAsync();
-            if (actual != requested)
-            {
-                throw new InvalidOperationException("自動起動設定を確認できませんでした。");
-            }
-
-            QuickPodsSettings saved = await settingsStore.UpdateSettingsAsync(
-                current => current with { StartWithWindows = actual });
-            ApplyProductSettings(saved);
-        }
-        catch (Exception exception)
-        {
-            SettingsDiagnosticText.Text = $"自動起動設定を変更できませんでした: {exception.Message}";
-            try
-            {
-                await startupRegistration.SetEnabledAsync(previous);
-            }
-            catch
-            {
-            }
-
-            bool? actual = await TryReadStartupRegistrationAsync();
-            ApplyStartWithWindows(actual ?? previous);
-        }
-        finally
-        {
-            StartWithWindowsCheckBox.IsEnabled = true;
-        }
-    }
-
-    private void OnOpenLogs(object sender, RoutedEventArgs eventArgs)
-    {
-        try
-        {
-            Directory.CreateDirectory(logsDirectory);
-            _ = Process.Start(new ProcessStartInfo
-            {
-                FileName = logsDirectory,
-                UseShellExecute = true,
-            });
-        }
-        catch (Exception exception)
-        {
-            SettingsDiagnosticText.Text = $"ログフォルダーを開けませんでした: {exception.Message}";
-        }
-    }
-
-    private void OnCopyDiagnostics(object sender, RoutedEventArgs eventArgs)
-    {
-        try
-        {
-            WpfClipboard.SetText(CreateDiagnosticSummary());
-            SettingsDiagnosticText.Text = "診断情報をクリップボードへコピーしました。";
-        }
-        catch (Exception exception)
-        {
-            SettingsDiagnosticText.Text = $"診断情報をコピーできませんでした: {exception.Message}";
-        }
-    }
-
-    private async void OnProductSettingChanged(object sender, RoutedEventArgs eventArgs)
-    {
-        if (applyingSettings ||
-            DisplayModeComboBox.SelectedValue is not QuickPodsDisplayMode displayMode ||
-            ThemeComboBox.SelectedValue is not QuickPodsThemeMode theme ||
-            MouseWheelStepComboBox.SelectedValue is not int wheelStep)
-        {
-            return;
-        }
-
-        QuickPodsSettings requested = productSettings with
-        {
-            DisplayMode = displayMode,
-            Theme = theme,
-            MouseWheelStepPercent = wheelStep,
-            SetConnectedDeviceAsDefault = SetConnectedDeviceAsDefaultCheckBox.IsChecked == true,
-            ConfirmBluetoothDisconnect = ConfirmBluetoothDisconnectCheckBox.IsChecked == true,
-        };
-        await PersistProductSettingsAsync(requested);
-    }
-
     private void OnAudioStateChanged(object? sender, AudioStateChangedEventArgs eventArgs)
     {
         _ = Dispatcher.InvokeAsync(() => ApplyAudioState(eventArgs.State));
@@ -619,13 +574,13 @@ public partial class MainWindow : Window
             stored = await settingsStore.LoadSettingsAsync();
             if (settingsStore.LastRecovery is { } recovery)
             {
-                SettingsDiagnosticText.Text =
-                    $"破損した設定を {Path.GetFileName(recovery.QuarantinedPath)} へ隔離し、安全な初期値で起動しました。";
+                ReportSettingsFailure(
+                    $"破損した設定を {Path.GetFileName(recovery.QuarantinedPath)} へ隔離し、安全な初期値で起動しました。");
             }
         }
         catch (Exception exception)
         {
-            SettingsDiagnosticText.Text = $"設定を読み込めませんでした: {exception.Message}";
+            ReportSettingsFailure($"設定を読み込めませんでした: {exception.Message}");
             ApplyProductSettings(QuickPodsSettings.Default);
             return;
         }
@@ -642,7 +597,7 @@ public partial class MainWindow : Window
         }
         catch (Exception exception)
         {
-            SettingsDiagnosticText.Text = $"自動起動設定を確認できませんでした: {exception.Message}";
+            ReportSettingsFailure($"自動起動設定を確認できませんでした: {exception.Message}");
             bool? actual = await TryReadStartupRegistrationAsync();
             if (actual is not null)
             {
@@ -655,24 +610,85 @@ public partial class MainWindow : Window
 
     private async Task PersistProductSettingsAsync(QuickPodsSettings requested)
     {
-        SettingsDiagnosticText.Text = string.Empty;
         try
         {
-            QuickPodsSettings saved = await settingsStore.UpdateSettingsAsync(current => current with
-            {
-                DisplayMode = requested.DisplayMode,
-                Theme = requested.Theme,
-                MouseWheelStepPercent = requested.MouseWheelStepPercent,
-                SetConnectedDeviceAsDefault = requested.SetConnectedDeviceAsDefault,
-                ConfirmBluetoothDisconnect = requested.ConfirmBluetoothDisconnect,
-            });
-            ApplyProductSettings(saved);
+            _ = await UpdateProductSettingsAsync(requested);
         }
         catch (Exception exception)
         {
-            SettingsDiagnosticText.Text = $"設定を保存できませんでした: {exception.Message}";
+            ReportSettingsFailure($"設定を保存できませんでした: {exception.Message}");
             ApplyProductSettings(productSettings);
         }
+    }
+
+    private async Task<QuickPodsSettings> UpdateProductSettingsAsync(
+        QuickPodsSettings requested)
+    {
+        QuickPodsSettings saved = await settingsStore.UpdateSettingsAsync(current => current with
+        {
+            DisplayMode = requested.DisplayMode,
+            Theme = requested.Theme,
+            MouseWheelStepPercent = requested.MouseWheelStepPercent,
+            SetConnectedDeviceAsDefault = requested.SetConnectedDeviceAsDefault,
+            ConfirmBluetoothDisconnect = requested.ConfirmBluetoothDisconnect,
+        });
+        ClearSettingsDiagnostic();
+        ApplyProductSettings(saved);
+        return saved;
+    }
+
+    private async Task<QuickPodsSettings> UpdateStartupSettingAsync(bool requested)
+    {
+        bool previous = productSettings.StartWithWindows;
+        try
+        {
+            await startupRegistration.SetEnabledAsync(requested);
+            bool actual = await startupRegistration.IsEnabledAsync();
+            if (actual != requested)
+            {
+                throw new InvalidOperationException("自動起動設定を確認できませんでした。");
+            }
+
+            QuickPodsSettings saved = await settingsStore.UpdateSettingsAsync(
+                current => current with { StartWithWindows = actual });
+            ClearSettingsDiagnostic();
+            ApplyProductSettings(saved);
+            return saved;
+        }
+        catch
+        {
+            try
+            {
+                await startupRegistration.SetEnabledAsync(previous);
+            }
+            catch
+            {
+            }
+
+            bool? actual = await TryReadStartupRegistrationAsync();
+            ApplyProductSettings(productSettings with
+            {
+                StartWithWindows = actual ?? previous,
+            });
+            throw;
+        }
+    }
+
+    private void OpenLogs()
+    {
+        Directory.CreateDirectory(logsDirectory);
+        _ = Process.Start(new ProcessStartInfo
+        {
+            FileName = logsDirectory,
+            UseShellExecute = true,
+        });
+    }
+
+    private void ClearSettingsDiagnostic()
+    {
+        settingsDiagnostic = string.Empty;
+        SettingsDiagnosticText.Text = string.Empty;
+        settingsWindow?.ReportDiagnostic(string.Empty);
     }
 
     private async Task InitializeCoreAsync()
@@ -693,63 +709,12 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ApplyStartWithWindows(bool enabled)
-    {
-        ApplyProductSettings(productSettings with { StartWithWindows = enabled });
-    }
-
     private int MouseWheelStepPercent => productSettings.MouseWheelStepPercent;
-
-    private void InitializeSettingsChoices()
-    {
-        applyingSettings = true;
-        try
-        {
-            DisplayModeComboBox.ItemsSource = new SettingChoice<QuickPodsDisplayMode>[]
-            {
-                new(QuickPodsDisplayMode.Auto, "自動"),
-                new(QuickPodsDisplayMode.TrayOnly, "通知領域のみ"),
-            };
-            ThemeComboBox.ItemsSource = new SettingChoice<QuickPodsThemeMode>[]
-            {
-                new(QuickPodsThemeMode.System, "Windowsに合わせる"),
-                new(QuickPodsThemeMode.Dark, "ダーク"),
-                new(QuickPodsThemeMode.Light, "ライト"),
-            };
-            MouseWheelStepComboBox.ItemsSource = new SettingChoice<int>[]
-            {
-                new(1, "1%"),
-                new(2, "2%"),
-                new(5, "5%"),
-                new(10, "10%"),
-            };
-        }
-        finally
-        {
-            applyingSettings = false;
-        }
-    }
 
     private void ApplyProductSettings(QuickPodsSettings settings)
     {
         productSettings = settings.Normalize();
-        applyingSettings = true;
-        try
-        {
-            DisplayModeComboBox.SelectedValue = productSettings.DisplayMode;
-            ThemeComboBox.SelectedValue = productSettings.Theme;
-            MouseWheelStepComboBox.SelectedValue = productSettings.MouseWheelStepPercent;
-            SetConnectedDeviceAsDefaultCheckBox.IsChecked =
-                productSettings.SetConnectedDeviceAsDefault;
-            ConfirmBluetoothDisconnectCheckBox.IsChecked =
-                productSettings.ConfirmBluetoothDisconnect;
-            StartWithWindowsCheckBox.IsChecked = productSettings.StartWithWindows;
-        }
-        finally
-        {
-            applyingSettings = false;
-        }
-
+        settingsWindow?.ApplySettings(productSettings);
         SettingsChanged?.Invoke(productSettings);
     }
 
@@ -792,8 +757,6 @@ public partial class MainWindow : Window
 
     private static string GetProductVersion() =>
         typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1.0";
-
-    private sealed record SettingChoice<T>(T Value, string Text);
 
     private async Task RunBluetoothMutationAsync(
         Func<Task<BluetoothOperationSnapshot>> operation)

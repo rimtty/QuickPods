@@ -22,8 +22,16 @@ pointerをtaskbar面からflyout内部へ移した後800 ms待っても表示を
 
 修正後は`SizeToContent`による高さ変更をレイアウト確定後に同じtaskbar anchorへ再配置する。175%環境の実測で、折り畳み時は`top=1096, bottom=2076, height=980`、展開後は`top=788, bottom=2076, height=1288` physical pxとなり、増加分308 pxを上方向だけへ拡張した。taskbar上端`2083`に対する下端余白は両状態とも7 pxである。内部scrollを最下部へ移動し、settings combo、checkbox、ログ、診断情報、version表示までtaskbarより上で表示できることを確認した。変更後のRelease buildは警告0／error 0、全回帰377／377 Pass、format verificationと`git diff --check`も成功した。
 
+その後のユーザー再確認で、settingsはhover flyout内に置かず、通知領域アイコンの右クリックメニューから独立windowとして開く仕様へ変更した。flyoutからsettings expanderと全settings controlを削除し、tray menuへ`QuickPods 設定...`を追加した。独立windowは表示、theme、wheel刻み、既定device化、切断確認、自動起動、log、診断copyを引き継ぐ。
+
+hover leaveの不定残留は、dismiss timerがflyout上で一度発火した後に停止し、後続の`MouseLeave`を取りこぼすと再監視されないことが原因だった。preview中はpointerがflyout内ならtimerを再armし、外ならhideするpolling policyへ変更した。policy testは既存の過剰test削減方針に従い1件だけ追加し、全回帰378／378 Pass、Release build警告0／error 0、format verification、`git diff --check`に成功した。
+
+Bluetooth empty-state cardとvolume dividerの間は0 pxから18 pxへ拡張した。自己完結型の確認payload `0.1.0-visual.60`（495 files、SHA-256 `07b244a0845548f0c136108e8efe7b3e9e8271a1f0563ebb7657025ab0c608f9`）を起動し、App／TaskbarHost／TaskbarObserverの全processが同payloadから稼働していることを確認した。
+
 ## 未確認
 
-- Issue #60修正版で、展開したsettings全controlをユーザーが実際に操作できること
+- tray右クリックの`QuickPods 設定...`から独立settings windowを開き、保存操作ができること
+- hover flyoutからsettingsが消え、empty-state card下の18 px余白が視覚的に十分であること
+- taskbar面→flyout→外側の反復で、previewが毎回一定時間内に閉じること
 - 実Bluetooth 1台／複数台でのrow密度、long-name ellipsis、接続状態
 - local-consoleでの100／125／150／200%最終描画

@@ -106,11 +106,9 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="8" />
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="0" />
+                    <RowDefinition Height="18" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="10" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="8" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="8" />
                     <RowDefinition Height="Auto" />
@@ -360,92 +358,7 @@
                     </Button>
                 </Grid>
 
-                <Expander x:Name="SettingsExpander"
-                          Grid.Row="12"
-                          Foreground="{DynamicResource PrimaryTextBrush}"
-                          Header="QuickPods設定">
-                    <Border Margin="0,8,0,0"
-                            Padding="12"
-                            Background="{DynamicResource PanelBrush}"
-                            BorderBrush="{DynamicResource PanelBorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="10">
-                        <StackPanel>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="160" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock VerticalAlignment="Center" Text="タスクバー表示" />
-                                <ComboBox x:Name="DisplayModeComboBox"
-                                          Grid.Column="1"
-                                          AutomationProperties.Name="タスクバー表示モード"
-                                          DisplayMemberPath="Text"
-                                          SelectedValuePath="Value"
-                                          SelectionChanged="OnProductSettingChanged" />
-                            </Grid>
-                            <Grid Margin="0,9,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="160" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock VerticalAlignment="Center" Text="テーマ" />
-                                <ComboBox x:Name="ThemeComboBox"
-                                          Grid.Column="1"
-                                          AutomationProperties.Name="QuickPodsのテーマ"
-                                          DisplayMemberPath="Text"
-                                          SelectedValuePath="Value"
-                                          SelectionChanged="OnProductSettingChanged" />
-                            </Grid>
-                            <Grid Margin="0,9,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="160" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock VerticalAlignment="Center" Text="ホイール刻み" />
-                                <ComboBox x:Name="MouseWheelStepComboBox"
-                                          Grid.Column="1"
-                                          AutomationProperties.Name="音量ホイール変更幅"
-                                          DisplayMemberPath="Text"
-                                          SelectedValuePath="Value"
-                                          SelectionChanged="OnProductSettingChanged" />
-                            </Grid>
-                            <CheckBox x:Name="SetConnectedDeviceAsDefaultCheckBox"
-                                      Margin="0,11,0,0"
-                                      AutomationProperties.Name="接続後に既定の音声デバイスへ設定"
-                                      Click="OnProductSettingChanged"
-                                      Content="接続後に既定の音声デバイスへ設定" />
-                            <CheckBox x:Name="ConfirmBluetoothDisconnectCheckBox"
-                                      Margin="0,7,0,0"
-                                      AutomationProperties.Name="Bluetooth切断前に確認"
-                                      Click="OnProductSettingChanged"
-                                      Content="Bluetooth切断前に確認" />
-                            <CheckBox x:Name="StartWithWindowsCheckBox"
-                                      Margin="0,7,0,0"
-                                      AutomationProperties.Name="Windowsログイン時にQuickPodsを自動起動"
-                                      Checked="OnStartWithWindowsChanged"
-                                      Unchecked="OnStartWithWindowsChanged"
-                                      Content="Windowsログイン時に自動起動" />
-                            <StackPanel Margin="0,12,0,0" Orientation="Horizontal">
-                                <Button AutomationProperties.Name="QuickPodsのログフォルダーを開く"
-                                        Click="OnOpenLogs"
-                                        Style="{StaticResource QuickPodsLinkButtonStyle}"
-                                        Content="ログを開く" />
-                                <Button Margin="10,0,0,0"
-                                        AutomationProperties.Name="QuickPodsの診断情報をクリップボードへコピー"
-                                        Click="OnCopyDiagnostics"
-                                        Style="{StaticResource QuickPodsLinkButtonStyle}"
-                                        Content="診断情報をコピー" />
-                            </StackPanel>
-                            <TextBlock x:Name="VersionText"
-                                       Margin="4,7,0,0"
-                                       FontSize="11"
-                                       Foreground="{DynamicResource SecondaryTextBrush}" />
-                        </StackPanel>
-                    </Border>
-                </Expander>
-
-                <StackPanel Grid.Row="14">
+                <StackPanel Grid.Row="12">
                     <TextBlock x:Name="SettingsDiagnosticText"
                                AutomationProperties.LiveSetting="Assertive"
                                Foreground="{DynamicResource ErrorBrush}"
