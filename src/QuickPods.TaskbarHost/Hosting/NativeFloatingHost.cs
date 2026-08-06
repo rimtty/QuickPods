@@ -11,17 +11,16 @@ internal sealed class NativeFloatingHost : IDisposable
 {
     private readonly ConcurrentQueue<HostInteractionEnvelope> pendingInteractions = new();
     private readonly ConcurrentQueue<NativeLayoutInvalidationReason> pendingInvalidations = new();
+    private readonly NativeSliderInteractionSession sliderSession =
+        new(TaskbarSurfaceMode.Floating);
     private GCHandle instanceHandle;
-    private TaskbarStateSnapshot state = new(TaskbarSurfaceMode.Floating, 0, false, null);
     private Exception? pendingWindowFailure;
     private nint windowHandle;
     private PixelRect expectedBounds;
     private PixelRect expectedWorkArea;
     private uint expectedDpi;
     private int ownerThreadId;
-    private long nextInteractionSequence;
     private bool requiresRevalidation;
-    private bool dragging;
     private bool disposed;
 
     internal event Action<HostInteractionEnvelope>? Interaction;
@@ -55,17 +54,11 @@ internal sealed class NativeFloatingHost : IDisposable
             EnsureOwnerThread();
         }
 
-        TaskbarStateSnapshot normalized = snapshot with
-        {
-            SurfaceMode = TaskbarSurfaceMode.Floating,
-            VolumePercent = Math.Clamp(snapshot.VolumePercent, 0, 100),
-        };
-        if (normalized == state)
+        if (!sliderSession.SetState(snapshot))
         {
             return;
         }
 
-        state = normalized;
         if (IsCreated)
         {
             _ = HostNativeMethods.InvalidateRect(windowHandle, nint.Zero, false);
@@ -364,7 +357,7 @@ internal sealed class NativeFloatingHost : IDisposable
         switch (message)
         {
             case HostNativeMethods.WmPaint:
-                QuickPodsGdiRenderer.Paint(window, state);
+                QuickPodsGdiRenderer.Paint(window, sliderSession.State);
                 return nint.Zero;
             case HostNativeMethods.WmEraseBackground:
                 return new nint(1);
@@ -372,23 +365,22 @@ internal sealed class NativeFloatingHost : IDisposable
                 return HostNativeMethods.MouseActivateNoActivate;
             case HostNativeMethods.WmLeftButtonDown:
                 return OnLeftButtonDown(window, lParam);
-            case HostNativeMethods.WmMouseMove when dragging:
-                EmitPointerInteraction(HostInteractionKind.SetVolumePreview, lParam);
+            case HostNativeMethods.WmMouseMove when sliderSession.IsDragging:
+                HandlePointerMove(lParam);
                 return nint.Zero;
-            case HostNativeMethods.WmLeftButtonUp when dragging:
-                dragging = false;
-                EmitPointerInteraction(HostInteractionKind.SetVolumeCommit, lParam);
+            case HostNativeMethods.WmLeftButtonUp when sliderSession.IsDragging:
+                HandlePointerComplete(lParam);
                 _ = HostNativeMethods.ReleaseCapture();
                 return nint.Zero;
-            case HostNativeMethods.WmCaptureChanged when dragging:
-                dragging = false;
+            case HostNativeMethods.WmCaptureChanged when sliderSession.IsDragging:
+                _ = sliderSession.CancelDrag();
                 return nint.Zero;
             case HostNativeMethods.WmMouseWheel:
-                int wheelDelta = SignedHighWord(unchecked((nint)wParam));
-                int wheelPercent = HostInteractionCalculator.VolumePercentFromWheel(
-                    state.VolumePercent,
-                    wheelDelta);
-                EmitVolumeInteraction(HostInteractionKind.SetVolumeCommit, wheelPercent);
+                if (sliderSession.TryWheel(wParam, out NativeSliderInteractionResult wheel))
+                {
+                    EnqueueInteraction(wheel);
+                }
+
                 return nint.Zero;
             default:
                 return HostNativeMethods.DefWindowProcedure(window, message, wParam, lParam);
@@ -397,50 +389,59 @@ internal sealed class NativeFloatingHost : IDisposable
 
     private nint OnLeftButtonDown(nint window, nint lParam)
     {
-        int pointerX = SignedLowWord(lParam);
-        int pointerY = SignedHighWord(lParam);
         if (!NativeWindowVerifier.TryReadSliderLayout(window, out SliderLayout layout) ||
-            !SliderGeometry.ContainsPointer(layout, pointerX, pointerY))
+            !NativeSliderInteractionSession.CanBegin(layout, lParam))
         {
             return nint.Zero;
         }
 
-        dragging = true;
         _ = HostNativeMethods.SetCapture(window);
-        EmitVolumeInteraction(
-            HostInteractionKind.SetVolumePreview,
-            HostInteractionCalculator.VolumePercentFromPointer(layout, pointerX));
+        if (HostNativeMethods.GetCapture() != window ||
+            !sliderSession.TryBegin(layout, lParam, out NativeSliderInteractionResult interaction))
+        {
+            _ = sliderSession.CancelDrag();
+            if (HostNativeMethods.GetCapture() == window)
+            {
+                _ = HostNativeMethods.ReleaseCapture();
+            }
+
+            return nint.Zero;
+        }
+
+        EnqueueInteraction(interaction);
         return nint.Zero;
     }
 
-    private void EmitPointerInteraction(HostInteractionKind kind, nint lParam)
+    private void HandlePointerMove(nint lParam)
     {
-        if (!NativeWindowVerifier.TryReadSliderLayout(windowHandle, out SliderLayout layout))
+        if (NativeWindowVerifier.TryReadSliderLayout(windowHandle, out SliderLayout layout) &&
+            sliderSession.TryMove(layout, lParam, out NativeSliderInteractionResult interaction))
         {
-            return;
+            EnqueueInteraction(interaction);
         }
-
-        int percent = HostInteractionCalculator.VolumePercentFromPointer(
-            layout,
-            SignedLowWord(lParam));
-        EmitVolumeInteraction(kind, percent);
     }
 
-    private void EmitVolumeInteraction(HostInteractionKind kind, int volumePercent)
+    private void HandlePointerComplete(nint lParam)
     {
-        if (nextInteractionSequence == long.MaxValue)
+        if (NativeWindowVerifier.TryReadSliderLayout(windowHandle, out SliderLayout layout) &&
+            sliderSession.TryComplete(layout, lParam, out NativeSliderInteractionResult interaction))
         {
-            return;
+            EnqueueInteraction(interaction);
+        }
+        else
+        {
+            _ = sliderSession.CancelDrag();
+        }
+    }
+
+    private void EnqueueInteraction(NativeSliderInteractionResult interaction)
+    {
+        if (interaction.StateChanged)
+        {
+            _ = HostNativeMethods.InvalidateRect(windowHandle, nint.Zero, false);
         }
 
-        int normalized = Math.Clamp(volumePercent, 0, 100);
-        state = state with { VolumePercent = normalized };
-        _ = HostNativeMethods.InvalidateRect(windowHandle, nint.Zero, false);
-        pendingInteractions.Enqueue(new HostInteractionEnvelope(
-            QuickPodsProtocol.Version,
-            nextInteractionSequence++,
-            kind,
-            normalized));
+        pendingInteractions.Enqueue(interaction.Envelope);
     }
 
     private void ValidateWindow()
@@ -562,9 +563,8 @@ internal sealed class NativeFloatingHost : IDisposable
 
     private void HideViewImmediately()
     {
-        if (dragging)
+        if (sliderSession.CancelDrag())
         {
-            dragging = false;
             _ = HostNativeMethods.ReleaseCapture();
         }
 
@@ -607,9 +607,8 @@ internal sealed class NativeFloatingHost : IDisposable
         expectedBounds = default;
         expectedWorkArea = default;
         expectedDpi = 0;
-        nextInteractionSequence = 0;
+        sliderSession.Reset();
         requiresRevalidation = false;
-        dragging = false;
         pendingWindowFailure = null;
         while (pendingInteractions.TryDequeue(out _))
         {
@@ -656,9 +655,4 @@ internal sealed class NativeFloatingHost : IDisposable
         }
     }
 
-    private static int SignedLowWord(nint value) =>
-        unchecked((short)(value.ToInt64() & 0xFFFF));
-
-    private static int SignedHighWord(nint value) =>
-        unchecked((short)((value.ToInt64() >> 16) & 0xFFFF));
 }

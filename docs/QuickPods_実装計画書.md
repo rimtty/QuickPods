@@ -500,6 +500,7 @@ stateDiagram-v2
 flowchart LR
     User["ユーザー"]
     Host["TaskbarHost.exe<br/>raw Win32 / GDI"]
+    Observer["TaskbarObserver.exe<br/>generation-scoped UIA watcher"]
     App["QuickPods.exe<br/>WPF / StateCoordinator"]
     Audio["Core Audio Service<br/>IMMDevice / EndpointVolume"]
     BT["Bluetooth Audio Service<br/>DeviceTopology / IKsControl"]
@@ -510,11 +511,13 @@ flowchart LR
     User --> Host
     User --> Flyout
     Host <--> |"Named Pipe + StateSnapshot"| App
+    Host <--> |"Authenticated invalidation pipe"| Observer
     App --> Audio
     App --> BT
     App <--> Flyout
     App --> Store
     Host --> |"SetParent"| Explorer
+    Observer --> |"UI Automation events"| Explorer
     Audio --> |"通知"| App
     BT --> |"状態確認"| App
 ```
@@ -548,6 +551,19 @@ flowchart LR
 
 ホストへCore AudioやBluetoothのCOMオブジェクトを持たせない。ホストがExplorer更新の影響で落ちても、音量・Bluetoothサービスと設定画面は生存する。
 
+#### タスクバーObserver helper
+
+`QuickPods.TaskbarObserver.exe`は、Explorer世代ごとのUI Automationイベント購読だけを担当する短寿命helperとする。
+
+- 1つの検証済みExplorer／タスクバー世代につき1プロセスとする。
+- UIA client、購読、callback、専用MTAをhelper内に閉じ込める。
+- 親TaskbarHostとの同一ユーザー認証済みpipeが失われた場合は終了する。
+- Explorer世代変更時は旧helperを終了し、新しい証明後に再生成する。
+- Job Objectのkill-on-closeへ所属させ、親終了後の残留を許可しない。
+- コマンドラインや永続ログへraw HWND／PIDを渡さず、pipeへはサニタイズ済み無効化分類だけを返す。
+
+Phase 0Eで確認したExplorer世代ごとのUSER object保持は、同一長寿命プロセス内の解除へ依存せず、helperプロセス終了を資源回収境界とする。詳細は`docs/architecture/adr-0001-uia-watcher-process-boundary.md`に従う。
+
 ### 10.3 ソリューション構成案
 
 ```text
@@ -557,6 +573,7 @@ QuickPods.sln
 │  ├─ QuickPods.Core/             # 状態、ユースケース、エラー分類
 │  ├─ QuickPods.Windows/          # Core Audio、DeviceTopology、KS
 │  ├─ QuickPods.TaskbarHost/      # raw Win32ホスト
+│  ├─ QuickPods.TaskbarObserver/  # Explorer世代単位のUIA watcher helper
 │  ├─ QuickPods.Contracts/        # IPC DTO、設定モデル
 │  └─ QuickPods.Infrastructure/   # 設定、ログ、自動起動
 ├─ tests/
@@ -1035,6 +1052,7 @@ Phase 0判定（2026-08-06）：Core Audio、Bluetooth Gate A、既定出力Gate
 - スライダー入力
 - IPC
 - Explorer復旧
+- Explorer世代単位のUIA Observer helper
 - フローティングフォールバック
 
 完了条件：

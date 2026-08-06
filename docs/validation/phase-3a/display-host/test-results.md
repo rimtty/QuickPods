@@ -53,4 +53,4 @@ This proves the first product discovery/placement slice on the current 150% prim
 - A settings, display, theme, or DPI invalidation received during either creation path is never cleared by creation completion; the surface remains hidden and creation fails for rediscovery.
 - Static preview creation additionally requires the exact `--confirm-live-host` flag and a duration from 1 to 60 seconds; the host is disposed when the bounded loop ends.
 - The product host implementation was not launched while the operator was away; visual placement, input, Start/Search continuity, and natural shutdown remain explicit live gates.
-- Phase 3A currently uses a one-shot MTA UIA scan. The repeating watcher required by Phase 3B will not be enabled until Issue #18 has an isolation/lifetime disposition.
+- Phase 3A uses a one-shot MTA UIA scan and registers no repeating UIA handlers. ADR-0001 resolves Issue #18 by assigning the Phase 3B repeating watcher to a short-lived helper process recycled with each Explorer generation.

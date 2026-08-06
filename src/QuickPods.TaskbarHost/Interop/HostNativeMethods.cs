@@ -144,6 +144,9 @@ internal static class HostNativeMethods
     [DllImport("user32.dll", EntryPoint = "SetCapture", ExactSpelling = true)]
     internal static extern nint SetCapture(nint window);
 
+    [DllImport("user32.dll", EntryPoint = "GetCapture", ExactSpelling = true)]
+    internal static extern nint GetCapture();
+
     [DllImport("user32.dll", EntryPoint = "ReleaseCapture", ExactSpelling = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool ReleaseCapture();

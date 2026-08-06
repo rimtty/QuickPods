@@ -16,6 +16,7 @@ This phase productizes the native display surface proven by Gate B without refer
 - floating or hidden fallback when native placement is verified unsafe.
 
 Named-pipe IPC, live Audio MVP integration, Explorer-generation recovery, host supervision, and reconnect snapshots belong to Phase 3B.
+The repeating UIA watcher will be isolated in a per-Explorer-generation helper process as accepted in [ADR-0001](adr-0001-uia-watcher-process-boundary.md); it will not be registered in the long-lived display host.
 
 ## Placement invariants
 
@@ -46,6 +47,7 @@ The first product slice contains:
 - a color-keyed, double-buffered GDI renderer with distinct muted and unmuted speaker states;
 - hidden-first PopupPreserved host creation with class, process, parent, style, bounds, DPI, cloak, and color-key verification before promotion;
 - mouse capture, drag preview/commit, wheel commit, monotonic interaction envelopes, and fail-closed layout invalidation;
+- one shared HWND-free slider interaction session used by both Native and Floating surfaces;
 - an explicit-confirmation, bounded static preview command with natural HWND teardown;
 - pure, overflow-safe floating fallback placement constrained to the verified primary work area;
 - hidden-first, unowned, non-topmost Floating HWND validation with the same renderer and interaction contracts;
@@ -59,4 +61,4 @@ The suite remains intentionally focused: twenty new test executions were added t
 
 - live validation of native preview placement, input, Start/Search continuity, and natural shutdown;
 - complete the retained-continuity race checks from Issue #15 in Phase 3B (the Phase 3A exclusion provenance and create-time invalidation boundaries are implemented);
-- an explicit disposition for the UIA watcher lifetime risk in Issue #18 before Phase 3B recovery loops are enabled.
+- implement the accepted ADR-0001 observer helper in Phase 3B before recovery loops are enabled.

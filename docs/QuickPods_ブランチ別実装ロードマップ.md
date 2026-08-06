@@ -348,7 +348,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 業務サービスから独立した表示ホストを完成させる |
-| 状態 | **進行中** — Issue #30。製品用の物理px幾何、DPI、fail-closed配置、Win32／UIA初回探索を実装し、focused tests 33/33と150%実機read-only inspectに合格 |
+| 状態 | **進行中** — Issue #30。Native/Floating/Hidden表示経路まで実装し、Foundation 43/43、TaskbarHost Release 0 warning、150%実機read-only inspectに合格。実機preview gate待ち |
 | Gate BがGo | raw Win32 `QuickPods.TaskbarHost`、UIA探索、安全領域、描画、ヒットテスト |
 | Gate BがNo-Go | タスクバー直上のフローティングストリップを実装 |
 | 共通 | `Place`／`VerifiedNoFit`／`TransientUnknown`、DPI座標、負座標、テーマ入力 |
@@ -363,6 +363,7 @@ docs/validation/phase-0/
 | IPC | 同一ユーザーSID限定の名前付きパイプ、ProtocolVersion、Sequence、再接続時の完全スナップショット |
 | 入力 | 音量暫定値／最終値、ミュート、フライアウト要求、コンテキストメニュー要求 |
 | 復旧 | `TaskbarCreated`、Watchdog、Explorer世代、ホスト再起動、連続失敗時のセッション無効化 |
+| UIA寿命 | ADR-0001に従い、Explorer世代単位の`QuickPods.TaskbarObserver.exe`へ繰り返し購読を隔離し、Job Objectで残留を防止 |
 | フォールバック | ネイティブ、フローティング、通知領域の切替と点滅防止 |
 | テスト | IPC順序逆転、切断再接続、Explorer再起動10回、空き消失、ホスト異常終了 |
 | 完了条件 | AC-014～AC-021のうちBluetooth非依存項目を満たし、音量を選択された表示モードから操作可能 |
