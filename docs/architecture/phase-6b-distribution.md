@@ -20,10 +20,10 @@ WiXの`Files` harvestingは固定per-user packageでICE64／ICE91を通過しな
 
 WiX v6のOpen Source Maintenance Fee条件はrelease前に配布主体が確認する。WiX v7はEULAの明示承諾が必要なため自動更新しない。
 
-コード署名証明書は後日用意する方針であり、RC artifactはmanifestへ`NotSigned`を明示する。正式releaseは証明書をrepository外からCIへ安全に供給し、署名後のMSIを`-RequireSignature`で検証するまで公開しない。
+コード署名証明書は後日用意する方針であり、通常CIのRC artifactはmanifestへ`NotSigned`を明示する。正式release専用workflowは保護された`release-signing` environmentからBase64 PFXとpasswordを受け取り、runner tempへだけ復元する。PowerShell certificate objectでSHA-256 Authenticode署名とHTTP timestampを付与するため、passwordを外部processのcommand lineへ渡さない。成功／失敗後はPFXを削除し、署名後のMSIが`Valid`かつ`-RequireSignature`検証済みになるまでartifactを公開しない。
 
 ## Remaining gates
 
 - `build/Test-InstallerLifecycle.ps1`を使うclean standard-user環境でのinstall／launch／running update／running uninstall／auto-start残骸0件
-- code-signing証明書の準備、CI secret連携、署名済み正式artifact検証
+- code-signing証明書の準備、`release-signing` secret登録、署名済み正式artifactのworkflow実行
 - #38、#41、#43、#48

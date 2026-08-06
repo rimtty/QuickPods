@@ -23,6 +23,7 @@ if ($outputRoot -eq $repositoryRoot) {
 }
 
 $payloadDirectory = Join-Path $outputRoot "QuickPods"
+$buildArtifactsDirectory = Join-Path $outputRoot ".build-artifacts"
 if (Test-Path -LiteralPath $outputRoot) {
     Remove-Item -LiteralPath $outputRoot -Recurse -Force
 }
@@ -44,6 +45,7 @@ try {
         # locks under ignored obj directories and never rewrite the committed locks.
         & dotnet restore $projects[0] `
             --runtime win-x64 `
+            --artifacts-path $buildArtifactsDirectory `
             -p:NuGetLockFilePath=obj/project.rc.packages.lock.json `
             -p:RestoreLockedMode=false `
             -p:RestoreForceEvaluate=true
@@ -58,6 +60,7 @@ try {
             --runtime win-x64 `
             --self-contained true `
             --no-restore `
+            --artifacts-path $buildArtifactsDirectory `
             --output $payloadDirectory `
             -p:Version=$Version `
             -p:ContinuousIntegrationBuild=true `
@@ -71,6 +74,9 @@ try {
     }
 } finally {
     Pop-Location
+    if (Test-Path -LiteralPath $buildArtifactsDirectory -PathType Container) {
+        Remove-Item -LiteralPath $buildArtifactsDirectory -Recurse -Force
+    }
 }
 
 $requiredFiles = @(

@@ -14,6 +14,24 @@ WiX v6はbuild-time toolchainであり、QuickPods runtimeへ同梱しない。W
 
 RC MSIはコード署名証明書の準備まで未署名である。証明書や秘密鍵をrepositoryへ保存してはならず、正式releaseでは署名後に`Test-InstallerPackage.ps1 -RequireSignature`を通す。
 
+正式releaseはGitHub Actionsの`release-signing` environmentへ次のsecretを登録し、`Signed release candidate` workflowを手動実行する。
+
+- `QUICKPODS_SIGNING_PFX_BASE64`：PFX全体をBase64化した値
+- `QUICKPODS_SIGNING_PFX_PASSWORD`：PFX password
+
+workflowは一時PFXをrunner tempへ復元し、PowerShellのcertificate objectからSHA-256 Authenticode署名とtimestampをMSIへ付与する。秘密鍵passwordを外部processのcommand lineへ渡さない。署名statusが`Valid`でなければartifact upload前に失敗し、PFXは成功／失敗にかかわらず削除する。通常のPR／push CIは引き続き未署名RCを作り、secretへアクセスしない。
+
+ローカルで署名経路を確認する場合もPFXはrepository外へ置き、passwordは`SecureString`として渡す。
+
+```powershell
+$password = Read-Host 'PFX password' -AsSecureString
+./build/Publish-Installer.ps1 `
+  -Version 0.1.0 `
+  -SigningCertificatePath C:\secure\quickpods-signing.pfx `
+  -SigningCertificatePassword $password `
+  -RequireSignature
+```
+
 ## Clean lifecycle gate
 
 通常利用中のWindows accountでは実行しない。QuickPodsを一度も使用していない、非昇格の標準userを持つ使い捨てWindows 11 VM／test accountで、旧版と新版を別directoryへ生成してから次を実行する。
