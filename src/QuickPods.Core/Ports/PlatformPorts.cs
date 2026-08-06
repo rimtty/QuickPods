@@ -40,6 +40,22 @@ public interface IBluetoothAudioPort
         CancellationToken cancellationToken);
 }
 
+public interface IBluetoothAudioCatalogPort
+{
+    ValueTask<BluetoothAudioCatalogObservation> DiscoverAsync(
+        long inventoryGeneration,
+        CancellationToken cancellationToken);
+}
+
+public interface IBluetoothSelectionStore
+{
+    ValueTask<BluetoothDeviceKey?> LoadAsync(CancellationToken cancellationToken = default);
+
+    ValueTask SaveAsync(
+        BluetoothDeviceKey? selectedDevice,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IDefaultOutputPort
 {
     DefaultOutputCapability Capability { get; }

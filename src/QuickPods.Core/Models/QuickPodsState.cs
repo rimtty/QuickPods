@@ -9,6 +9,7 @@ public enum BluetoothConnectionState
     Connecting,
     Connected,
     Disconnecting,
+    Unavailable,
     Unknown,
 }
 
