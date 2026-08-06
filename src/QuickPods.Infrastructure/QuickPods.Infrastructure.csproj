@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>QuickPods.Infrastructure</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\QuickPods.Contracts\QuickPods.Contracts.csproj" />
+    <ProjectReference Include="..\QuickPods.Core\QuickPods.Core.csproj" />
+  </ItemGroup>
+
+</Project>
