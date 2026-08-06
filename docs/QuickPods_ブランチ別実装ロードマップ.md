@@ -9,7 +9,7 @@
 | 作成日 | 2026-08-05 |
 | 対象環境 | Windows 11 x64 / .NET 10 / WPF + Win32 |
 | 基本文書 | `QuickPods_実装計画書.md` |
-| ステータス | Phase 0進行中 — Core Audio／Gate B Go、Bluetooth Gate A／A2待ち |
+| ステータス | Phase 0 Gate成立 — Core Audio／Gate A／Gate A2／Gate B Go、B5判断統合へ移行 |
 
 ## 1. 目的
 
@@ -159,7 +159,7 @@ No-Go時：原因を分類し、解消するまでPhase 1以降へ進まない�
 | 項目 | 内容 |
 |---|---|
 | 目的 | Container単位のBluetoothオーディオ選択と個別接続・切断方式を確定する。AirPods Pro＋MediaTekは最初の参照実機 |
-| 状態 | **Gate待ち** — Issue #5、Draft PR #8。実機試験未完了 |
+| 状態 | **Gate A Go（2026-08-06）** — 修正版の接続・切断各5/5、誤成功0、通常権限、選択外影響0に合格 |
 | Spike | `spikes/QuickPods.Spike.BluetoothKs/` |
 | 実装 | Container ID集約、選択対象だけのDeviceTopology／KS Filter対応付け、機器単位Basic Support、Reconnect／Disconnect、実状態確認 |
 | 自動試験 | 0／1／複数／同名機器、A2DP/HFP集約、選択・更新の無操作、世代破棄、無関係Endpoint障害の非波及 |
@@ -186,6 +186,8 @@ Go条件：
 片方向だけ成功する場合はConditional Goにせず、直接操作はNo-Goとする。
 
 No-Go時：該当機器の主アクションは`ms-settings:bluetooth`等のWindows設定ランチャーへ縮退し、一覧、音量、表示機能の開発を継続する。
+
+判定（2026-08-06）：**Go**。AirPods Pro＋MediaTek参照環境で、到達可能前提を確認したReconnect／Disconnectが各5回中5回、15秒以内に実状態で成功した。探索的誤成功はRender／Capture両flowと5秒安定窓へ修正し、修正版の誤成功0件、通常権限、選択外Bluetooth機器への影響0件を確認した。製品は機器ごとのBasic Supportと所有権を判定し、非対応機器だけWindows設定へ縮退する。根拠は`docs/validation/phase-0/bluetooth-ks/decision.md`を参照する。
 
 #### B3.1：`codex/phase-0d-default-endpoint-policy-spike`
 

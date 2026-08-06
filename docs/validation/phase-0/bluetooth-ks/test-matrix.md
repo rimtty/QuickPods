@@ -2,7 +2,7 @@
 
 ## ステータス
 
-**Live Gate in progress** — 読み取り専用探索、65件の自動試験、watchdogシミュレーション、KS Basic Support、操作者確認付き実機操作まで実施した。修正版の有効な接続・切断各5回は未達である。
+**Gate A Go（2026-08-06）** — 読み取り専用探索、65件の自動試験、watchdogシミュレーション、KS Basic Support、修正版の有効な接続・切断各5回、操作者による選択外機器影響0件の確認に合格した。
 
 この文書の`Pass`は、KS要求が受理されたことではなく、期限内に対象オーディオEndpointの実状態が期待どおり変化したことを意味する。空欄や未観測結果を成功として扱わない。
 
@@ -47,17 +47,17 @@
 | BTKS-SEL-001 | 選択 | 機器選択と読み取り専用更新を反復 | カタログ層がKS操作依存を持たず、選択を維持し、変更要求経路を持たない | catalog state自動試験＋依存境界 | Pass（自動） |
 | BTKS-SUP-001 | 対応確認 | ReconnectのBasic Supportを照会 | 対応・非対応・エラーを明確に分類する | Render候補 `S_OK` / GET対応 | Pass |
 | BTKS-SUP-002 | 対応確認 | DisconnectのBasic Supportを照会 | 対応・非対応・エラーを明確に分類する | Render／Capture候補 `S_OK` / GET対応 | Pass |
-| BTKS-CON-001 | 接続 | 到達可能かつ切断状態からReconnectを有効5回実施 | 5回中4回以上、各15秒以内に`DEVICE_STATE_ACTIVE`を確認 | 接続試行表 | Pending |
-| BTKS-DIS-001 | 切断 | 接続状態からDisconnectを有効5回実施 | 5回中4回以上、各15秒以内に非Activeを確認 | 切断試行表 | Pending |
-| BTKS-OBS-001 | 成功判定 | KS要求成功後も実状態を監視 | 実状態不変を成功表示した件数が0 | 要求結果と観測結果の対照表 | Pending |
+| BTKS-CON-001 | 接続 | 到達可能かつ切断状態からReconnectを有効5回実施 | 5回中4回以上、各15秒以内に`DEVICE_STATE_ACTIVE`を確認 | 接続試行表 | Pass（5/5） |
+| BTKS-DIS-001 | 切断 | 接続状態からDisconnectを有効5回実施 | 5回中4回以上、各15秒以内に非Activeを確認 | 切断試行表 | Pass（5/5） |
+| BTKS-OBS-001 | 成功判定 | KS要求成功後も実状態を監視 | 実状態不変を成功表示した件数が0 | 要求結果と観測結果の対照表 | Pass（修正版0件） |
 | BTKS-OBS-002 | 成功判定 | 所有権faultまたはContainer未帰属Adapterを含む状態観測を模擬 | 残存EndpointがUnpluggedでも`Disconnected`とせず`Unknown`へ倒す | state-observer自動試験 | Pass（自動） |
 | BTKS-SER-001 | 直列化 | 同一プロセスの操作中に追加要求を発生させる | 2件目を開始せず、同時KS要求が0 | generation／lane自動試験 | Pass（自動） |
 | BTKS-SER-002 | 直列化 | 2つのSpike実行プロセスからmachine-wide固定名Mutexを同時取得 | 1つ目だけが取得し、2つ目は固定名Jobへ合流せず隔離コマンド開始前に拒否される | 2プロセス統合試験 | Pass（自動） |
 | BTKS-SER-003 | 直列化 | Mutex所有プロセスの異常終了と待機cancelを模擬 | 放棄／cancelされた試行はoperation delegateを実行せず、前Job回収後の別試行だけを許可する | abandonment／cancel自動試験 | Pass（自動） |
-| BTKS-ISO-001 | 影響確認 | 各接続・切断の前後で比較対象機器を確認 | 他のBluetooth機器への影響が0件 | 前後状態チェック | Pending |
-| BTKS-ERR-001 | 異常系 | 参照機器をケース内または到達不能にして接続 | 15秒以内に成功しなければTimeout／Unavailableで終了し、成功表示しない | 状態遷移ログ | Pending |
-| BTKS-ERR-002 | 異常系 | 参照機器が他端末へ接続中の状態で接続 | 実状態を確認できない限り成功表示しない | 状態遷移ログ | Pending |
-| BTKS-ERR-003 | 異常系 | Bluetooth無線OFFで探索・操作 | 自動で無線をONにせず、RadioOff等へ分類する | エラー分類ログ | Pending |
+| BTKS-ISO-001 | 影響確認 | 接続・切断の前後で比較対象機器を確認 | 他のBluetooth機器への影響が0件 | 前後状態チェック | Pass（操作者確認） |
+| BTKS-ERR-001 | 異常系 | 参照機器をケース内または到達不能にして接続 | 15秒以内に成功しなければTimeout／Unavailableで終了し、成功表示しない | 状態遷移ログ | Phase 4 UI統合へ移管（DeadlineExceeded実機証拠あり） |
+| BTKS-ERR-002 | 異常系 | 参照機器が他端末へ接続中の状態で接続 | 実状態を確認できない限り成功表示しない | 状態遷移ログ | Phase 4 UI統合へ移管 |
+| BTKS-ERR-003 | 異常系 | Bluetooth無線OFFで探索・操作 | 自動で無線をONにせず、RadioOff等へ分類する | エラー分類ログ | Phase 4 UI統合へ移管 |
 | BTKS-WD-001 | watchdog | 試験用の停止子プロセスを起動 | Job Objectでプロセスツリーを終了確認し、Timeoutとして記録 | PID消滅を確認する自動試験 | Pass（simulation） |
 | BTKS-WD-002 | watchdog | 子プロセスを異常終了させる | 成功へ読み替えず、自動再試行しない | 非0終了コードの自動試験 | Pass（simulation） |
 | BTKS-WD-003 | watchdog | 名前付きJob内の親を終了させ、実際の孫プロセスを残す | 孫を終了し、Jobの`ActiveProcesses == 0`を確認するまで回収済みとしない | process-tree統合試験 | Pass（simulation） |
@@ -75,8 +75,9 @@
 | 3 | Reconnect | `S_OK` | Render/Capture Active | 8.178秒 | 正常 | 未確認 | 修正版Pass |
 | 4 | Reconnect | `S_OK` | Render/Capture Active | 10.761秒 | 正常 | 未確認 | 修正版Pass |
 | 5 | Reconnect | `S_OK` | Unplugged維持 | 15.000秒 | 正常 | 未確認 | Blocked（接続待ち未確認、正しくDeadlineExceeded） |
-| 6 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
-| 7 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
+| 6 | 未送信 | — | Render/Capture Active | 0.015秒 | 正常 | 未確認 | N/A（AlreadyInDesiredState） |
+| 7 | Reconnect | `S_OK` | Render/Capture Active | 11.292秒 | 正常 | 未確認 | 修正版Pass |
+| 8 | Reconnect | `S_OK` | Render/Capture Active | 9.256秒 | 正常 | 変化0（操作者確認） | 修正版Pass |
 
 ## 切断反復記録
 
@@ -89,8 +90,8 @@
 | 3 | Render/Capture Disconnect | `S_OK` | 両Endpoint Unpluggedを5秒維持 | 7.167秒 | 正常 | 未観測 | 修正版Pass |
 | 4 | Render/Capture Disconnect | `S_OK` | 両Endpoint Unpluggedを5秒維持 | 7.969秒 | 正常 | 未確認 | 修正版Pass（操作者確認） |
 | 5 | Render/Capture Disconnect | `S_OK` | 両Endpoint Unpluggedを5秒維持 | 5.865秒 | 正常 | 未確認 | 修正版Pass |
-| 6 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
-| 7 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
+| 6 | Render/Capture Disconnect | `S_OK` | 両Endpoint Unpluggedを5秒維持 | 7.266秒 | 正常 | 未確認 | 修正版Pass |
+| 7 | Render/Capture Disconnect | `S_OK` | 両Endpoint Unpluggedを5秒維持 | 5.721秒 | 正常 | 未確認 | 修正版Pass |
 
 ## Gate A集計
 
@@ -98,11 +99,13 @@
 |---|---:|---|
 | Reconnect Basic Support | 対応 | Pass |
 | Disconnect Basic Support | 対応 | Pass（Render／Capture） |
-| 接続成功 | 5回中4回以上、各15秒以内 | 正式反復Pending（有効3回中3回Pass、Blocked 2回） |
-| 切断成功 | 5回中4回以上、各15秒以内 | 正式反復Pending（有効3回中3回Pass） |
-| 誤成功表示 | 0件 | 探索的1件を修正、修正版反復Pending |
-| 他機器への影響 | 0件 | 初回比較0件、反復Pending |
+| 接続成功 | 5回中4回以上、各15秒以内 | Pass（有効5回中5回Pass、Blocked 2回、N/A 1回） |
+| 切断成功 | 5回中4回以上、各15秒以内 | Pass（有効5回中5回Pass） |
+| 誤成功表示 | 0件 | Pass（探索的1件を修正、修正版0件） |
+| 他機器への影響 | 0件 | Pass（初回比較・最終確認とも0件） |
 | 管理者権限 | 不要 | Pass |
 | watchdog未処理停止 | 0件 | 0件（停止・異常終了simulationはPass） |
 
 片方向だけ成功した場合、成功率不足、実状態未確認、他機器への影響、管理者権限要求のいずれかがある場合はConditional Goにしない。直接操作をNo-Goとし、製品では`ms-settings:bluetooth`を開く縮退経路を使用する。
+
+現在値は全Go基準を満たしたため、Gate AはGoとする。圏外、他端末接続中、無線OFFはPhase 4の製品状態・回復導線を含む統合試験で実施する。

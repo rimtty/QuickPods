@@ -12,7 +12,7 @@
 | format / diff check | Pass |
 | 読み取り専用inventory | Pass |
 | KS Basic Support | Pass（Reconnect Render、Disconnect Render/Capture） |
-| Reconnect / Disconnect | Live Gate in progress |
+| Reconnect / Disconnect | Gate A Go（有効な接続5/5、切断5/5） |
 
 ## 初回の読み取り専用inventory（2026-08-05）
 
@@ -67,8 +67,11 @@
 - 直後のReconnectはKS `S_OK`でも15秒以内にActiveにならず`DeadlineExceeded`となった。AirPodsを再度到達可能にした上で反復を継続する。
 - ペアリング済み・未接続かつ装着中の状態から再試行し、Reconnectは8.178秒でRender／Capture Activeとなった。続く修正版Disconnectは7.969秒で両Endpoint Unpluggedを5秒維持し、直後の新規inventoryでも両flowがUnpluggedだった。操作者もWindows画面で切断を確認した。
 - 同じ到達可能期間の追加往復はReconnect 10.761秒、Disconnect 5.865秒でPassした。直後に接続待ちを再確認せず送ったReconnectはKS `S_OK`でも15秒間Unpluggedを維持し、`DeadlineExceeded`として終了した。自動再試行もDisconnectも送らず、この試行は到達可能前提を証明できないため`Blocked`とした。
+- 操作者の次の準備後はinventory時点ですでにRender／Capture Activeだったため、Reconnectを送らず15msで`AlreadyInDesiredState`とした。この観測は接続試行に含めず、続くDisconnectだけを実施し、7.266秒で両Endpoint Unpluggedを5秒維持してPassした。
+- 未接続かつ接続待ちを再確認した次の試行はReconnect 11.292秒でRender／Capture Active、続くDisconnect 5.721秒で両Endpoint Unpluggedを5秒維持し、ともにPassした。
+- 最終の未接続・接続待ち確認済み試行はReconnect 9.256秒でPassし、直後の新規inventoryでもRender／Capture Activeを確認した。最終状態は操作者確認のため接続済みのまま残した。
 - この実機不具合に直接対応する回帰試験2件だけを追加し、Bluetooth KS 65件が合格した。
 
-## 未完了項目
+## 後続の統合試験
 
-修正版の有効試行は接続3回中3回、切断3回中3回がPassしている。テスト棚卸しにより同一実機の反復基準は各5回へ半減し、残り各2回、到達不能、他端末接続中、無線OFF、および反復中の選択外機器影響確認は未完了である。Gate Aはこれらを完了するまでPendingのままとする。
+修正版の有効試行は接続5回中5回、切断5回中5回がPassし、各15秒以内だった。テスト棚卸しにより同一実機の反復基準は各5回へ半減済みである。操作者は最終接続と選択外Bluetooth機器への影響0件を確認した。全Go条件が揃ったためGate AはGoとする。到達不能、他端末接続中、無線OFFはPhase 4で製品UIの部分状態・回復導線と合わせて確認する。

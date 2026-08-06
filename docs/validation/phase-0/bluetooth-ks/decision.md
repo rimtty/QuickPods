@@ -4,14 +4,14 @@
 
 | 項目 | 値 |
 |---|---|
-| Status | **Pending** |
+| Status | **Go** |
 | 対象 | GitHub Issue #5 |
 | 対象ブランチ | `codex/phase-0b-bluetooth-ks-spike` |
-| 判断 | 未判定 |
-| 判断日 | 未定 |
-| 判断者 | 未記入 |
+| 判断 | Container単位の直接Reconnect／Disconnectを機器別Capabilityとして採用 |
+| 判断日 | 2026-08-06 |
+| 判断者 | 実機確認：ユーザー、証跡監査：Codex |
 
-読み取り専用探索、Render候補の一意選択、純粋ロジック、Job Object watchdogシミュレーション、Reconnect／Disconnect Basic Support、操作者確認付き実機操作を確認した。探索的試験でRenderのみの一時Unpluggedを誤成功とする欠陥を検出し、Render/Capture両候補の切断、全Endpoint観測、5秒安定窓、期限切れ成功拒否へ修正した。前提を確認できた修正版の接続・切断は各3回Passした。明示切断後に接続待ちを再確認しないまま行ったReconnect 2件は`S_OK`後もUnpluggedを維持し、正しく`DeadlineExceeded`になったが、有効試行には含めない。各5回のGate母数が未達なので判断はPendingである。
+読み取り専用探索、Render候補の一意選択、純粋ロジック、Job Object watchdogシミュレーション、Reconnect／Disconnect Basic Support、操作者確認付き実機操作を確認した。探索的試験でRenderのみの一時Unpluggedを誤成功とする欠陥を検出し、Render/Capture両候補の切断、全Endpoint観測、5秒安定窓、期限切れ成功拒否へ修正した。前提を確認できた修正版の接続・切断は各5回すべて15秒以内にPassし、操作者は最終接続と選択外Bluetooth機器への影響0件を確認した。明示切断後に接続待ちを再確認しないまま行ったReconnect 2件は`S_OK`後もUnpluggedを維持し、正しく`DeadlineExceeded`になったが、有効試行には含めない。Windows側で既に接続済みだった1件は`AlreadyInDesiredState`としてKS要求を送らず、その後の切断だけを有効試行へ加えた。
 
 ## Gate Aの目的
 
@@ -56,16 +56,16 @@ KS要求のHRESULTが成功しても、実際の接続・切断成功とはみ�
 | 複数機器カタログ契約 | Pass | 0／1／複数／同名、A2DP/HFP集約、選択保持、操作層非依存 |
 | Reconnect Basic Support | Pass | Render候補で`S_OK`、GET対応 |
 | Disconnect Basic Support | Pass | Render／Capture両候補で`S_OK`、GET対応 |
-| 接続5回 | In progress | 前提確認済み3回Pass、接続待ち未確認2回Blocked。有効5回は未達 |
-| 切断5回 | In progress | 修正版3回Pass。有効5回は未達 |
-| 実状態確認 | In progress | Active／両Endpoint Unpluggedを観測、反復未達 |
-| 誤成功表示 | In progress | 探索的欠陥1件を修正し回帰試験化。修正版Gate反復未達 |
-| 他機器影響 | In progress | 操作者が1組の前後比較で変化0を確認、反復未達 |
+| 接続5回 | Pass | 前提確認済み5回中5回Pass、接続待ち未確認2回Blocked、既接続1回N/A |
+| 切断5回 | Pass | 修正版5回中5回Pass |
+| 実状態確認 | Pass | 有効な接続・切断各5回で独立観測が一致 |
+| 誤成功表示 | Pass | 探索的欠陥1件を修正・回帰試験化し、修正版の誤成功0件 |
+| 他機器影響 | Pass | 操作者が初回比較と最終状態で変化0を確認 |
 | 非管理者での実操作 | Pass | 昇格なしでBasic Support／Reconnect／Disconnectを実行 |
 | 子プロセスwatchdog | Pass（simulation） | kill-on-close Job Object、Job全体の空状態、孫PID消滅、異常終了、machine-wide排他を確認 |
-| 異常系 | Pending | 未実行 |
+| 異常系 | Follow-up | DeadlineExceeded／AlreadyInDesiredStateは実機確認済み。圏外／他端末／無線OFFのUI回復はPhase 4統合試験へ移管 |
 
-したがってGate AはPendingのままとし、未実行項目を成功として扱わない。
+したがってGate AはGoとする。製品実装はBasic Supportと所有権をContainerごとに判定し、対応できない機器だけWindows設定導線へ縮退する。圏外、他端末接続中、無線OFFはKS方式の成立性ではなく製品のエラー表示・回復動作としてPhase 4で検証する。
 
 ## No-Go時の製品縮退
 
