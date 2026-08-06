@@ -20,7 +20,9 @@ Phase 0 evidence will use this structure:
 
 ```text
 phase-0/
+├─ decision.md
 ├─ core-audio/
 ├─ bluetooth-ks/
+├─ default-endpoint-policy/
 └─ taskbar-host/
 ```

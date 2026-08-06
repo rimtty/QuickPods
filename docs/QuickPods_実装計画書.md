@@ -10,7 +10,7 @@
 | 対象OS | Windows 11 x64 |
 | 実装言語 | C# |
 | 製品ターゲット | .NET 10 / WPF + Win32 |
-| ステータス | Bluetooth複数機器UIへ再編・Phase 0検証中 |
+| ステータス | Phase 0完了・全Gate Go・Phase 1着手可 |
 | 参考実装 | Ceiling（MIT License） |
 
 > 本書は、これまで行った対象PCの確認、Windows公式APIの調査、CeilingのGitHubソース監査を統合した実装計画である。タスクバー内表示とBluetoothオーディオ機器の個別接続・切断は、いずれも環境依存性があるため、技術スパイクの合格を本実装着手のゲートとする。
@@ -997,6 +997,8 @@ No-Go時：
 
 ### Phase 1：ソリューション基盤（2～3人日）
 
+Phase 0判定（2026-08-06）：Core Audio、Bluetooth Gate A、既定出力Gate A2、Taskbar Gate BはすべてGo。採用境界、Capability、部分状態、縮退、P2配置は`docs/validation/phase-0/decision.md`を正とし、Phase 1はその契約を差し替え可能な製品骨格として実装する。
+
 - `global.json`による.NET SDK `10.0.302`系列の固定
 - ソリューションとプロジェクト分割
 - 中央パッケージ管理
@@ -1278,12 +1280,14 @@ Explorerの代わりとなるテスト用トップレベルウィンドウへホ
 - 参照実機で`ONESHOT_RECONNECT`と`ONESHOT_DISCONNECT`を確認し、Container単位の能力判定を確立する。
 - 選択外への要求0件、無関係Endpoint障害の非波及、要求と実状態の区別を確認する。
 - 未達機器だけをWindows Bluetooth設定ランチャーへ縮退し、他の対応機器を妨げない。
+- **結果：Go（2026-08-06）**。参照実機の有効な接続・切断各5/5、誤成功0、通常権限、選択外影響0に合格した。製品ではContainerごとのBasic Supportと所有権を必須とする。
 
 ### Gate A2：接続後の既定出力設定
 
 - Activeになった選択機器のステレオ再生EndpointをConsole／Multimediaの既定出力へ設定する。
 - 通常権限、通知整合性、A→B→A、途中失敗、対象消失を確認する。
 - 未達の場合、接続済み・非既定を表示し、Windowsサウンド設定への導線へ縮退する。
+- **結果：Go（2026-08-06）**。Console／Multimediaの実変更1往復、通知＋再取得、Communications不変、既定済み書き込み0に合格した。非公開境界は`IDefaultAudioEndpointPolicy`へ隔離する。
 
 ### Gate B：タスクバー内表示
 
@@ -1366,4 +1370,4 @@ CeilingはMITライセンスである。コードまたは実質的なロジッ�
 
 ---
 
-本計画の最優先作業は、Phase 0のBluetooth KS PoCとタスクバー内ホストPoCである。両者を先に検証することで、環境依存部分の可否を確定したうえで、Core Audio、WPF、配布基盤へ無駄なく投資できる。
+Phase 0の全技術Gateは2026-08-06にGoとなった。現在の最優先作業はPhase 1 solution foundationであり、`docs/validation/phase-0/decision.md`の契約に従って製品プロジェクト、Capability、部分状態、IPC、設定・ログ・監視の差し替え可能な骨格を実装する。
