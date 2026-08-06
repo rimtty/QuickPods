@@ -9,7 +9,7 @@
 | 作成日 | 2026-08-05 |
 | 対象環境 | Windows 11 x64 / .NET 10 / WPF + Win32 |
 | 基本文書 | `QuickPods_実装計画書.md` |
-| ステータス | Phase 0 Gate成立 — Core Audio／Gate A／Gate A2／Gate B Go、B5判断統合へ移行 |
+| ステータス | Phase 0完了 — 全Gate Go、Phase 1 solution foundation着手可 |
 
 ## 1. 目的
 
@@ -19,12 +19,12 @@
 
 ## 2. 現在の開始条件
 
-2026-08-05時点のリポジトリ状態は次のとおりである。
+2026-08-06時点のリポジトリ状態は次のとおりである。
 
 | 項目 | 状態 |
 |---|---|
-| Git | `main`は`5d441e3`まで統合済み。現在はPhase 0Dからstackした`codex/phase-0e-native-continuity-spike` |
-| Remote | `origin/main`作成済み。Phase 0 Spikeは短命ブランチとDraft PRで管理 |
+| Git | `main`はPhase 0の全Spikeまで統合済み。現在は`codex/phase-0-gate-decisions` |
+| Remote | `origin/main`へPR #7／#8／#16／#22を統合済み。B5はIssue #23で管理 |
 | 追跡対象 | 計画資料、ブランド資産、solution基盤、Spike、検証証跡 |
 | ソース／テスト／CI | .NET 10 solution、Windows CI、Smoke testを作成済み |
 | AGENTS.md | なし |
@@ -133,7 +133,7 @@ Phase 0ではCore AudioとタスクバーSpikeを並行開始できる。Bluetoo
 | 項目 | 内容 |
 |---|---|
 | 目的 | 公開Core Audio APIによる中核機能の成立性とCOMスレッドモデルを確定する |
-| 状態 | **Gate待ち** — Issue #4、Draft PR #7。実機試験未完了 |
+| 状態 | **Go（2026-08-06）** — Issue #4、PR #7。Windows UI一致、通知latency、1,000回変更と復元に合格。複数出力の物理追試はP2 Issue #19 |
 | Spike | `spikes/QuickPods.Spike.CoreAudio/` |
 | 実装 | 既定Endpoint取得、音量・ミュート取得／変更、変更通知、既定デバイス変更、再バインド |
 | 自動試験 | Scalar変換、クランプ、自通知GUID、コールバックキュー、世代破棄 |
@@ -285,9 +285,12 @@ Start／Search表示中でも、identity、parent、style、bounds、DPI、monit
 | 項目 | 内容 |
 |---|---|
 | 目的 | 4件のSpike結果を製品仕様へ反映する |
+| 状態 | **完了** — Issue #23。全Gate採用方式、Capability、部分状態、縮退、P2配置を`docs/validation/phase-0/decision.md`へ統合 |
 | 成果物 | Gate A／A2／B、Core Audio判定、ADR、縮退仕様、未解決リスク、更新済みロードマップ |
 | コード | 原則なし。必要なら機能フラグとCapabilityモデルの契約案だけを記載 |
 | 完了条件 | Phase 1で実装する構成が一意に決まり、未検証の前提が必須要件として残っていない |
+
+判定（2026-08-06）：**完了**。Core Audio、Bluetooth Gate A、既定出力Gate A2、Taskbar Gate BはすべてGo。Phase 1は`QuickPods.App`／`Core`／`Windows`／`TaskbarHost`／`Contracts`／`Infrastructure`の境界、機器別Capability、接続と既定出力の部分状態、設定導線を実装する。Issue #15／#18／#19は明示した後続Phaseへ送り、Phase 1 blockerにはしない。
 
 検証記録は次の構成へ保存する。
 
@@ -530,4 +533,4 @@ dotnet publish src/QuickPods.TaskbarHost/QuickPods.TaskbarHost.csproj -c Release
 
 ---
 
-資料ベースラインは`main`の初回コミット`1f63aa1`、B1 bootstrapは`5d441e3`として統合済みである。Phase 0CはTaskbarHost 216件＋Smoke 1件、150%可視ChildのExplorer再生成10/10回、200% NoFit再検出10/10回までを履歴として確定し、Start／Search中の`PrimaryTaskbarMissing`ではnativeを安全にhideすることを確認した。Phase 0DはTaskbarHost 301件＋Smoke 1件、175%のStart／Search入力を含むEXEでfloating fallbackとnative promotionを確定し、Phase 0Eで100／200%左揃えNoFitのfloating目視・入力・自然破棄・残留0まで合格した。現在の`codex/phase-0e-native-continuity-spike`は重複整理後のTaskbarHost 183件＋Smoke 1件（整理前368件の50.0%）、Release build 0 warning／0 error、format／diff checkに合格し、100%・1920×1080と150%・5120px幅タスクバーの各120秒Popup EXEでStart／Search双方のnative保持、表示中wheel入力、Floating遷移0、自然破棄、残留0を確認した。150%の多数ピン留めstressとStart中tray churnも重なり／ちらつき／入力問題なし、Floating／watcher failure／fatal／残留0で合格した。`PopupPreserved`を採用方式に選定し、Childは比較／rollback用に残す。採用PopupのExplorer再起動も10/10回・最大5.395秒・重複／残留0で合格した。Gate Bは2026-08-06にGoとし、UIA watcherのExplorer世代別USER object増加はIssue #18、provenance／race hardeningはIssue #15でリリース前P2として追跡する。B2／B3の実機Gateが完了するまでB5およびPhase 1へ進めない。
+資料ベースラインは`1f63aa1`、B1 bootstrapは`5d441e3`として統合済みである。Phase 0ではCore AudioをGo、Bluetooth KS Gate Aを有効な接続・切断各5/5でGo、既定出力Gate A2を実変更1往復と既定済み書き込み0でGo、Taskbar Gate Bを`PopupPreserved`＋floating／hidden fallbackとしてGoにした。採用方式、Capability、部分状態、縮退、残存P2は`docs/validation/phase-0/decision.md`へ統合した。Issue #15／#18／#19は後続Phaseで追跡し、Phase 1 blockerではない。B5完了後、`codex/phase-1-solution-foundation`を最新`main`から開始する。
