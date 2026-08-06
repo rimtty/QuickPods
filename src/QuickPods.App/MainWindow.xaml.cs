@@ -6,6 +6,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 using QuickPods.Contracts;
@@ -278,11 +279,8 @@ public partial class MainWindow : Window
 
     internal bool IsPointerWithinFlyoutBounds()
     {
-        System.Windows.Point pointer = Mouse.GetPosition(this);
-        return pointer.X >= 0d &&
-            pointer.Y >= 0d &&
-            pointer.X < ActualWidth &&
-            pointer.Y < ActualHeight;
+        nint windowHandle = new WindowInteropHelper(this).Handle;
+        return FlyoutPointerProbe.IsPointerWithin(windowHandle);
     }
 
     private void PositionAboveTaskbarCore(TaskbarSurfaceAnchor? anchor)

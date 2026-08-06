@@ -16,7 +16,7 @@ TaskbarHostは`TrackMouseEvent`で一回のenter世代につき180 ms hoverを�
 - `TaskbarPointerExited`：previewを閉じるgrace timerを開始
 - `OpenAudioFlyout`：clickで表示・activate
 
-flyout interactionにはTaskbarHostが検証済みscreen boundsを`TaskbarSurfaceAnchor`として付ける。WPFは現在のDPI scaleでdevice pixelからDIPへ変換し、surface中央の上6 DIPへflyoutを配置する。monitor中央はanchorを取得できない通知領域／単一instance起動時だけのfallbackである。
+flyout interactionにはTaskbarHostが検証済みscreen boundsを`TaskbarSurfaceAnchor`として付ける。WPFは現在のDPI scaleでdevice pixelからDIPへ変換し、surface中央の上6 DIPへflyoutを配置する。monitor中央はanchorを取得できない通知領域／既存instanceへの再起動要求だけのfallbackである。初回起動は引数の有無にかかわらずtray常駐で開始し、flyoutを表示しない。tray iconの生成自体に失敗した場合だけ、操作不能を避けるためflyoutをfallback表示する。
 
 Taskbarからflyoutへpointerを移動できるよう、exitから420 msは閉じない。flyoutへenterするとtimerを停止し、preview状態でflyoutからもleaveした場合だけ再開する。hover表示はforeground focusを奪わず、click表示だけをactivateする。
 
@@ -28,11 +28,10 @@ Taskbarからflyoutへpointerを移動できるよう、exitから420 msは閉�
 - 一覧あり：行全体を選択targetとするradio row、type glyph、名前、`ペアリング済み`、検証済み状態。選択行だけcyan outline
 - 共通：volume label／数値／slider／mute、全幅の接続・切断action、状態に応じたサウンドまたはBluetooth設定導線
 
-一覧選択、接続、切断、既定出力化、音量、mute、refresh、keyboard、automation nameの意味はPhase 5Aから変更しない。空一覧のdisabled主操作labelはモックどおり`接続`とする。詳細なQuickPods設定は折りたたみ領域へ残す。
+一覧選択、接続、切断、既定出力化、音量、mute、refresh、keyboard、automation nameの意味はPhase 5Aから変更しない。空一覧のdisabled主操作labelはモックどおり`接続`とする。詳細なQuickPods設定はflyoutへ含めず、tray iconの右クリックメニューから独立した設定windowを開く。
 
 ## 非対象と保留
 
 - 左揃えタスクバーは非対応policyを維持する。
 - 実Bluetooth一覧と接続／切断は[#38](https://github.com/rimtty/QuickPods/issues/38)／[#41](https://github.com/rimtty/QuickPods/issues/41)で確認する。
 - RDPで信頼できないDPI／解像度差の最終判定は[#43](https://github.com/rimtty/QuickPods/issues/43)へ残す。
-

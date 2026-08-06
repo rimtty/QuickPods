@@ -124,10 +124,7 @@ public partial class App : WpfApplication, IDisposable
             IsEnabled = false,
         };
 
-        bool startInBackground = e.Args.Any(argument => string.Equals(
-            argument,
-            "--background",
-            StringComparison.OrdinalIgnoreCase));
+        bool trayIconAvailable = false;
         try
         {
             trayIcon = new TrayIconController(
@@ -138,19 +135,16 @@ public partial class App : WpfApplication, IDisposable
                 () => settingsLauncher.TryOpenSoundSettings(),
                 () => settingsLauncher.TryOpenBluetoothSettings(),
                 ExitApplication);
+            trayIconAvailable = true;
         }
         catch (Exception exception)
         {
-            startInBackground = false;
             window.ReportSettingsFailure(
                 $"通知領域アイコンを初期化できませんでした: {exception.Message}");
         }
 
-        if (startInBackground)
-        {
-            _ = window.InitializeAsync();
-        }
-        else
+        _ = window.InitializeAsync();
+        if (StartupPresentationPolicy.ShouldShowInitialFlyout(trayIconAvailable))
         {
             ShowMainWindow();
         }

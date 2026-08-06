@@ -106,6 +106,24 @@ internal sealed class NativeTaskbarHost : IDisposable
         HideViewImmediately();
     }
 
+    internal bool IsCurrentContinuityStable()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        EnsureOwnerThread();
+
+        try
+        {
+            ValidateVisibleContinuitySnapshot();
+            ValidateVisibleContinuitySnapshot();
+            return true;
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or Win32Exception)
+        {
+            return false;
+        }
+    }
+
     internal int PumpMessages()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
@@ -585,6 +603,28 @@ internal sealed class NativeTaskbarHost : IDisposable
             !NativeWindowVerifier.IsUncloaked(windowHandle))
         {
             throw new InvalidOperationException("The taskbar host or its parent is cloaked.");
+        }
+    }
+
+    private void ValidateVisibleContinuitySnapshot()
+    {
+        if (requiresRevalidation)
+        {
+            throw new InvalidOperationException(
+                "A hard taskbar layout invalidation is pending.");
+        }
+
+        ValidateAttachment();
+        if (!TaskbarNativeMethods.IsWindowVisible(windowHandle))
+        {
+            throw new InvalidOperationException(
+                "The retained taskbar host is no longer visible.");
+        }
+
+        if (requiresRevalidation)
+        {
+            throw new InvalidOperationException(
+                "The taskbar layout changed during continuity validation.");
         }
     }
 
