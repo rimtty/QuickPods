@@ -18,6 +18,9 @@ internal static class Program
             TaskbarHostCommand.Help => 0,
             TaskbarHostCommand.Inspect => RunInspect(),
             TaskbarHostCommand.Preview => RunPreview(options.PreviewDuration),
+            TaskbarHostCommand.Run => TaskbarHostRuntime.Run(
+                options.PipeName!,
+                options.ParentProcessId),
             _ => 2,
         };
     }

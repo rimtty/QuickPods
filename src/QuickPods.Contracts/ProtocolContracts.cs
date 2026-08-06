@@ -1,8 +1,12 @@
+using System.Text.Json;
+
 namespace QuickPods.Contracts;
 
 public static class QuickPodsProtocol
 {
     public const int Version = 1;
+
+    public const int MaximumMessageCharacters = 16 * 1024;
 }
 
 public enum TaskbarSurfaceMode
@@ -131,4 +135,57 @@ public sealed class MonotonicSequenceGate
     }
 
     public void Reset() => Interlocked.Exchange(ref lastAccepted, -1);
+}
+
+public static class QuickPodsProtocolJson
+{
+    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+
+    public static string Serialize(HostStateEnvelope envelope)
+    {
+        ArgumentNullException.ThrowIfNull(envelope);
+        return SerializeBounded(envelope);
+    }
+
+    public static string Serialize(HostInteractionEnvelope envelope)
+    {
+        ArgumentNullException.ThrowIfNull(envelope);
+        return SerializeBounded(envelope);
+    }
+
+    public static HostStateEnvelope DeserializeState(string message) =>
+        DeserializeBounded<HostStateEnvelope>(message);
+
+    public static HostInteractionEnvelope DeserializeInteraction(string message) =>
+        DeserializeBounded<HostInteractionEnvelope>(message);
+
+    private static string SerializeBounded<T>(T value)
+    {
+        string message = JsonSerializer.Serialize(value, SerializerOptions);
+        if (message.Length > QuickPodsProtocol.MaximumMessageCharacters)
+        {
+            throw new InvalidDataException("The QuickPods IPC message exceeds the protocol limit.");
+        }
+
+        return message;
+    }
+
+    private static T DeserializeBounded<T>(string message)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        if (message.Length > QuickPodsProtocol.MaximumMessageCharacters)
+        {
+            throw new InvalidDataException("The QuickPods IPC message exceeds the protocol limit.");
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<T>(message, SerializerOptions) ??
+                throw new InvalidDataException("The QuickPods IPC message did not contain an envelope.");
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidDataException("The QuickPods IPC message is malformed.", exception);
+        }
+    }
 }

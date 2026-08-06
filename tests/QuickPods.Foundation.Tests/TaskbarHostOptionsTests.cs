@@ -20,4 +20,19 @@ public sealed class TaskbarHostOptionsTests
         Assert.Equal(TaskbarHostCommand.Preview, valid.Command);
         Assert.Equal(TimeSpan.FromSeconds(15), valid.PreviewDuration);
     }
+
+    [Fact]
+    public void RunRequiresBoundedPipeNameAndPositiveParentProcess()
+    {
+        Assert.Equal(
+            TaskbarHostCommand.Invalid,
+            TaskbarHostOptions.Parse(["run", "--pipe-name", "short", "--parent-pid", "1"]).Command);
+
+        TaskbarHostOptions valid = TaskbarHostOptions.Parse(
+            ["run", "--pipe-name", "QuickPods.0123456789abcdef", "--parent-pid", "42"]);
+
+        Assert.Equal(TaskbarHostCommand.Run, valid.Command);
+        Assert.Equal("QuickPods.0123456789abcdef", valid.PipeName);
+        Assert.Equal(42, valid.ParentProcessId);
+    }
 }

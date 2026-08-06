@@ -18,4 +18,22 @@ public sealed class TaskbarHostSupervisorTests
         Assert.Equal(TaskbarHostLifecycle.DisabledForSession, supervisor.State.Lifecycle);
         Assert.False(supervisor.CanRestart(now + TimeSpan.FromMinutes(1)));
     }
+
+    [Fact]
+    public void ReconnectPreservesFailureCountUntilConnectionIsStable()
+    {
+        var supervisor = new TaskbarHostSupervisor(failureLimit: 3);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+
+        supervisor.RecordUnexpectedExit(now);
+        supervisor.RecordStart();
+        supervisor.RecordConnected();
+
+        Assert.Equal(TaskbarHostLifecycle.Connected, supervisor.State.Lifecycle);
+        Assert.Equal(1, supervisor.State.ConsecutiveFailures);
+
+        supervisor.RecordStable();
+
+        Assert.Equal(0, supervisor.State.ConsecutiveFailures);
+    }
 }
