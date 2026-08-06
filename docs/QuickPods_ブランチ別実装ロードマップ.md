@@ -9,7 +9,7 @@
 | 作成日 | 2026-08-05 |
 | 対象環境 | Windows 11 x64 / .NET 10 / WPF + Win32 |
 | 基本文書 | `QuickPods_実装計画書.md` |
-| ステータス | Phase 0完了 — 全Gate Go、Phase 1 solution foundation着手可 |
+| ステータス | Phase 0～6A実装済み。Phase 5C UI fidelity／Phase 6B配布をDraft PRで検証中、実機・署名・耐久Gateは未完了 |
 
 ## 1. 目的
 
@@ -17,16 +17,16 @@
 
 実装開始後は本書を進捗台帳として利用し、各ブランチの状態を`未着手`、`進行中`、`Gate待ち`、`完了`、`縮退`のいずれかへ更新する。
 
-## 2. 現在の開始条件
+## 2. 現在の進捗と開始条件
 
 2026-08-06時点のリポジトリ状態は次のとおりである。
 
 | 項目 | 状態 |
 |---|---|
-| Git | `main`はPhase 0の全Spikeまで統合済み。現在は`codex/phase-0-gate-decisions` |
-| Remote | `origin/main`へPR #7／#8／#16／#22を統合済み。B5はIssue #23で管理 |
-| 追跡対象 | 計画資料、ブランド資産、solution基盤、Spike、検証証跡 |
-| ソース／テスト／CI | .NET 10 solution、Windows CI、Smoke testを作成済み |
+| Git | `main`はPhase 6A（PR #49）まで統合済み。Phase 5CはPR #54、Phase 6BはPR #51で個別に検証中 |
+| Remote | `origin/main`へPhase 0～6Aの実装PRを統合済み。全体進捗はIssue #2、残存Gateは#33／#34／#38／#41／#43／#48／#50／#53で管理 |
+| 追跡対象 | 計画資料、ブランド資産、製品コード、インストーラー、検証証跡、既知の制限 |
+| ソース／テスト／CI | .NET 10製品solution、Windows CI、RC／MSI生成、focused regressionを運用中 |
 | AGENTS.md | なし |
 | .NET SDK | `10.0.302`利用可能 |
 | Windows Desktop Runtime | `10.0.10`利用可能 |
@@ -90,8 +90,9 @@ flowchart TD
     BluetoothService --> BluetoothIntegration
     BluetoothIntegration --> ProductUi["phase-5a-product-ui"]
     ProductUi --> Resilience["phase-5b-resilience-accessibility"]
-    Resilience --> Hardening["phase-6a-release-hardening"]
-    Resilience --> Distribution["phase-6b-distribution"]
+    Resilience --> UiFidelity["phase-5c-ui-fidelity"]
+    UiFidelity --> Hardening["phase-6a-release-hardening"]
+    UiFidelity --> Distribution["phase-6b-distribution"]
     Hardening --> Release["release-0.1.0-rc1"]
     Distribution --> Release
 ```
@@ -315,7 +316,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | OS依存実装を差し替え可能な製品構造を作る |
-| 状態 | **進行中** — Issue #25。製品6プロジェクト、Core状態契約、IPC v1、Infrastructure骨格、focused foundation testsを実装 |
+| 状態 | **完了（2026-08-06）** — Issue #25／PR #26。製品6プロジェクト、Core状態契約、IPC v1、Infrastructure骨格、focused foundation testsを統合 |
 | プロジェクト | `QuickPods.App`、`QuickPods.Core`、`QuickPods.Windows`、`QuickPods.TaskbarHost`、`QuickPods.Contracts`、`QuickPods.Infrastructure`、対応テスト |
 | Core | Bluetoothカタログ、選択／接続／既定出力の複合状態、`StateCoordinator`骨格、エラー分類、Capability、設定モデル |
 | Contracts | IPC DTO、`ProtocolVersion = 1`、Sequence、Interaction契約 |
@@ -361,7 +362,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 本体、Core Audio、表示ホストを結合し、表示の復旧とフォールバックを完成させる |
-| 状態 | **進行中（2026-08-06）** — Issue #34。CurrentUserOnly IPC、完全スナップショット、実音量往復、単発Host復旧、連続失敗時Hidden、Explorer世代Observer、`TaskbarCreated`合成Gate、Job Object、全残留0まで合格。実Explorer再起動／資源GateとIssue #33は未完了 |
+| 状態 | **実装完了（2026-08-06）** — Issue #34／PR #35。CurrentUserOnly IPC、完全スナップショット、実音量往復、Host復旧、Explorer世代Observer、`TaskbarCreated`、Job Objectを統合。center-aligned NoFitとlocal-console復旧GateはIssue #33／#34で未完了 |
 | IPC | 同一ユーザーSID限定の名前付きパイプ、ProtocolVersion、Sequence、再接続時の完全スナップショット |
 | 入力 | 音量暫定値／最終値、ミュート、フライアウト要求、コンテキストメニュー要求 |
 | 復旧 | `TaskbarCreated`、Watchdog、Explorer世代、ホスト再起動、連続失敗時のセッション無効化 |
@@ -377,6 +378,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 複数Bluetoothオーディオの列挙、集約、選択、能力をUIから独立して完成させる |
+| 状態 | **実装完了（2026-08-06）** — Issue #36／PR #37。実Bluetooth列挙のlocal-console最終GateはIssue #38 |
 | 実装 | Container ID集約、A2DP/HFP統合、単一選択、永続化、読み取り専用更新、カタログ世代、機器単位Capability |
 | Gate AがNo-Go | 非対応機器だけ`BluetoothDriverUnsupported`とし、一覧とWindows設定導線は維持 |
 | テスト | 0／1／複数／同名、選択復元、再ペアリング、選択・更新の無操作、古い世代、無関係Endpoint障害の非波及 |
@@ -387,6 +389,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 選択機器の接続、既定出力設定、切断を複合操作として本体と表示ホストへ統合する |
+| 状態 | **実装完了（2026-08-06）** — Issue #39／PR #40。実機接続・切断・既定出力のlocal-console最終GateはIssue #41 |
 | 実装 | KS操作、実状態確認、Console／Multimedia既定出力設定、部分成功、連打防止、StateSnapshot、設定導線 |
 | Gate A2がNo-Go | 接続済み・非既定を表示し、サウンド設定ランチャーを提供 |
 | 実機試験 | 参照機器接続→既定出力、切断、A→B→A、圏外、ケース内、他端末、無線OFF、再ペアリング、選択外影響 |
@@ -401,6 +404,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | v2モックアップに沿った日常利用可能な製品シェルを完成させる |
+| 状態 | **実装完了（2026-08-06）** — Issue #42／PR #44。Tray／display／DPIのlocal-console最終GateはIssue #43 |
 | UI | Bluetooth単一選択リスト、読み取り専用更新、状態別主ボタン、音量、設定、Tray、エラーと再試行 |
 | 設定 | 表示モード、選択機器、接続後の既定出力化、ホイール刻み、テーマ、切断確認、自動起動 |
 | 常駐 | 単一インスタンス、トレイ常駐、Windowsログイン時のユーザー単位自動起動 |
@@ -416,11 +420,22 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | OSライフサイクルとアクセシビリティを完成させる |
+| 状態 | **実装完了（2026-08-06）** — Issue #45／PR #46。local-console表示・DPI項目はIssue #43へ継続 |
 | 復旧 | スリープ／休止、RDP、表示変更、テーマ、高コントラスト、モニター抜き差し |
 | A11y | AutomationProperties、Tab、矢印、Space、Enter、Esc、色以外の状態表現 |
 | 信頼性 | 設定破損隔離、段階的再試行、ホスト連続失敗制限、例外境界 |
 | テスト | 200%以上のDPI、高コントラスト、スリープ復帰、RDP接続解除、混在DPI |
 | 完了条件 | FR-UI-008、主要NFR、AC-022～026を満たし、サービス例外でアプリ全体が終了しない |
+
+#### B13.1：`codex/phase-5c-ui-fidelity`
+
+| 項目 | 内容 |
+|---|---|
+| 目的 | 承認済みモックに沿ってタスクバー常設面、hover flyout、Bluetooth空／一覧状態の視覚・操作忠実度を完成させる |
+| 状態 | **Draft検証中（2026-08-06）** — Issue #53／PR #54。実pointer anchor、grace、Release build、focused regressionは合格。ユーザー目視と実Bluetooth一覧は未完了 |
+| 実装 | タスクバー内volume／device表示、non-activating hover、surface anchor、borderless flyout、空一覧、device rows、主操作、設定導線 |
+| 境界 | 左揃え非対応policyを維持。実BluetoothはIssue #38／#41、local-console DPIはIssue #43で判定 |
+| 完了条件 | ユーザー目視に合格し、PR #54のCIが成功。物理機器／DPIの明示的な後続Gateを閉じずに残す |
 
 ### Phase 6：Release Candidateと配布
 
@@ -429,6 +444,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | Release Candidateの機能・性能・リソース品質を確定する |
+| 状態 | **実装完了・Gate待ち（2026-08-06）** — Issue #47／PR #49。決定論的RC toolingとCIは統合済み。24時間Gate DはIssue #48 |
 | 自動試験 | 単体、Windows統合、擬似親、IPC、設定移行、回帰試験 |
 | 実機試験 | 全手動マトリクス、Explorer再起動反復、Bluetooth 100サイクル、24時間試験 |
 | 計測 | CPU、Working Set、GDI、USER、Handle、COM、IPC再接続、UIA時間 |
@@ -440,6 +456,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 再現可能で導入・削除できる配布物を作る |
+| 状態 | **Draft検証中（2026-08-06）** — Issue #50／PR #51。ユーザー単位WiX MSI、法務、決定論性、静的検証、CI生成は合格。clean standard-user lifecycle、署名、Gate Dは未完了 |
 | 発行 | `win-x64` self-contained、Release、再現可能ビルド、SHA-256 |
 | 配布 | 決定したインストーラー形式、ポータブル診断版、更新方針 |
 | ブランド | ICO、実行ファイル情報、バージョン、アンインストール表示 |
@@ -454,6 +471,7 @@ B15はB13後に準備を開始できるが、最終マージはB14のGate D通�
 | 項目 | 内容 |
 |---|---|
 | 目的 | RC固有のバージョン、リリースノート、最終スモーク試験だけを行う |
+| 状態 | **未着手** — Phase 5C、Phase 6B、Gate D、実機／DPI／Bluetooth最終Gateの完了後に開始 |
 | バージョン | `0.1.0-rc.1` |
 | 完了条件 | RC配布物が再生成でき、重大な既知不具合がなく、最終承認後に`v0.1.0`タグを作成可能 |
 
