@@ -1,5 +1,6 @@
 using QuickPods.Contracts;
 using QuickPods.TaskbarHost.Discovery;
+using QuickPods.TaskbarHost.Hosting;
 using QuickPods.TaskbarHost.Placement;
 
 namespace QuickPods.TaskbarHost;
@@ -7,23 +8,83 @@ namespace QuickPods.TaskbarHost;
 internal static class Program
 {
     [STAThread]
-    private static async Task<int> Main(string[] args)
+    private static int Main(string[] args)
     {
-        if (args.Length == 0 || args is ["--help"] or ["help"])
+        TaskbarHostOptions options = TaskbarHostOptions.Parse(args);
+        return options.Command switch
         {
+            TaskbarHostCommand.Help => 0,
+            TaskbarHostCommand.Inspect => RunInspect(),
+            TaskbarHostCommand.Preview => RunPreview(options.PreviewDuration),
+            _ => 2,
+        };
+    }
+
+    private static int RunInspect()
+    {
+        (TaskbarDiscoveryResult result, TaskbarPlacementResult placement) = DiscoverPlacement();
+        WriteSanitizedReport(result, placement);
+        return ExitCodeFor(placement);
+    }
+
+    private static int RunPreview(TimeSpan duration)
+    {
+        (TaskbarDiscoveryResult result, TaskbarPlacementResult placement) = DiscoverPlacement();
+        WriteSanitizedReport(result, placement);
+        if (placement.Decision != PlacementDecision.Place ||
+            placement.Bounds is not { } bounds ||
+            result.Snapshot is not LiveTaskbarSnapshot snapshot)
+        {
+            return ExitCodeFor(placement);
+        }
+
+        try
+        {
+            using var host = new NativeTaskbarHost();
+            host.Interaction += interaction => Console.WriteLine(
+                $"interaction={interaction.Kind};sequence={interaction.Sequence};volume={interaction.VolumePercent}");
+            host.LayoutInvalidated += reason => Console.WriteLine($"layout_invalidated={reason}");
+            host.Create(
+                snapshot.TaskbarHandle,
+                bounds,
+                snapshot.Dpi,
+                new TaskbarStateSnapshot(TaskbarSurfaceMode.Native, 42, false, null));
+
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            while (timer.Elapsed < duration)
+            {
+                _ = host.PumpMessages();
+                Thread.Sleep(8);
+            }
+
+            host.Destroy();
+            Console.WriteLine("preview_shutdown=natural");
             return 0;
         }
-
-        if (args is not ["inspect"])
+        catch (Exception exception) when (
+            exception is InvalidOperationException or
+            ArgumentException or
+            System.ComponentModel.Win32Exception)
         {
-            return 2;
+            Console.WriteLine($"preview_failure={exception.GetType().Name}");
+            return 5;
         }
+    }
 
-        TaskbarDiscoveryResult result = await TaskbarDiscoveryService.DiscoverAsync().ConfigureAwait(false);
+    private static (TaskbarDiscoveryResult Discovery, TaskbarPlacementResult Placement) DiscoverPlacement()
+    {
+        TaskbarDiscoveryResult result = TaskbarDiscoveryService.DiscoverAsync().GetAwaiter().GetResult();
         TaskbarLayoutObservation? observation = TaskbarObservationAdapter.Create(result);
         TaskbarPlacementResult placement = SafeRegionPlanner.Calculate(
             observation,
             TaskbarPlacementOptions.Default);
+        return (result, placement);
+    }
+
+    private static void WriteSanitizedReport(
+        TaskbarDiscoveryResult result,
+        TaskbarPlacementResult placement)
+    {
         Console.WriteLine($"protocol={QuickPodsProtocol.Version}");
         Console.WriteLine($"discovery_complete={result.IsComplete.ToString().ToLowerInvariant()}");
         Console.WriteLine($"faults={string.Join(',', result.Faults.Order())}");
@@ -36,12 +97,13 @@ internal static class Program
             Console.WriteLine($"automation_buttons={snapshot.AutomationButtons.Count}");
             Console.WriteLine($"native_obstacles={snapshot.NativeObstacles.Count}");
         }
+    }
 
-        return placement.Decision switch
+    private static int ExitCodeFor(TaskbarPlacementResult placement) =>
+        placement.Decision switch
         {
             PlacementDecision.Place => 0,
             PlacementDecision.VerifiedNoFit => 3,
             _ => 4,
         };
-    }
 }

@@ -15,8 +15,8 @@
 
 | Check | Result |
 |---|---|
-| Foundation tests | Pass — 38/38 |
-| New Phase 3A executions | Pass — 15 focused executions across placement, discovery, rendering, style, and input contracts |
+| Foundation tests | Pass — 39/39 |
+| New Phase 3A executions | Pass — 16 focused executions across placement, discovery, rendering, style, input, and preview safety contracts |
 | TaskbarHost Release build | Pass — 0 warnings, 0 errors |
 | Solution locked restore | Pass |
 | Format / diff check | Pass |
@@ -49,5 +49,6 @@ This proves the first product discovery/placement slice on the current 150% prim
 - Existing-host exclusion is admitted only for the exact supplied HWND when its class is `QuickPods.Taskbar.View`, its process is the current host, and its actual parent is the discovered taskbar.
 - Any discovery fault makes the observation incomplete and therefore yields `TransientUnknown` rather than a guessed placement.
 - Native creation is hidden-first. Promotion requires exact revalidation of trusted class/process provenance, parent attachment, PopupPreserved/non-topmost styles, taskbar containment, per-monitor DPI, DWM cloak state, and the layered color key.
+- Static preview creation additionally requires the exact `--confirm-live-host` flag and a duration from 1 to 60 seconds; the host is disposed when the bounded loop ends.
 - The product host implementation was not launched while the operator was away; visual placement, input, Start/Search continuity, and natural shutdown remain explicit live gates.
 - Phase 3A currently uses a one-shot MTA UIA scan. The repeating watcher required by Phase 3B will not be enabled until Issue #18 has an isolation/lifetime disposition.
