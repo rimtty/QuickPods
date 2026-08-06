@@ -1,6 +1,6 @@
 # QuickPods per-user MSI
 
-`QuickPods.Setup`はWiX Toolset 6.0.2で、QuickPodsのself-contained `win-x64` payloadを昇格不要のユーザー単位MSIへ変換する。インストール先は`PerUserProgramFilesFolder\QuickPods`、ショートカットは現在のユーザーのスタートメニューである。
+`QuickPods.Setup`はWiX Toolset 6.0.2で、QuickPodsのself-contained `win-x64` payloadを昇格不要のユーザー単位MSIへ変換する。利用者が.NET Desktop Runtimeを別途インストールする必要はない。RC生成とMSI取込は、app-local host、CoreCLR、Windows Desktop framework、全runtime configの`includedFrameworks`をfail-closedで検証する。インストール先は`PerUserProgramFilesFolder\QuickPods`、ショートカットは現在のユーザーのスタートメニューである。
 
 リポジトリrootから次を実行する。
 

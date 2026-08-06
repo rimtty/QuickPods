@@ -15,13 +15,12 @@ if (-not (Test-Path -LiteralPath $payloadRoot -PathType Container)) {
     throw "Payload directory does not exist: $payloadRoot"
 }
 
-$requiredFiles = @(
-    "QuickPods.exe",
-    "QuickPods.TaskbarHost.exe",
-    "QuickPods.TaskbarObserver.exe",
-    "QuickPods.BluetoothWorker.exe",
-    "artifact-manifest.json"
-)
+$selfContainedProof = & (Join-Path $PSScriptRoot "Test-SelfContainedPayload.ps1") `
+    -PayloadDirectory $payloadRoot
+$requiredFiles = @($selfContainedProof.Executables) +
+    @($selfContainedProof.RuntimeFiles) +
+    @($selfContainedProof.RuntimeConfigs) +
+    @("artifact-manifest.json")
 $componentIds = [System.Collections.Generic.List[string]]::new()
 foreach ($requiredFile in $requiredFiles) {
     if (-not (Test-Path -LiteralPath (Join-Path $payloadRoot $requiredFile) -PathType Leaf)) {

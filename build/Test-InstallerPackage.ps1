@@ -148,6 +148,14 @@ try {
         "QuickPods.TaskbarHost.exe",
         "QuickPods.TaskbarObserver.exe",
         "QuickPods.BluetoothWorker.exe",
+        "QuickPods.runtimeconfig.json",
+        "QuickPods.TaskbarHost.runtimeconfig.json",
+        "QuickPods.TaskbarObserver.runtimeconfig.json",
+        "QuickPods.BluetoothWorker.runtimeconfig.json",
+        "hostfxr.dll",
+        "hostpolicy.dll",
+        "coreclr.dll",
+        "PresentationFramework.dll",
         "artifact-manifest.json"
     )) {
         if (-not ($files | Where-Object { ($_[1] -split '\|')[-1] -eq $requiredFile })) {
