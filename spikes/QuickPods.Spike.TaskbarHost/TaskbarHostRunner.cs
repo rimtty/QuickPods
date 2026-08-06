@@ -344,8 +344,9 @@ internal sealed class TaskbarHostRunner
             {
                 attempt++;
                 ResetInvalidationFlags();
-                long generationBeforeScan = automationSignal.Generation;
-                long invalidationBeforeScan = invalidationGeneration;
+                var scanFence = new TaskbarContinuityScanFence(
+                    automationSignal.Generation,
+                    invalidationGeneration);
                 TimeSpan scanBudget = RemainingUntil(continuityDeadline);
                 if (scanBudget <= TimeSpan.Zero)
                 {
@@ -362,17 +363,17 @@ internal sealed class TaskbarHostRunner
                     current.ContinuityAnchor,
                     scanBudget,
                     cancellationToken);
-                long generationAfterScan = automationSignal.Generation;
                 PumpBothHosts();
                 _ = ConsumeAutomationInvalidation();
                 initiatingInvalidation ??= automationInvalidation;
-                bool invalidatedDuringScan =
-                    generationBeforeScan != generationAfterScan ||
-                    invalidationBeforeScan != invalidationGeneration ||
-                    nativeLayoutInvalidated ||
-                    automationLayoutInvalidated ||
-                    floatingLayoutInvalidated ||
-                    nativeContinuityProbeRequested;
+                var scanCompletion = new TaskbarContinuityScanCompletion(
+                    automationSignal.Generation,
+                    invalidationGeneration,
+                    nativeLayoutInvalidated,
+                    automationLayoutInvalidated,
+                    floatingLayoutInvalidated,
+                    nativeContinuityProbeRequested);
+                bool invalidatedDuringScan = scanFence.IsBroken(scanCompletion);
                 LiveLayoutScan? scan = continuityScan.Scan;
                 if (scan is not null)
                 {
@@ -419,38 +420,27 @@ internal sealed class TaskbarHostRunner
                 }
 
                 VerifiedLiveLayout? verified = scan.Layout;
-                TaskbarLayoutObservation? safetyObservation =
-                    verified is not null &&
-                    (continuityScan.Result.Evidence.RetainedNotificationAreaContinuity ||
-                        continuityScan.Result.Evidence.AutomationOrigin ==
-                            TaskbarAutomationContinuityOrigin.RetainedStartFromCompleteAnchor)
-                        ? TaskbarLayoutAdapter.CreateConservativeContinuityObservation(
-                            verified.Observation,
-                            current.Observation)
-                        : verified?.Observation;
-                bool currentBoundsSafe =
-                    safetyObservation is not null &&
-                    SafeRegionCalculator.IsExistingPlacementSafe(
-                        safetyObservation,
-                        TaskbarPlacementOptions.Default,
-                        current.Bounds);
-                bool nativeAttachmentValid =
-                    nativeHost.IsCurrentContinuityStable();
-                TaskbarWatchdogDecision decision = TaskbarWatchdogPolicy.Decide(new(
-                    current.Identity,
-                    current.Bounds,
-                    verified?.Identity,
-                    verified?.Bounds,
-                    invalidatedDuringScan,
-                    currentBoundsSafe,
-                    nativeAttachmentValid));
+                TaskbarContinuityAttemptDecision attemptDecision =
+                    TaskbarContinuityAttemptPolicy.Decide(new(
+                        scanFence,
+                        scanCompletion,
+                        continuityScan.Result.IsVerified,
+                        continuityScan.Result.Evidence,
+                        current.Observation,
+                        verified?.Observation,
+                        current.Identity,
+                        current.Bounds,
+                        verified?.Identity,
+                        verified?.Bounds,
+                        nativeHost.IsCurrentContinuityStable()));
 
-                if (decision == TaskbarWatchdogDecision.KeepVisible && verified is not null)
+                if (attemptDecision.WatchdogDecision == TaskbarWatchdogDecision.KeepVisible &&
+                    verified is not null)
                 {
                     currentNativeLayout = current with
                     {
                         ContinuityAnchor = verified.ContinuityAnchor,
-                        Observation = safetyObservation!,
+                        Observation = attemptDecision.SafetyObservation!,
                     };
                     TaskbarContinuityRoute route = continuityScan.Result.Route;
                     bool automationTriggered =
@@ -1005,9 +995,11 @@ internal sealed class TaskbarHostRunner
                     deadlineCancellation.Token.ThrowIfCancellationRequested();
                     PumpBothHosts();
                     _ = ConsumeAutomationInvalidation();
-                    if (nativeLayoutInvalidated ||
-                        automationLayoutInvalidated ||
-                        floatingLayoutInvalidated)
+                    if (TaskbarContinuityAttemptPolicy.RequiresImmediateHide(new(
+                            nativeInvalidationReason,
+                            nativeLayoutInvalidated,
+                            automationLayoutInvalidated,
+                            floatingLayoutInvalidated)))
                     {
                         invalidatedWhileWaiting = true;
                         if (nativeHost.IsCreated)

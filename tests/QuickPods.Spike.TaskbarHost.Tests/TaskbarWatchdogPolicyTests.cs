@@ -1,4 +1,7 @@
+using QuickPods.Spike.TaskbarHost.Discovery;
 using QuickPods.Spike.TaskbarHost.Geometry;
+using QuickPods.Spike.TaskbarHost.Hosting;
+using QuickPods.Spike.TaskbarHost.Placement;
 
 namespace QuickPods.Spike.TaskbarHost.Tests;
 
@@ -13,11 +16,56 @@ public sealed class TaskbarWatchdogPolicyTests
         TaskbarBounds);
 
     [Fact]
-    public void Decide_StableSameIdentityAndSafeCurrentBounds_KeepsVisible()
+    public void Decide_StableAndOrderedContinuityScenarios_AreFailClosed()
     {
         TaskbarWatchdogDecision decision = TaskbarWatchdogPolicy.Decide(CreateInput());
 
         Assert.Equal(TaskbarWatchdogDecision.KeepVisible, decision);
+
+        TaskbarLayoutObservation fresh = CreateObservation(
+            new PixelRect(800, 1010, 850, 1070));
+        TaskbarLayoutObservation priorUnsafe = CreateObservation(
+            new PixelRect(400, 1010, 500, 1070));
+        TaskbarContinuityAttemptDecision retainedDecision =
+            TaskbarContinuityAttemptPolicy.Decide(CreateAttemptInput(
+                new TaskbarContinuityEvidence
+                {
+                    RetainedNotificationAreaContinuity = true,
+                    AutomationOrigin =
+                        TaskbarAutomationContinuityOrigin.RetainedStartFromCompleteAnchor,
+                },
+                priorUnsafe,
+                fresh));
+        TaskbarContinuityAttemptDecision newObstacleDecision =
+            TaskbarContinuityAttemptPolicy.Decide(CreateAttemptInput(
+                new TaskbarContinuityEvidence
+                {
+                    AutomationOrigin = TaskbarAutomationContinuityOrigin.FreshComplete,
+                },
+                fresh,
+                priorUnsafe));
+        TaskbarContinuityAttemptDecision freshCompleteDecision =
+            TaskbarContinuityAttemptPolicy.Decide(CreateAttemptInput(
+                new TaskbarContinuityEvidence
+                {
+                    AutomationOrigin = TaskbarAutomationContinuityOrigin.FreshComplete,
+                },
+                priorUnsafe,
+                fresh));
+
+        Assert.Equal(
+            TaskbarWatchdogDecision.EscalateHiddenRecovery,
+            retainedDecision.WatchdogDecision);
+        Assert.Contains(priorUnsafe.Obstacles[0], retainedDecision.SafetyObservation!.Obstacles);
+        Assert.Equal(
+            TaskbarWatchdogDecision.EscalateHiddenRecovery,
+            newObstacleDecision.WatchdogDecision);
+        Assert.Equal(
+            TaskbarWatchdogDecision.KeepVisible,
+            freshCompleteDecision.WatchdogDecision);
+        Assert.DoesNotContain(
+            priorUnsafe.Obstacles[0],
+            freshCompleteDecision.SafetyObservation!.Obstacles);
     }
 
     [Fact]
@@ -45,12 +93,47 @@ public sealed class TaskbarWatchdogPolicyTests
     }
 
     [Fact]
-    public void Decide_InvalidatedDuringScan_EscalatesHiddenRecovery()
+    public void Decide_InFlightGenerationAndCoordinateInvalidations_HideImmediately()
     {
         TaskbarWatchdogDecision decision = TaskbarWatchdogPolicy.Decide(
             CreateInput(invalidatedDuringScan: true));
 
         Assert.Equal(TaskbarWatchdogDecision.EscalateHiddenRecovery, decision);
+
+        TaskbarContinuityAttemptInput stableInput = CreateAttemptInput(
+            new TaskbarContinuityEvidence
+            {
+                AutomationOrigin = TaskbarAutomationContinuityOrigin.FreshComplete,
+            },
+            CreateObservation(new PixelRect(800, 1010, 850, 1070)),
+            CreateObservation(new PixelRect(800, 1010, 850, 1070)));
+        TaskbarContinuityAttemptDecision racedDecision =
+            TaskbarContinuityAttemptPolicy.Decide(stableInput with
+            {
+                Completion = stableInput.Completion with
+                {
+                    AutomationGeneration =
+                        stableInput.Completion.AutomationGeneration + 1,
+                },
+            });
+
+        Assert.True(racedDecision.InvalidatedDuringScan);
+        Assert.Equal(
+            TaskbarWatchdogDecision.EscalateHiddenRecovery,
+            racedDecision.WatchdogDecision);
+        foreach (NativeLayoutInvalidationReason reason in new[]
+        {
+            NativeLayoutInvalidationReason.SettingsChanged,
+            NativeLayoutInvalidationReason.DisplayChanged,
+            NativeLayoutInvalidationReason.DpiChanged,
+        })
+        {
+            Assert.True(TaskbarContinuityAttemptPolicy.RequiresImmediateHide(new(
+                reason,
+                NativeLayoutInvalidated: true,
+                AutomationLayoutInvalidated: false,
+                FloatingLayoutInvalidated: false)));
+        }
     }
 
     [Fact]
@@ -97,4 +180,43 @@ public sealed class TaskbarWatchdogPolicyTests
             invalidatedDuringScan,
             currentBoundsRemainSafe,
             nativeAttachmentIsValid);
+
+    private static TaskbarContinuityAttemptInput CreateAttemptInput(
+        TaskbarContinuityEvidence evidence,
+        TaskbarLayoutObservation previous,
+        TaskbarLayoutObservation fresh)
+    {
+        var fence = new TaskbarContinuityScanFence(
+            AutomationGeneration: 7,
+            InvalidationGeneration: 11);
+        var completion = new TaskbarContinuityScanCompletion(
+            AutomationGeneration: 7,
+            InvalidationGeneration: 11,
+            NativeLayoutInvalidated: false,
+            AutomationLayoutInvalidated: false,
+            FloatingLayoutInvalidated: false,
+            ContinuityProbeRequested: false);
+        return new(
+            fence,
+            completion,
+            DiscoveryVerified: true,
+            evidence,
+            previous,
+            fresh,
+            CurrentIdentity,
+            CurrentBounds,
+            CurrentIdentity,
+            CurrentBounds,
+            NativeAttachmentValid: true);
+    }
+
+    private static TaskbarLayoutObservation CreateObservation(PixelRect obstacle) =>
+        new(
+            TaskbarBounds,
+            Dpi: 144,
+            TaskbarOrientation.Horizontal,
+            StartButtonBounds: new PixelRect(900, 1000, 960, 1080),
+            WidgetsButtonBounds: new PixelRect(0, 1000, 140, 1080),
+            Obstacles: [obstacle],
+            IsComplete: true);
 }

@@ -167,6 +167,37 @@ public sealed class TaskbarLayoutAdapterTests
         Assert.Contains(freshObstacle, continuity.Obstacles);
         Assert.Contains(retainedObstacle, continuity.Obstacles);
         Assert.True(continuity.IsComplete);
+
+        TaskbarLayoutObservation? retainedStartSafety =
+            TaskbarLayoutAdapter.CreateContinuitySafetyObservation(
+                new TaskbarContinuityEvidence
+                {
+                    AutomationOrigin =
+                        TaskbarAutomationContinuityOrigin.RetainedStartFromCompleteAnchor,
+                },
+                fresh,
+                previous);
+        TaskbarLayoutObservation? retainedNotificationSafety =
+            TaskbarLayoutAdapter.CreateContinuitySafetyObservation(
+                new TaskbarContinuityEvidence
+                {
+                    RetainedNotificationAreaContinuity = true,
+                    AutomationOrigin = TaskbarAutomationContinuityOrigin.FreshComplete,
+                },
+                fresh,
+                previous);
+        TaskbarLayoutObservation? freshCompleteSafety =
+            TaskbarLayoutAdapter.CreateContinuitySafetyObservation(
+                new TaskbarContinuityEvidence
+                {
+                    AutomationOrigin = TaskbarAutomationContinuityOrigin.FreshComplete,
+                },
+                fresh,
+                previous);
+
+        Assert.Contains(retainedObstacle, retainedStartSafety!.Obstacles);
+        Assert.Contains(retainedObstacle, retainedNotificationSafety!.Obstacles);
+        Assert.DoesNotContain(retainedObstacle, freshCompleteSafety!.Obstacles);
     }
 
     private static TaskbarDiscoveryResult CreateDiscovery(
