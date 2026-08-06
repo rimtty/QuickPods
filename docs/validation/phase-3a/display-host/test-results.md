@@ -9,19 +9,19 @@
 | Architecture | x64 |
 | Build | Release, .NET 10.0.302 |
 | Issue / PR | #30 / #32 |
-| Current scope | placement, read-only discovery, and host-independent rendering |
+| Current scope | placement, discovery, rendering, and hidden-first PopupPreserved host implementation |
 
 ## Automated evidence
 
 | Check | Result |
 |---|---|
-| Foundation tests | Pass — 36/36 |
-| New Phase 3A executions | Pass — 13 focused executions across placement, discovery adaptation, and rendering geometry |
+| Foundation tests | Pass — 38/38 |
+| New Phase 3A executions | Pass — 15 focused executions across placement, discovery, rendering, style, and input contracts |
 | TaskbarHost Release build | Pass — 0 warnings, 0 errors |
 | Solution locked restore | Pass |
 | Format / diff check | Pass |
 
-The focused coverage includes standard placement, verified left-aligned NoFit, incomplete and contradictory evidence, compact fragmentation, negative coordinates, 100/125/150/200% DPI conversion, automation/native obstacle merging, duplicate Start fail-closed behavior, shared slider hit-test geometry, and render-state normalization. The Phase 0 diagnostic suite was not copied into the product suite.
+The focused coverage includes standard placement, verified left-aligned NoFit, incomplete and contradictory evidence, compact fragmentation, negative coordinates, 100/125/150/200% DPI conversion, automation/native obstacle merging, duplicate Start fail-closed behavior, shared slider hit-test geometry, render-state normalization, PopupPreserved style invariants, and pointer/wheel volume conversion. The Phase 0 diagnostic suite was not copied into the product suite.
 
 ## Read-only live inspection
 
@@ -48,4 +48,6 @@ This proves the first product discovery/placement slice on the current 150% prim
 - Raw HWND and process ID remain in ephemeral in-process models and are never emitted by `inspect`.
 - Existing-host exclusion is admitted only for the exact supplied HWND when its class is `QuickPods.Taskbar.View`, its process is the current host, and its actual parent is the discovered taskbar.
 - Any discovery fault makes the observation incomplete and therefore yields `TransientUnknown` rather than a guessed placement.
+- Native creation is hidden-first. Promotion requires exact revalidation of trusted class/process provenance, parent attachment, PopupPreserved/non-topmost styles, taskbar containment, per-monitor DPI, DWM cloak state, and the layered color key.
+- The product host implementation was not launched while the operator was away; visual placement, input, Start/Search continuity, and natural shutdown remain explicit live gates.
 - Phase 3A currently uses a one-shot MTA UIA scan. The repeating watcher required by Phase 3B will not be enabled until Issue #18 has an isolation/lifetime disposition.

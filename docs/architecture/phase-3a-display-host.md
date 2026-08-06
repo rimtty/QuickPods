@@ -44,14 +44,16 @@ The first product slice contains:
 - trusted live-host exclusion requiring exact HWND, QuickPods class, same process, and actual-parent match;
 - shared slider drawing/hit-test geometry and contract-state normalization;
 - a color-keyed, double-buffered GDI renderer with distinct muted and unmuted speaker states;
+- hidden-first PopupPreserved host creation with class, process, parent, style, bounds, DPI, cloak, and color-key verification before promotion;
+- mouse capture, drag preview/commit, wheel commit, monotonic interaction envelopes, and fail-closed layout invalidation;
 - a sanitized, read-only product `inspect` command;
 - focused coverage for centered placement, left-aligned NoFit, incomplete and contradictory evidence, 100/125/150/200% DPI, negative coordinates, compact fragmentation, discovery adaptation, and render geometry.
 
-The suite remains intentionally focused: thirteen new test executions were added to the existing Foundation suite rather than porting the Spike's diagnostic test inventory.
+The suite remains intentionally focused: fifteen new test executions were added to the existing Foundation suite rather than porting the Spike's diagnostic test inventory.
 
 ## Remaining in Phase 3A
 
-- Popup-preserved native and unowned floating hosts;
+- unowned floating host and product presentation routing;
 - static preview entry point, manifest, and natural shutdown validation;
 - complete the remaining host-creation race checks from Issue #15 (the exclusion provenance boundary is implemented);
 - an explicit disposition for the UIA watcher lifetime risk in Issue #18 before Phase 3B recovery loops are enabled.
