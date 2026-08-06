@@ -11,6 +11,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\QuickPods.Contracts\QuickPods.Contracts.csproj" />
+    <ProjectReference Include="..\QuickPods.BluetoothWorker\QuickPods.BluetoothWorker.csproj"
+                      ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\QuickPods.Core\QuickPods.Core.csproj" />
     <ProjectReference Include="..\QuickPods.Infrastructure\QuickPods.Infrastructure.csproj" />
     <ProjectReference Include="..\QuickPods.TaskbarHost\QuickPods.TaskbarHost.csproj"
@@ -38,6 +40,23 @@
       <Output TaskParameter="TargetOutputs" ItemName="_TaskbarObserverTargetPath" />
     </MSBuild>
     <Copy SourceFiles="@(_TaskbarObserverTargetPath)"
+          DestinationFolder="$(TargetDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyBluetoothWorkerRuntime" AfterTargets="Build">
+    <MSBuild Projects="..\QuickPods.BluetoothWorker\QuickPods.BluetoothWorker.csproj"
+             Targets="GetTargetPath"
+             Properties="Configuration=$(Configuration)">
+      <Output TaskParameter="TargetOutputs" ItemName="_BluetoothWorkerTargetPath" />
+    </MSBuild>
+    <ItemGroup>
+      <_BluetoothWorkerRuntimeFile Include="@(_BluetoothWorkerTargetPath->'%(RootDir)%(Directory)QuickPods.BluetoothWorker.exe')" />
+      <_BluetoothWorkerRuntimeFile Include="@(_BluetoothWorkerTargetPath)" />
+      <_BluetoothWorkerRuntimeFile Include="@(_BluetoothWorkerTargetPath->'%(RootDir)%(Directory)QuickPods.BluetoothWorker.deps.json')" />
+      <_BluetoothWorkerRuntimeFile Include="@(_BluetoothWorkerTargetPath->'%(RootDir)%(Directory)QuickPods.BluetoothWorker.runtimeconfig.json')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_BluetoothWorkerRuntimeFile)"
           DestinationFolder="$(TargetDir)"
           SkipUnchangedFiles="true" />
   </Target>

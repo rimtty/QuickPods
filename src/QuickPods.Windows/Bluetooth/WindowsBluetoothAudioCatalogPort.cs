@@ -38,11 +38,18 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
         "System.Devices.Aep.Category",
         "System.ItemNameDisplay",
     ];
-    private static readonly TimeSpan DiscoveryTimeout = TimeSpan.FromSeconds(8);
+    private static readonly TimeSpan DiscoveryTimeout = TimeSpan.FromSeconds(20);
 
     private readonly MtaAudioWorker worker = new();
     private readonly WindowsBluetoothBindingRegistry bindingRegistry = new();
+    private readonly WindowsBluetoothCapabilityProbe capabilityProbe;
     private int disposed;
+
+    public WindowsBluetoothAudioCatalogPort()
+    {
+        capabilityProbe = new WindowsBluetoothCapabilityProbe(
+            Path.Combine(AppContext.BaseDirectory, "QuickPods.BluetoothWorker.exe"));
+    }
 
     public async ValueTask<BluetoothAudioCatalogObservation> DiscoverAsync(
         long inventoryGeneration,
@@ -66,14 +73,52 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
         WindowsBluetoothDiscovery discovery = await worker.InvokeAsync(
             () => ReadAudioEndpoints(containers),
             timeout.Token).ConfigureAwait(false);
+        IReadOnlyDictionary<BluetoothDeviceKey, BluetoothDeviceCapability> capabilities =
+            await ProbeCapabilitiesAsync(discovery.Bindings, timeout.Token).ConfigureAwait(false);
         _ = bindingRegistry.Publish(inventoryGeneration, discovery.Bindings);
-        return new BluetoothAudioCatalogObservation(inventoryGeneration, discovery.Endpoints);
+        return new BluetoothAudioCatalogObservation(
+            inventoryGeneration,
+            discovery.Endpoints.Select(endpoint => endpoint with
+            {
+                Capability = capabilities.GetValueOrDefault(
+                    endpoint.DeviceKey,
+                    BluetoothDeviceCapability.OwnershipUnknown),
+            }));
     }
 
     internal bool TryResolveBinding(
         BluetoothOperationTarget target,
         out WindowsBluetoothDeviceBinding binding) =>
         bindingRegistry.TryResolve(target, out binding);
+
+    private async Task<IReadOnlyDictionary<BluetoothDeviceKey, BluetoothDeviceCapability>>
+        ProbeCapabilitiesAsync(
+            ImmutableArray<WindowsBluetoothDeviceBinding> bindings,
+            CancellationToken cancellationToken)
+    {
+        var capabilities = new Dictionary<BluetoothDeviceKey, BluetoothDeviceCapability>();
+        foreach (WindowsBluetoothDeviceBinding binding in bindings)
+        {
+            BluetoothDeviceCapability capability;
+            try
+            {
+                capability = await capabilityProbe.ProbeAsync(binding, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch
+            {
+                capability = BluetoothDeviceCapability.TemporarilyUnavailable;
+            }
+
+            capabilities.Add(binding.DeviceKey, capability);
+        }
+
+        return capabilities;
+    }
 
     public void Dispose()
     {
