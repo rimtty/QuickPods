@@ -41,4 +41,6 @@ phase-6a/
 └─ test-results.md
 phase-6b/
 └─ test-results.md
+release-0.1.0/
+└─ completion-audit.md
 ```
