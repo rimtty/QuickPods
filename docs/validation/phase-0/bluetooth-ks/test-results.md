@@ -65,8 +65,9 @@
 - 切断対象を選択Container所有のRender/Capture両KS候補へ拡張し、切断観測も両flowを含め、5秒の連続非Activeを必須とした。期限切れ時に最後の一時状態で成功しない条件も追加した。
 - 修正版Disconnectは7.167秒で両EndpointのUnpluggedを5秒維持しPassした。
 - 直後のReconnectはKS `S_OK`でも15秒以内にActiveにならず`DeadlineExceeded`となった。AirPodsを再度到達可能にした上で反復を継続する。
+- ペアリング済み・未接続かつ装着中の状態から再試行し、Reconnectは8.178秒でRender／Capture Activeとなった。続く修正版Disconnectは7.969秒で両Endpoint Unpluggedを5秒維持し、直後の新規inventoryでも両flowがUnpluggedだった。操作者もWindows画面で切断を確認した。
 - この実機不具合に直接対応する回帰試験2件だけを追加し、Bluetooth KS 65件が合格した。
 
 ## 未完了項目
 
-修正版の接続・切断各10回、到達不能、他端末接続中、無線OFF、および反復中の選択外機器影響確認は未完了である。Gate Aはこれらを完了するまでPendingのままとする。
+修正版の有効試行は接続2回中2回、切断2回中2回がPassしている。各10回、到達不能、他端末接続中、無線OFF、および反復中の選択外機器影響確認は未完了である。Gate Aはこれらを完了するまでPendingのままとする。
