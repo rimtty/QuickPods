@@ -10,7 +10,7 @@
 | 対象OS | Windows 11 x64 |
 | 実装言語 | C# |
 | 製品ターゲット | .NET 10 / WPF + Win32 |
-| ステータス | 計画・技術検証前 |
+| ステータス | Bluetooth複数機器UIへ再編・Phase 0検証中 |
 | 参考実装 | Ceiling（MIT License） |
 
 > 本書は、これまで行った対象PCの確認、Windows公式APIの調査、CeilingのGitHubソース監査を統合した実装計画である。タスクバー内表示とBluetoothオーディオ機器の個別接続・切断は、いずれも環境依存性があるため、技術スパイクの合格を本実装着手のゲートとする。
@@ -44,13 +44,14 @@
 
 - マスター音量の表示・変更
 - ミュート状態の表示・切り替え
-- ペアリング済みAirPodsなど、選択したBluetoothオーディオ機器の接続・切断
+- ペアリング済みBluetoothオーディオ機器の一覧、明示選択、接続・切断
+- 接続確認後、その機器の再生エンドポイントをWindowsの既定出力へ設定
 - 既定のオーディオデバイス変更への自動追従
 - タスクバー内に配置できない場合の安全なフローティング表示
 
 タスクバー内表示は、Ceilingと同様に独自のWin32ウィンドウをExplorerの`Shell_TrayWnd`へ`SetParent`し、WidgetsとStartの間に実在する空き領域へ配置する。この方式は見た目としてはタスクバーの一部になるが、Windowsが正式に提供するウィジェット登録APIではない。したがって、既存UIを押し退けたり覆ったりせず、安全な空きを確認できたときだけ使用する。
 
-Bluetoothについては、Bluetooth無線全体をOFFにしない。対象PCにはキーボードやDualSenseなど他のBluetooth機器も存在するため、選択したBluetoothオーディオ機器の音声接続だけを操作する。Microsoftが公開している`KSPROPSETID_BtAudio`のワンショット接続・切断プロパティを候補とするが、ドライバー依存であるため、対象PCのMediaTek BluetoothドライバーとAirPods Proを使った先行PoCで可否を確定する。
+Bluetoothについては、Bluetooth無線全体をOFFにしない。対象PCにはキーボードやDualSenseなど他のBluetooth機器も存在するため、一覧で明示選択したBluetoothオーディオ機器の音声接続だけを操作する。Microsoftが公開している`KSPROPSETID_BtAudio`のワンショット接続・切断プロパティを候補とし、機器ごとの対応能力を判定する。接続を実状態で確認した後、その機器のステレオ再生エンドポイントをConsole／Multimediaの既定出力へ設定し、Core Audio通知で変更を確認する。AirPods Pro＋MediaTek環境は最初の参照実機であり、製品仕様をAirPodsへ限定しない。
 
 ## 2. 背景・目的
 
@@ -64,10 +65,11 @@ Windows 11標準UIで音量を変更する場合、通知領域のクイック�
 
 1. 既定の再生デバイスの音量を、別画面を開かずにタスクバーから変更できるようにする。
 2. ミュートとBluetoothオーディオ接続状態を一目で確認できるようにする。
-3. AirPodsなど事前選択したBluetoothオーディオ機器を1クリックで接続・切断できるようにする。
-4. Windows標準タスクバーのWidgets、Start、検索、アプリ、通知領域を妨げない。
-5. Explorer再起動、既定デバイス変更、スリープ復帰後も自動復旧する。
-6. 非対応環境ではアプリ全体を停止させず、安全な代替表示とWindows設定への導線を提供する。
+3. 複数のペアリング済みBluetoothオーディオ機器から1台を選び、1クリックで接続・切断できるようにする。
+4. 接続完了後、その機器をWindowsの既定の音声出力へ設定する。
+5. Windows標準タスクバーのWidgets、Start、検索、アプリ、通知領域を妨げない。
+6. Explorer再起動、既定デバイス変更、スリープ復帰後も自動復旧する。
+7. 非対応環境ではアプリ全体を停止させず、安全な代替表示とWindows設定への導線を提供する。
 
 ### 2.3 成功の定義
 
@@ -75,7 +77,8 @@ Windows 11標準UIで音量を変更する場合、通知領域のクイック�
 
 - タスクバー内の音量スライダーをドラッグし、Windowsのマスター音量を連続変更できる。
 - Windows側やキーボードから行った音量・ミュート変更が表示へ追従する。
-- AirPods Proの接続・切断が、他のBluetooth機器へ影響せず実行できる。
+- 選択したBluetoothオーディオ機器だけを接続・切断でき、他のBluetooth機器へ影響しない。
+- 接続完了後、対象のステレオ再生エンドポイントが既定出力になったことを確認できる。
 - 接続・切断要求の「送信成功」と実際の状態変化を区別できる。
 - Widgets、Start、検索、アプリ、通知領域を覆わない。
 - 安全な空きがない場合は、タスクバー直上または通知領域へ自動的に退避する。
@@ -88,8 +91,9 @@ Windows 11標準UIで音量を変更する場合、通知領域のクイック�
 - Windows 11 x64
 - プライマリモニターのタスクバー
 - 既定の再生エンドポイントのマスター音量とミュート
-- ペアリング済みBluetoothオーディオ機器の列挙と1台の選択
+- ペアリング済みBluetoothオーディオ機器の一覧、単一選択、選択の永続化
 - 選択した機器の接続・切断
+- 接続確認後のConsole／Multimedia既定出力設定
 - タスクバー内ネイティブ表示
 - タスクバー直上のフローティングフォールバック
 - 通知領域アイコン、設定画面、詳細フライアウト
@@ -105,8 +109,6 @@ Windows 11標準UIで音量を変更する場合、通知領域のクイック�
 - イコライザーや音質処理
 - Windows標準タスクバーボタンの移動・非表示・サイズ変更
 - ExplorerへのDLL注入、サブクラス化、プロセスメモリ書き換え
-- 接続後の既定出力デバイス強制変更
-- 非公開`IPolicyConfig`による既定デバイス変更
 - Windows 10、Windows Server、ARM64の正式サポート
 - Microsoft Store公開の保証
 
@@ -114,7 +116,8 @@ Windows 11標準UIで音量を変更する場合、通知領域のクイック�
 
 - セカンダリモニターを含む全タスクバー表示
 - 音量ホットキー
-- 複数Bluetoothオーディオ機器のクイック切り替え
+- Communicationsロールの既定出力自動変更
+- 接続前の既定出力を記憶した切断時の自動復元
 - ARM64
 - UI Automation Providerによるタスクバー内カスタムコントロールの完全なスクリーンリーダー対応
 - 対応確認済みドライバー／機器の互換性データベース
@@ -130,7 +133,7 @@ Windows 11標準UIで音量を変更する場合、通知領域のクイック�
 | インストール済み.NET SDK | `10.0.302`（ほかに6.0／8.0／9.0も導入済み） |
 | Bluetoothアダプター | MediaTek Bluetooth Adapter |
 | Bluetoothオーディオドライバー | MediaTek Bluetooth Audio Device |
-| 対象機器 | AirPods Pro |
+| 参照Bluetoothオーディオ機器 | AirPods Pro（製品は特定ブランドに限定しない） |
 | 確認できた音声エンドポイント | ヘッドホン（AirPods Pro - Find My）、ヘッドセット、Hands-Free系 |
 | タスクバー | 中央配置、左側に大きな空き領域がある横長構成 |
 
@@ -247,10 +250,12 @@ Windowsの公式Taskbar Extensions資料にはJump List、サムネイルツー�
 | ADR-005 | タスクバー内表示は空き領域を証明できた場合だけ行う | Explorerの既存UIを覆わないため |
 | ADR-006 | 音量は公開Core Audio APIを直接使用する | 正式APIであり、外部変更通知と既定デバイス追従が可能なため |
 | ADR-007 | Bluetooth接続・切断は先行PoCでドライバー対応を確認する | KS要求は公開されているが、実際の挙動がドライバー依存のため |
-| ADR-008 | 接続後の既定デバイス強制変更を初期版へ入れない | 一般に使われる手段が非公開API依存になるため |
+| ADR-008 | 接続確認後に対象のConsole／Multimedia既定出力を設定する | 利用者の明示した接続操作を音声出力切替まで完結させるため。非公開境界は隔離しGate A2で可否を判定する |
 | ADR-009 | 製品版を.NET 10、初期配布をx64とする | 今後の保守期間と対象PC構成を優先するため |
 | ADR-010 | Ceilingのアイデアを参考にし、直接移植する箇所にはMIT表記を同梱する | ライセンス遵守と由来明確化のため |
-| ADR-011 | ネイティブタスクバーホストは`SetParent`後も`WS_POPUP`を維持する | 対象Windows 11 buildの実機比較で、PopupだけがStart／Search表示中も同じタスクバー位置とwheel入力を維持したため。`WS_CHILD`は比較／rollback用に限定する |
+| ADR-011 | Bluetooth選択、接続、既定出力を別状態として管理する | 選択だけでOS状態を変えず、部分成功を正確に表示するため |
+| ADR-012 | Bluetooth能力はアプリ全体ではなくContainer単位で判定する | 1台の非対応や無関係Endpoint障害を他機器へ波及させないため |
+| ADR-013 | ネイティブタスクバーホストは`SetParent`後も`WS_POPUP`を維持する | 対象Windows 11 buildの実機比較で、PopupだけがStart／Search表示中も同じタスクバー位置とwheel入力を維持したため。`WS_CHILD`は比較／rollback用に限定する |
 
 ## 7. UX・画面仕様
 
@@ -268,7 +273,7 @@ Windowsの公式Taskbar Extensions資料にはJump List、サムネイルツー�
 標準表示案：
 
 ```text
-[🔊] ━━━━━●━━ 42% │ [🎧 接続済み]
+[🔊] ━━━━━●━━ 42% │ [🎧 AirPods Pro 接続済み・既定]
 ```
 
 コンパクト表示案：
@@ -297,25 +302,32 @@ Windowsの公式Taskbar Extensions資料にはJump List、サムネイルツー�
 | スピーカーアイコンを左クリック | ミュート切り替え |
 | スライダーをクリック／ドラッグ | 音量変更 |
 | スライダー上でホイール | 設定した刻みで増減。初期値は2% |
-| Bluetoothボタンを左クリック | 接続済みなら切断、切断中なら接続 |
+| Bluetooth領域を左クリック | 複数機器を選べる詳細フライアウトを開く |
+| フライアウトの機器行を選択 | 操作対象だけを変更。接続・切断・既定出力は変更しない |
+| フライアウトの更新 | 読み取り専用で再列挙。変更要求は送信しない |
+| 主ボタンを左クリック | 未接続なら接続後に既定出力化、完全接続済みなら切断 |
 | バーの余白または詳細ボタンをクリック | 詳細フライアウトを開く |
 | 右クリック | 設定、表示モード、Windows設定、終了 |
 | ホバー | デバイス名、音量、接続状態、直近エラーをツールチップ表示 |
 
-Bluetooth操作中は同じボタンの再操作を無効化する。ワンクリック操作は維持するが、設定で「切断時だけ確認」を選べるようにする。
+Bluetooth操作中と既定出力切替中は再操作を無効化する。選択変更と更新はOS状態を変更しない。ワンクリック操作は維持するが、設定で「切断時だけ確認」を選べるようにする。詳細は`QuickPods UI Mockup v2.md`と`QuickPods_Bluetoothオーディオ選択_機能仕様.md`を正とする。
 
 ### 7.4 状態表現
 
-Bluetooth状態は次の状態機械で管理する。
+Bluetooth状態は、選択、接続、既定出力を分離した状態機械で管理する。
 
 ```mermaid
 stateDiagram-v2
     [*] --> NotConfigured
-    NotConfigured --> Disconnected: "デバイス選択"
+    NotConfigured --> Disconnected: "明示選択"
     Disconnected --> Connecting: "接続要求"
-    Connecting --> Connected: "実状態がActive"
+    Connecting --> SettingDefault: "実状態がActive"
+    SettingDefault --> Connected: "既定出力を確認"
+    SettingDefault --> ConnectedNotDefault: "既定出力変更失敗"
     Connecting --> Failed: "失敗またはタイムアウト"
     Connected --> Disconnecting: "切断要求"
+    ConnectedNotDefault --> SettingDefault: "既定出力を再試行"
+    ConnectedNotDefault --> Disconnecting: "切断要求"
     Disconnecting --> Disconnected: "実状態が非Active"
     Disconnecting --> Failed: "失敗またはタイムアウト"
     Failed --> Connecting: "再試行"
@@ -329,7 +341,9 @@ stateDiagram-v2
 | 未選択 | グレーのヘッドホン | フライアウトで選択 |
 | 切断 | 白／グレー | 接続 |
 | 接続中 | 進行表示 | 無効 |
-| 接続済み | アクセント色＋チェック | 切断 |
+| 既定出力切替中 | 進行表示 | 無効 |
+| 接続済み・既定 | アクセント色＋チェック | 切断 |
+| 接続済み・非既定 | 警告付き接続表示 | 既定出力化を再試行／サウンド設定 |
 | 切断中 | 進行表示 | 無効 |
 | 未対応 | 警告マーク | Windows設定を開く |
 | エラー | エラーマーク | 詳細と再試行 |
@@ -375,20 +389,23 @@ stateDiagram-v2
 
 | ID | 要件 |
 |---|---|
-| FR-BT-001 | ペアリング済みBluetoothオーディオ機器を列挙する |
-| FR-BT-002 | 表示名ではなくContainer IDを軸に1台を保存する |
-| FR-BT-003 | 対象Containerに属する音声エンドポイントとKSフィルターを対応付ける |
-| FR-BT-004 | KSプロパティのBasic Supportを事前確認する |
-| FR-BT-005 | 対応環境で`ONESHOT_RECONNECT`を送信する |
-| FR-BT-006 | 対応環境で`ONESHOT_DISCONNECT`を送信する |
-| FR-BT-007 | 要求後のMMDevice状態を確認してから成功表示する |
-| FR-BT-008 | 操作中の二重要求を禁止する |
-| FR-BT-009 | 15秒以内に状態が確定しなければタイムアウトにする |
-| FR-BT-010 | 無線OFF、範囲外、他端末接続中、ケース内、ペアリング解除を安全に処理する |
-| FR-BT-011 | ドライバー非対応時は未対応状態とWindows設定への導線を表示する |
-| FR-BT-012 | 対象操作によってBluetooth無線全体や他機器を切断しない |
-| FR-BT-013 | 再ペアリングでContainer IDが変わった場合は再選択を案内する |
-| FR-BT-014 | 接続・切断後に既定デバイスが変わった場合、音量サービス側で追従する |
+| FR-BT-001 | ペアリング済みBluetoothオーディオ機器を列挙し、オーディオ以外を除外する |
+| FR-BT-002 | A2DP／HFP等をContainer ID単位へ集約し、1物理機器を1行で表示する |
+| FR-BT-003 | 表示名ではなくContainer ID-backed keyで1台を選択・保存する |
+| FR-BT-004 | 選択変更と更新では接続・切断・既定出力変更を実行しない |
+| FR-BT-005 | 選択Containerに属する音声EndpointとKS Filterだけを対応付ける |
+| FR-BT-006 | KS Basic Supportと直接操作能力をContainer単位で判定する |
+| FR-BT-007 | 対応機器で`ONESHOT_RECONNECT`／`ONESHOT_DISCONNECT`を直列送信する |
+| FR-BT-008 | 要求後のMMDevice実状態を確認してから接続・切断を表示する |
+| FR-BT-009 | 接続確認後、対象ステレオ再生EndpointをConsole／Multimediaの既定出力へ設定する |
+| FR-BT-010 | 既定出力変更を通知と再取得で確認してから完全成功を表示する |
+| FR-BT-011 | 操作中の二重要求を禁止し、世代が古い結果を現在の選択へ反映しない |
+| FR-BT-012 | 15秒以内に接続状態が確定しなければタイムアウトにする |
+| FR-BT-013 | 無線OFF、範囲外、他端末接続中、ケース内、ペアリング解除を安全に処理する |
+| FR-BT-014 | 直接操作または既定出力設定が非対応の場合、部分状態とWindows設定への導線を表示する |
+| FR-BT-015 | 対象操作によってBluetooth無線全体や選択外の機器を変更しない |
+| FR-BT-016 | 再ペアリングでContainer IDが変わった場合は再選択を案内する |
+| FR-BT-017 | 非対応機器や無関係Endpointの探索障害を他の対応機器へ波及させない |
 
 ### 8.3 タスクバー・表示
 
@@ -412,9 +429,9 @@ stateDiagram-v2
 | ID | 要件 |
 |---|---|
 | FR-UI-001 | タスクバー内バーにアンカーしたWPFフライアウトを開く |
-| FR-UI-002 | 既定デバイス名、音量、ミュート、Bluetooth対象と状態を表示する |
+| FR-UI-002 | v2フライアウトでBluetooth機器一覧、単一選択、接続状態、既定出力状態を表示する |
 | FR-UI-003 | Windowsのサウンド設定とBluetooth設定を開ける |
-| FR-UI-004 | 表示モード、対象機器、ホイール刻み、自動起動、テーマを設定できる |
+| FR-UI-004 | 表示モード、選択機器、ホイール刻み、自動起動、テーマを設定できる |
 | FR-UI-005 | 通知領域から表示切替、設定、再試行、終了を操作できる |
 | FR-UI-006 | 設定をユーザー単位で保存する |
 | FR-UI-007 | 配置またはBluetoothの問題を短い理由と再試行手段付きで表示する |
@@ -469,7 +486,7 @@ stateDiagram-v2
 ### 9.5 アクセシビリティ
 
 - タスクバー内ホストは`WS_EX_NOACTIVATE`を優先するため、キーボード操作はフライアウトと通知領域で保証する。
-- フライアウトのスライダー、ミュート、BluetoothボタンにAutomationPropertiesを設定する。
+- フライアウトの機器リスト、更新、主ボタン、スライダー、ミュートにAutomationPropertiesを設定する。
 - Tab、矢印、Space、Enter、Escへ対応する。
 - 状態を色だけで表現しない。
 - 高コントラスト、文字サイズ拡大、200%以上のDPIで欠けないことを確認する。
@@ -568,12 +585,21 @@ public interface IDefaultAudioVolumeService
 
 public interface IBluetoothAudioService
 {
-    IReadOnlyList<BluetoothAudioDevice> Devices { get; }
+    BluetoothAudioCatalogSnapshot Current { get; }
     event EventHandler<BluetoothAudioStateChangedEventArgs> Changed;
 
-    ValueTask ConnectAsync(Guid containerId, CancellationToken cancellationToken);
-    ValueTask DisconnectAsync(Guid containerId, CancellationToken cancellationToken);
+    ValueTask SelectAsync(string deviceKey, CancellationToken cancellationToken);
+    ValueTask ConnectSelectedAsync(CancellationToken cancellationToken);
+    ValueTask DisconnectSelectedAsync(CancellationToken cancellationToken);
     ValueTask RefreshAsync(CancellationToken cancellationToken);
+}
+
+public interface IDefaultAudioEndpointPolicy
+{
+    ValueTask<DefaultEndpointChangeResult> SetRenderDefaultAsync(
+        string endpointId,
+        DefaultEndpointRoles roles,
+        CancellationToken cancellationToken);
 }
 
 public interface ITaskbarHostTransport
@@ -596,9 +622,9 @@ public interface ITaskbarHostTransport
 - デバイス表示名
 - 音量Scalarとパーセント
 - ミュート状態
-- Bluetooth対象Container ID
-- Bluetooth表示名
-- Bluetooth状態機械の状態
+- Bluetoothカタログ世代と選択中の内部キー
+- 選択Bluetooth表示名、接続状態、既定出力状態、能力
+- Bluetooth操作の対象世代と進行状態
 - 表示モードと直近フォールバック理由
 - テーマ、高コントラスト、DPI
 - 直近エラーの分類済みコード
@@ -641,7 +667,7 @@ Core Audioは専用MTAワーカースレッドで生成・利用・解放する�
 
 ### 11.3 Bluetoothデバイス識別とKSフィルター探索
 
-永続識別は表示名ではなく`PKEY_Device_ContainerId`を使う。エンドポイントIDはOSへ戻す不透明文字列として扱い、文字列形式を解析しない。
+永続識別は表示名ではなく`PKEY_Device_ContainerId`を使う。エンドポイントIDはOSへ戻す不透明文字列として扱い、文字列形式を解析しない。A2DP／HFP等はContainer単位へ集約し、UIには1物理機器を1行で提示する。
 
 探索フロー：
 
@@ -657,7 +683,7 @@ IMMDeviceEnumerator
                                 └─ Activate(IKsControl)
 ```
 
-候補`IKsControl`ごとに`KSPROPERTY_TYPE_BASICSUPPORT`で`KSPROPSETID_BtAudio`対応を確認する。複数候補がある場合は、対象Containerに属する再生側の対応フィルターを優先し、コマンドは直列に送る。最初の候補で状態が変わらない場合だけ残り候補を1回ずつ試す。すべてのフィルターへ無条件に一斉送信しない。
+候補`IKsControl`ごとに`KSPROPERTY_TYPE_BASICSUPPORT`で`KSPROPSETID_BtAudio`対応を確認する。複数候補がある場合は、選択Containerに属する再生側の対応フィルターを優先し、コマンドは直列に送る。最初の候補で状態が変わらない場合だけ残り候補を1回ずつ試す。すべてのフィルターへ無条件に一斉送信しない。無関係EndpointのTopology取得失敗はそのEndpointへスコープし、完全に解決できた選択Containerをグローバル失敗へ巻き込まない。
 
 ### 11.4 Bluetooth接続・切断
 
@@ -669,10 +695,16 @@ IMMDeviceEnumerator
 4. 対応KSフィルターへ`KSPROPERTY_ONESHOT_RECONNECT`を送る。
 5. `IMMNotificationClient.OnDeviceStateChanged`を待つ。
 6. 補助として遷移中だけ250ms間隔で状態を再照会する。
-7. 対象エンドポイントの`DEVICE_STATE_ACTIVE`を確認して成功とする。
-8. 15秒以内に確定しなければ実状態を再照会し、タイムアウトへ遷移する。
+7. 対象エンドポイントの`DEVICE_STATE_ACTIVE`を確認する。
+8. Activeになったステレオ再生EndpointをConsole／Multimediaの既定出力へ設定する。
+9. 既定Endpoint変更通知と再取得結果が対象IDに一致してから完全成功とする。
+10. 15秒以内に接続が確定しなければ実状態を再照会し、タイムアウトへ遷移する。
 
-切断も同様に`KSPROPERTY_ONESHOT_DISCONNECT`を送り、対象エンドポイントが非Activeになったことを確認してから成功とする。
+切断も同様に`KSPROPERTY_ONESHOT_DISCONNECT`を送り、対象エンドポイントが非Activeになったことを確認してから成功とする。切断後にWindowsが選んだ既定出力へCore Audioサービスが追従し、初期版では過去の既定出力を強制復元しない。
+
+### 11.4.1 既定出力設定境界
+
+公開Core Audio APIで既定Endpointの取得と変更通知は可能だが、一般デスクトップアプリ向けの設定メソッドはMicrosoft Learnに公開文書化されていない。Gate A2では、Windowsデスクトップで利用実績のある非公開COM境界`IPolicyConfig::SetDefaultEndpoint`を第一候補として検証する。この依存は`IDefaultAudioEndpointPolicy`配下へ隔離し、アプリのCore層、UI、BluetoothサービスからCOM型とCLSIDsを隠す。Windowsビルド互換性、通常権限、Console／Multimediaの変更、通知整合性を先に確認し、失敗時は接続済み・非既定を正しく表示して`ms-settings:sound`を開けるようにする。
 
 状態判定：
 
@@ -821,7 +853,9 @@ Watchdog確認項目：
 {
   "schemaVersion": 1,
   "displayMode": "Auto",
-  "targetBluetoothContainerId": null,
+  "selectedBluetoothDeviceKey": null,
+  "setConnectedDeviceAsDefault": true,
+  "defaultOutputRoles": ["Console", "Multimedia"],
   "volumeRole": "Console",
   "mouseWheelStepPercent": 2,
   "showVolumePercent": true,
@@ -858,6 +892,9 @@ Watchdog確認項目：
 | `BluetoothDriverUnsupported` | このドライバーでは直接操作できません | Windows設定を開く |
 | `BluetoothTimeout` | 接続を確認できませんでした | 再試行 |
 | `BluetoothDeviceUnavailable` | 機器が見つかりません | ケース・距離を確認 |
+| `BluetoothSelectionStale` | 機器一覧が更新されました | 再選択または再試行 |
+| `DefaultOutputSwitchUnsupported` | 自動で既定出力にできません | サウンド設定を開く |
+| `DefaultOutputSwitchFailed` | 接続しましたが既定出力を変更できませんでした | 再試行／サウンド設定 |
 | `TaskbarNoVerifiedGap` | 安全な空き領域がありません | 自動フォールバック |
 | `TaskbarUnsupportedShell` | 現在のタスクバー構成には未対応です | フローティング |
 | `TaskbarHostFailed` | タスクバー表示を開始できません | ホスト再起動／フォールバック |
@@ -898,23 +935,42 @@ Watchdog確認項目：
 
 #### P0-B：Bluetooth KS PoC
 
-- AirPodsのContainer ID特定
+- 複数候補のContainer ID集約と選択対象の特定
 - DeviceTopologyからKSフィルター取得
 - `KSPROPSETID_BtAudio`のBasic Support確認
 - 再接続・切断
 - 要求後の`DEVICE_STATE_ACTIVE`検証
-- 他のBluetooth機器への影響確認
+- 選択外Bluetooth機器への影響確認
+- 無関係Endpoint障害を選択対象へ波及させないことの確認
 
 Go条件：
 
-- 管理者権限なしでAirPodsの接続・切断が再現できる。
+- 管理者権限なしで参照Bluetoothオーディオ機器の接続・切断が再現できる。
 - 要求成功と実状態成功を区別できる。
-- キーボード、DualSense等へ影響しない。
+- 選択外のキーボード、DualSense、Bluetoothオーディオ等へ影響しない。
 
 No-Go時：
 
-- BluetoothボタンはWindows Bluetooth設定を開く機能へ縮退する。
+- 選択機器の直接操作はWindows Bluetooth設定を開く機能へ縮退する。
 - 音量とタスクバー機能の開発は継続する。
+
+判定（2026-08-06）：**Go**。AirPods Pro＋MediaTek参照環境で、到達可能前提を確認したReconnect／Disconnectが各5回中5回、15秒以内に実状態で成功した。Render／Capture両flowの観測と切断5秒安定窓により探索的誤成功を解消し、通常権限、選択外Bluetooth機器への影響0件を確認した。製品実装では同じContainer所有権、Basic Support、独立したMMDevice実状態確認を必須とし、非対応機器だけWindows設定へ縮退する。
+
+#### P0-B2：既定出力設定PoC（Gate A2）
+
+- Activeな対象Containerからステレオ再生Endpointを一意に選ぶ
+- 通常権限でConsole／Multimediaの既定Endpointを変更
+- `OnDefaultDeviceChanged`と再取得による結果確認
+- A→B→A、既に既定、対象消失、途中失敗、OS再起動後の互換性確認
+- 変更処理を隔離アダプターへ閉じ込め、公開APIでない依存を記録
+
+Go条件：
+
+- 対象Windowsビルドで通常権限のままConsole／Multimediaを意図したEndpointへ変更できる。
+- 変更通知と再取得が一致し、無関係なCapture／Communications Endpointを変更しない。
+- 失敗時に部分成功を識別し、既定出力状態を破壊せず設定画面へ案内できる。
+
+No-Go時：接続・切断は維持し、接続済み・非既定を表示してWindowsサウンド設定へ縮退する。
 
 #### P0-C：Ceiling方式タスクバーPoC
 
@@ -981,14 +1037,15 @@ No-Go時：
 
 - タスクバーの受入基準を対象PCで満たす。
 
-### Phase 4：Bluetoothサービス（4～7人日）
+### Phase 4：Bluetoothカタログ・操作・UI統合（6～10人日）
 
-- ペアリング済み機器列挙
-- Container IDグループ化
+- ペアリング済み機器カタログとContainer ID集約
+- 単一選択、永続化、読み取り専用更新、世代管理
 - DeviceTopology／IKsControl
-- 状態機械、タイムアウト、再列挙
-- WPF設定とタスクバーボタン統合
-- 未対応フォールバック
+- 接続、既定出力設定、切断の複合状態機械
+- タイムアウト、再列挙、選択外への操作防止
+- v2フライアウトとタスクバー選択表示
+- 機器単位の未対応フォールバック
 
 完了条件：
 
@@ -1054,7 +1111,7 @@ Explorerの代わりとなるテスト用トップレベルウィンドウへホ
 
 - Core Audio実デバイス
 - UI Automationによる実タスクバー探索
-- AirPods／MediaTek Bluetooth
+- 複数Bluetoothオーディオ（AirPods／MediaTekを最初の参照構成とする）
 - Explorer再起動
 - スリープ・復帰
 
@@ -1116,13 +1173,18 @@ Explorerの代わりとなるテスト用トップレベルウィンドウへホ
 
 | ケース | 合格条件 |
 |---|---|
-| AirPods切断→接続 | 実状態Active確認後に接続済み |
-| AirPods接続→切断 | 実状態非Active確認後に切断 |
+| 0／1／複数／同名機器 | Container単位で1行、選択を一意に保持 |
+| 行の選択／更新 | 接続・切断・既定出力変更要求が0件 |
+| 選択機器の切断→接続 | Active確認後にConsole／Multimediaの既定出力へ変更し、通知と再取得で一致 |
+| 選択機器の接続→切断 | 実状態非Active確認後に切断 |
+| 接続済みだが既定出力変更失敗 | 部分状態を正しく表示し、再試行とサウンド設定を案内 |
 | ケース内／圏外／電池切れ | タイムアウト後に説明と再試行 |
 | 他端末へ接続中 | 誤って成功表示しない |
 | Bluetooth無線OFF | 自動ONにせず設定へ案内 |
 | ペアリング解除 | 再選択を案内 |
 | 同名機器が複数 | Container IDで区別 |
+| 非対応機器と対応機器が混在 | 非対応が対応機器の操作を妨げない |
+| 無関係EndpointでTopology失敗 | 所有関係を確認できた選択機器へ障害を波及させない |
 | A2DP再生中 | 切断と復帰を安全に処理 |
 | HFPマイク／Teams／Discord通話中 | フリーズせず結果を確認 |
 | ボタン連打 | 1要求だけ実行 |
@@ -1155,13 +1217,13 @@ Explorerの代わりとなるテスト用トップレベルウィンドウへホ
 
 ### 15.2 Bluetooth
 
-- AC-007：ペアリング済みオーディオ機器を選択できる。
-- AC-008：対応環境で接続・切断要求を実行できる。
-- AC-009：実状態を確認してから成功表示する。
-- AC-010：要求成功後も状態が変わらない場合、成功扱いにしない。
-- AC-011：操作中の連打で並行要求が発生しない。
-- AC-012：未対応ドライバーで停止せず、未対応表示と代替導線を出す。
-- AC-013：AirPods操作でキーボードやDualSenseを切断しない。
+- AC-007：ペアリング済みBluetoothオーディオを物理機器単位で一覧表示し、同名を含め1台選択できる。
+- AC-008：選択変更と更新だけでは接続・切断・既定出力変更要求が発生しない。
+- AC-009：対応機器で接続・切断を実行し、MMDevice実状態を確認してから表示する。
+- AC-010：接続確認後に対象ステレオ再生EndpointがConsole／Multimediaの既定出力となり、通知と再取得で確認できる。
+- AC-011：操作中の連打、選択変更、再列挙で並行要求や古い結果の誤適用が発生しない。
+- AC-012：機器単位の直接操作または既定出力設定が未対応でも停止せず、正確な部分状態と代替導線を出す。
+- AC-013：選択機器の操作でキーボード、DualSense、選択外Bluetoothオーディオを変更しない。
 
 ### 15.3 タスクバー
 
@@ -1195,6 +1257,9 @@ Explorerの代わりとなるテスト用トップレベルウィンドウへホ
 | 自動非表示でホストだけ残る | 中 | 高 | 展開状態監視、安全でなければTrayのみ |
 | Explorer再起動でHWNDが失効 | 高 | 中 | `TaskbarCreated`＋Watchdog |
 | BluetoothドライバーがKSプロパティ非対応 | 中～高 | 高 | Phase 0で先行検証、未対応UI、Windows設定へ案内 |
+| 既定出力設定境界がWindows更新で利用不能 | 中～高 | 高 | Gate A2、隔離アダプター、通知による検証、サウンド設定へ縮退 |
+| 複数Endpointを別機器として重複表示 | 中 | 中 | Container ID集約、同名・A2DP/HFPテスト |
+| 無関係Endpointの探索失敗が全体を阻害 | 中 | 高 | 障害をEndpoint/Containerへスコープし、選択対象の所有関係だけを厳格検証 |
 | KS要求成功でも実接続失敗 | 高 | 中 | MMDevice状態確認後のみ成功 |
 | 再ペアリングでContainer IDが変わる | 中 | 低 | 再選択フロー |
 | AEP状態と音声プロファイル状態が不一致 | 中 | 中 | MMDevice状態を優先 |
@@ -1208,8 +1273,15 @@ Explorerの代わりとなるテスト用トップレベルウィンドウへホ
 
 ### Gate A：Bluetooth実現性
 
-- 対象PCで`ONESHOT_RECONNECT`と`ONESHOT_DISCONNECT`を確認する。
-- 未達の場合、Bluetooth機能をWindows設定ランチャーへ縮退する判断を行う。
+- 参照実機で`ONESHOT_RECONNECT`と`ONESHOT_DISCONNECT`を確認し、Container単位の能力判定を確立する。
+- 選択外への要求0件、無関係Endpoint障害の非波及、要求と実状態の区別を確認する。
+- 未達機器だけをWindows Bluetooth設定ランチャーへ縮退し、他の対応機器を妨げない。
+
+### Gate A2：接続後の既定出力設定
+
+- Activeになった選択機器のステレオ再生EndpointをConsole／Multimediaの既定出力へ設定する。
+- 通常権限、通知整合性、A→B→A、途中失敗、対象消失を確認する。
+- 未達の場合、接続済み・非既定を表示し、Windowsサウンド設定への導線へ縮退する。
 
 ### Gate B：タスクバー内表示
 
@@ -1234,6 +1306,7 @@ Explorerの代わりとなるテスト用トップレベルウィンドウへホ
 
 - 音量、ミュート、既定デバイス追従が受入基準を満たす。
 - 対応Bluetooth環境で接続・切断を確認する。
+- 接続完了後の既定出力変更、検証、非対応時の縮退を確認する。
 - 未対応Bluetooth環境で安全に失敗する。
 - タスクバー内表示がWindows標準UIと重ならない。
 - 配置不能時のフォールバックが動作する。
@@ -1247,16 +1320,17 @@ Explorerの代わりとなるテスト用トップレベルウィンドウへホ
 
 技術スパイクまたはUI試作で次を確定する。
 
-1. AirPods Pro＋MediaTek Bluetooth Audio DeviceでKS接続・切断が安定するか。
-2. **確定：** 対象Windowsビルドでは`WS_POPUP`維持を採用する。`WS_CHILD`は安定layoutでは動作したが、Start／Search表示中のnative continuityを満たさなかった。
-3. GDI、32bit DIB＋`UpdateLayeredWindow`、Direct2Dの最終選択。
-4. 標準幅、コンパクト幅、各ヒット領域の最終値。
-5. 自動非表示中にネイティブ表示を許可するか、Trayへ固定するか。
-6. 切断クリックの確認を初期値で有効にするか。
-7. セカンダリモニター対応を初期版へ繰り上げるか。
-8. 配布形式をMSI、MSIX、ポータブルZIPのどれにするか。
-9. コード署名証明書を取得するか。
-10. アクセントカラーの最終値。
+1. AirPods Pro＋MediaTek Bluetooth Audio Deviceを最初の参照実機として、KS接続・切断と機器単位の能力判定が安定するか。
+2. 接続確認後、選択機器のステレオEndpointをConsole／Multimediaの既定出力へ安全に設定できるか。
+3. **確定：** 対象Windowsビルドでは`WS_POPUP`維持を採用する。`WS_CHILD`は安定layoutでは動作したが、Start／Search表示中のnative continuityを満たさなかった。
+4. GDI、32bit DIB＋`UpdateLayeredWindow`、Direct2Dの最終選択。
+5. 標準幅、コンパクト幅、各ヒット領域の最終値。
+6. 自動非表示中にネイティブ表示を許可するか、Trayへ固定するか。
+7. 切断クリックの確認を初期値で有効にするか。
+8. セカンダリモニター対応を初期版へ繰り上げるか。
+9. 配布形式をMSI、MSIX、ポータブルZIPのどれにするか。
+10. コード署名証明書を取得するか。
+11. アクセントカラーの最終値。
 
 ## 20. 参考資料・ライセンス
 
@@ -1264,6 +1338,9 @@ Explorerの代わりとなるテスト用トップレベルウィンドウへホ
 
 - [About the Windows Core Audio APIs](https://learn.microsoft.com/en-us/windows/win32/coreaudio/about-the-windows-core-audio-apis)
 - [IMMDeviceEnumerator::GetDefaultAudioEndpoint](https://learn.microsoft.com/en-us/windows/win32/api/mmdeviceapi/nf-mmdeviceapi-immdeviceenumerator-getdefaultaudioendpoint)
+- [Default Audio Endpoint Selection](https://learn.microsoft.com/en-us/windows-hardware/drivers/audio/default-audio-endpoint-selection)
+- [Getting the Device Endpoint for Stream Routing](https://learn.microsoft.com/en-us/windows/win32/coreaudio/getting-the-default-device-endpoint-for-stream-routing)
+- [Launch Windows Settings](https://learn.microsoft.com/en-us/windows/apps/develop/launch/launch-settings)
 - [IAudioEndpointVolume](https://learn.microsoft.com/en-us/windows/win32/api/endpointvolume/nn-endpointvolume-iaudioendpointvolume)
 - [IAudioEndpointVolumeCallback](https://learn.microsoft.com/en-us/windows/win32/api/endpointvolume/nn-endpointvolume-iaudioendpointvolumecallback)
 - [Device Events](https://learn.microsoft.com/en-us/windows/win32/coreaudio/device-events)

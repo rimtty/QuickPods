@@ -47,6 +47,11 @@ csharp_style_var_for_built_in_types = false:suggestion
 csharp_style_var_when_type_is_apparent = true:suggestion
 csharp_style_var_elsewhere = false:suggestion
 
+# The spike uses classic COM interop consistently. Mixing source-generated and
+# ComImport interfaces breaks QueryInterface casts across the MMDevice topology.
+[spikes/QuickPods.Spike.BluetoothKs/Interop/*.cs]
+dotnet_diagnostic.SYSLIB1096.severity = none
+
 # Descriptive xUnit method names intentionally use Given_When_Then separators.
 [tests/QuickPods.Spike.TaskbarHost.Tests/*.cs]
 dotnet_diagnostic.CA1707.severity = none

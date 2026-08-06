@@ -1,6 +1,6 @@
 # QuickPods
 
-QuickPods is a Windows 11 desktop application for controlling the default output volume and a selected Bluetooth audio device from the taskbar.
+QuickPods is a Windows 11 desktop application for controlling the default output volume and selecting, connecting, disconnecting, and making a paired Bluetooth audio device the default output from the taskbar.
 
 The repository is currently in Phase 0. Product behavior is not implemented yet; this branch establishes the reproducible .NET 10 build and test foundation used by the technical spikes.
 
@@ -32,4 +32,4 @@ src/      Production projects
 tests/    Automated test projects
 ```
 
-See [the implementation plan](docs/QuickPods_実装計画書.md) and [the branch roadmap](docs/QuickPods_ブランチ別実装ロードマップ.md) for scope and quality gates.
+See [the implementation plan](docs/QuickPods_実装計画書.md), [the branch roadmap](docs/QuickPods_ブランチ別実装ロードマップ.md), [the v2 UI baseline](docs/QuickPods%20UI%20Mockup%20v2.md), and [the Bluetooth selector specification](docs/QuickPods_Bluetoothオーディオ選択_機能仕様.md) for scope and quality gates.

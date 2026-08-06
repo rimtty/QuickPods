@@ -1,5 +1,7 @@
 # QuickPods UI Mockup v1 — ImageGen Prompt
 
+> Historical reference: the Bluetooth portion of this mockup is superseded by `QuickPods UI Mockup v2.md`. v1 remains as a record of the original AirPods-specific concept.
+
 - 生成方式: built-in ImageGen
 - Use case: `ui-mockup`
 - Asset type: high-fidelity Windows 11 desktop product UI concept image, 16:9 landscape
