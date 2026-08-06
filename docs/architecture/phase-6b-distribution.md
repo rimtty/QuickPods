@@ -10,12 +10,20 @@ packageにはQuickPodsの`ThirdPartyNotices.txt`、固定SDKが提供する.NET 
 
 初期版はnetwork accessと自動更新を持たない。承認済みartifactを手動で置換し、user settings／logsは保持する。uninstaller向けの`QuickPods.exe --unregister-startup`はUI、single-instance、audio、Bluetooth、TaskbarHostを初期化せず、QuickPods所有のHKCU Run値を削除する。設定fileが既に存在する場合だけ`StartWithWindows=false`を保存し、存在しないuser dataを新規作成しない。
 
-## Open distribution decision
+## Per-user MSI decision
 
-MSI、MSIX、portable ZIP／per-user installerの最終選択とcode-signing証明書は計画書の未決事項である。外部installer toolchainまたはscript依存を承認なしに追加しない。このbranchはformat-independent assetsを準備できるが、clean-machine install／update／uninstall acceptanceと最終mergeは形式決定およびGate D #48の後に行う。
+2026-08-06に配布形式をWiX Toolset 6.0.2によるx64ユーザー単位MSIへ確定し、toolchain追加のuser承認を得た。MSIは`PerUserProgramFilesFolder\QuickPods`へ通常user権限で導入し、現在のuserのスタートメニューへshortcutを作る。service、scheduled task、machine-wide registry、Program Files書込み、管理者権限は使用しない。
+
+WiXの`Files` harvestingは固定per-user packageでICE64／ICE91を通過しないと公式に明記されているため使用しない。build scriptはpayloadをdirectory単位のComponentへ決定的に展開し、各ComponentへHKCU registry KeyPathを付与する。固定per-user配置そのものを拒否するICE64／ICE91だけを抑止し、それ以外のMSI検証は有効に保つ。
+
+更新／uninstall時はWiX Util extensionで実行中の`QuickPods.exe`へ終了messageを送り、5秒後も残る場合だけprocessを終了してfile lockを解消する。uninstall時はinstalled copyの`QuickPods.exe --unregister-startup`をupgrade以外の完全削除時だけ実行し、その後MSI所有binary、Component marker、shortcut、ARP登録を削除する。user settingsとlogsは保持する。major upgradeではstartup設定を保持し、古いpackageをtransaction内で削除してから新しいpackageを導入する。pre-releaseは正式版より低く、各RC／CI buildで単調増加できるWindows Installer versionへ写像する。ProductCodeは完全なartifact versionから決定的に生成する。
+
+WiX v6のOpen Source Maintenance Fee条件はrelease前に配布主体が確認する。WiX v7はEULAの明示承諾が必要なため自動更新しない。
+
+コード署名証明書は後日用意する方針であり、RC artifactはmanifestへ`NotSigned`を明示する。正式releaseは証明書をrepository外からCIへ安全に供給し、署名後のMSIを`-RequireSignature`で検証するまで公開しない。
 
 ## Remaining gates
 
-- installer形式と署名方針のuser decision
 - clean environmentで通常userのinstall／launch／update／uninstall／auto-start残骸0件
+- code-signing証明書の準備、CI secret連携、署名済み正式artifact検証
 - #38、#41、#43、#48

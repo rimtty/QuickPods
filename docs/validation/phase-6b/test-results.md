@@ -14,7 +14,7 @@
   - Default Endpoint Policy 7
   - Taskbar Host 183
   - Smoke 1
-- NuGet vulnerability audit：19 projects、vulnerable entry 0
+- NuGet vulnerability audit：solution 19 projectsとWiX installer project、vulnerable entry 0
 
 追加testはuninstaller境界の1件だけである。startup登録を無効化し、Bluetooth選択と他設定を保持したまま保存済み`StartWithWindows`だけをfalseへ変更することをfake registry／settings storeで確認した。実userのHKCU Run値は自動試験で変更していない。
 
@@ -36,8 +36,28 @@
 - `DOTNET-LICENSE.txt`：固定SDKの.NET license
 - `DOTNET-THIRD-PARTY-NOTICES.txt`：固定SDKのthird-party notices
 
+## ユーザー単位MSI
+
+2026-08-06にWiX Toolset 6.0.2を用いるx64ユーザー単位MSIを実装した。同一の495-file RC payloadから二回buildし、どちらもWiX buildは警告0、error 0、MSI内部検証は成功した。
+
+- install scope：`perUser`、`ALLUSERS`なし、elevated privilege bitなし
+- install root：`PerUserProgramFilesFolder\QuickPods`
+- 必須実行file 4件とpayload manifestをMSI File tableで確認
+- Start menu shortcut、Major Upgrade、決定的ProductCode／PackageCodeを確認
+- service、ServiceControl、ODBC、environment variable tableなし
+- 更新／uninstall時に実行中のQuickPodsへ終了messageを送り、5秒後も残る場合だけ終了するWiX metadataを確認
+- 完全uninstall時だけ`QuickPods.exe --unregister-startup`をfile削除前に実行し、upgrade時は除外
+- RC artifact version：`0.1.0-rc.1`
+- Windows Installer version：`0.0.60001`（正式`0.1.0`より低いpre-release mapping）
+- signature：`NotSigned`（証明書準備後の正式release gate）
+- MSI file count：495
+
+MSIの二回buildは正規化したProductCode、PackageCode、summary timestamp、およびdecompile後の全database tableが一致した。MSI containerのbyte列はWiX／Windows Installerのcompound storage／cabinet bindingにより一致せず、各buildのSHA-256はそれぞれ`8daba295b600b6ede8860f67c02ab91c4413ae390dd34b5ea15c848beb995268`と`667f93d69a7d84b56a55537fe6ec3aab998e80fae26bac920c4d9236041c938f`だった。したがってportable ZIPのbyte-for-byte deterministic保証は維持する一方、MSIは同一identity／同一database／同一payloadの再生成とbuildごとのchecksum発行を保証範囲とする。
+
+固定per-user file packageに対するWiX公式既知制約のためICE64／ICE91だけを抑止し、他のICE検証は有効である。
+
 ## 未実施
 
-installer形式とcode-signing方針は未決定であり、clean environmentのinstall／launch／update／uninstall／startup残骸確認は実施していない。Phase 6Bの最終mergeはロードマップどおりGate D [#48](https://github.com/rimtty/QuickPods/issues/48)通過後とする。
+clean local-console環境でのinstall／launch／update／uninstall／startup残骸確認と、署名証明書を用いた署名検証は実施していない。Phase 6Bの最終mergeはロードマップどおりGate D [#48](https://github.com/rimtty/QuickPods/issues/48)通過後とする。
 
 実Bluetooth [#38](https://github.com/rimtty/QuickPods/issues/38)／[#41](https://github.com/rimtty/QuickPods/issues/41)、local-console表示／電源 [#43](https://github.com/rimtty/QuickPods/issues/43)も未完了である。

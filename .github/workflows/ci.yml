@@ -48,6 +48,9 @@ jobs:
       - name: Restore
         run: dotnet restore QuickPods.sln --locked-mode
 
+      - name: Restore installer toolchain
+        run: dotnet restore installer/QuickPods.Setup/QuickPods.Setup.wixproj --locked-mode
+
       - name: Audit NuGet vulnerabilities
         run: ./build/Test-DependencyVulnerabilities.ps1
 
@@ -85,6 +88,15 @@ jobs:
           -OutputDirectory artifacts/rc
           -Version 0.1.0-ci.${{ github.run_number }}
 
+      - name: Publish per-user MSI
+        run: >-
+          ./build/Publish-Installer.ps1
+          -OutputDirectory artifacts/installer
+          -Version 0.1.0-ci.${{ github.run_number }}
+          -PayloadDirectory artifacts/rc/QuickPods
+          -SkipPayloadPublish
+          -SkipRestore
+
       - name: Upload release candidate
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -93,5 +105,17 @@ jobs:
             artifacts/rc/QuickPods-*-win-x64.zip
             artifacts/rc/SHA256SUMS.txt
             artifacts/rc/QuickPods/artifact-manifest.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload per-user MSI
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: quickpods-per-user-msi
+          path: |
+            artifacts/installer/QuickPods-*-win-x64.msi
+            artifacts/installer/SHA256SUMS.txt
+            artifacts/installer/installer-manifest.json
+            artifacts/installer/payload-artifact-manifest.json
           if-no-files-found: error
           retention-days: 14

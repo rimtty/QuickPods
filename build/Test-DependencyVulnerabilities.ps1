@@ -5,18 +5,28 @@ $ErrorActionPreference = "Stop"
 $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 Push-Location $repositoryRoot
 try {
-    $json = & dotnet list QuickPods.sln package `
-        --vulnerable `
-        --include-transitive `
-        --format json `
-        --no-restore
-    if ($LASTEXITCODE -ne 0) {
-        throw "NuGet vulnerability audit failed to execute."
+    $projects = [System.Collections.Generic.List[object]]::new()
+    foreach ($target in @(
+        "QuickPods.sln",
+        "installer/QuickPods.Setup/QuickPods.Setup.wixproj"
+    )) {
+        $json = & dotnet list $target package `
+            --vulnerable `
+            --include-transitive `
+            --format json `
+            --no-restore
+        if ($LASTEXITCODE -ne 0) {
+            throw "NuGet vulnerability audit failed to execute for $target."
+        }
+
+        $report = $json | ConvertFrom-Json
+        foreach ($project in @($report.projects)) {
+            $projects.Add($project)
+        }
     }
 
-    $report = $json | ConvertFrom-Json
     $vulnerable = @(
-        foreach ($project in $report.projects) {
+        foreach ($project in $projects) {
             foreach ($framework in @($project.frameworks)) {
                 foreach ($package in @($framework.topLevelPackages) + @($framework.transitivePackages)) {
                     if ($null -ne $package -and
@@ -38,7 +48,7 @@ try {
     }
 
     [pscustomobject]@{
-        ProjectsAudited = @($report.projects).Count
+        ProjectsAudited = $projects.Count
         VulnerablePackageEntries = 0
     }
 } finally {
