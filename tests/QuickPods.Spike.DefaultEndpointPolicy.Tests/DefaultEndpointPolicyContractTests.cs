@@ -5,6 +5,34 @@ namespace QuickPods.Spike.DefaultEndpointPolicy.Tests;
 public sealed class DefaultEndpointPolicyContractTests
 {
     [Fact]
+    public void ApplyRequiresExactContainerConfirmationAndMutationConsent()
+    {
+        const string session =
+            "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF";
+        const string container = "00112233445566778899AABB";
+
+        Assert.Throws<ArgumentException>(() => DefaultEndpointPolicyOptions.Parse([
+            "apply",
+            "--session",
+            session,
+            "--container",
+            container,
+            "--confirm-container",
+            "FFEEDDCCBBAA998877665544",
+            "--confirm-default-endpoint-operation",
+        ]));
+        Assert.Throws<ArgumentException>(() => DefaultEndpointPolicyOptions.Parse([
+            "apply",
+            "--session",
+            session,
+            "--container",
+            container,
+            "--confirm-container",
+            container,
+        ]));
+    }
+
+    [Fact]
     public void ResolverSelectsOnlyOneActiveStereoRenderEndpoint()
     {
         var selected = new OpaqueContainerHandle("selected");
@@ -60,6 +88,14 @@ public sealed class DefaultEndpointPolicyContractTests
         Assert.Equal(
             [DefaultEndpointRole.Console, DefaultEndpointRole.Multimedia],
             policy.WrittenRoles);
+        Assert.Equal(
+            [
+                "subscribe:Console",
+                "write:Console",
+                "subscribe:Multimedia",
+                "write:Multimedia",
+            ],
+            policy.OperationOrder);
         Assert.DoesNotContain(DefaultEndpointRole.Communications, policy.WrittenRoles);
         Assert.All(result.Roles, role =>
         {
@@ -210,6 +246,8 @@ public sealed class DefaultEndpointPolicyContractTests
 
         public List<DefaultEndpointRole> WrittenRoles { get; } = [];
 
+        public List<string> OperationOrder { get; } = [];
+
         public int NotificationWaits { get; private set; }
 
         public int Reads { get; private set; }
@@ -229,6 +267,7 @@ public sealed class DefaultEndpointPolicyContractTests
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            OperationOrder.Add($"write:{role}");
             WrittenRoles.Add(role);
             if (RejectedRole == role)
             {
@@ -243,19 +282,36 @@ public sealed class DefaultEndpointPolicyContractTests
                 HResult: 0));
         }
 
-        public ValueTask<DefaultEndpointNotification> WaitForDefaultEndpointChangedAsync(
+        public ValueTask<IDefaultEndpointNotificationSubscription> SubscribeDefaultEndpointChangedAsync(
             OpaqueEndpointHandle endpoint,
             DefaultEndpointRole role,
             long generation,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            NotificationWaits++;
-            AfterNotification?.Invoke();
-            return ValueTask.FromResult(new DefaultEndpointNotification(
-                role,
-                generation,
-                Observed: true));
+            OperationOrder.Add($"subscribe:{role}");
+            return ValueTask.FromResult<IDefaultEndpointNotificationSubscription>(
+                new StubSubscription(this, role, generation));
+        }
+
+        private sealed class StubSubscription(
+            StubPolicy owner,
+            DefaultEndpointRole role,
+            long generation) : IDefaultEndpointNotificationSubscription
+        {
+            public ValueTask<DefaultEndpointNotification> WaitAsync(
+                CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                owner.NotificationWaits++;
+                owner.AfterNotification?.Invoke();
+                return ValueTask.FromResult(new DefaultEndpointNotification(
+                    role,
+                    generation,
+                    Observed: true));
+            }
+
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
         }
     }
 }

@@ -56,11 +56,16 @@ internal sealed class DefaultEndpointSwitchCoordinator(
                 continue;
             }
 
-            DefaultEndpointWriteResult write =
-                await policy.SetDefaultEndpointAsync(
+            await using IDefaultEndpointNotificationSubscription subscription =
+                await policy.SubscribeDefaultEndpointChangedAsync(
                     target.Endpoint,
                     role,
+                    generation,
                     cancellationToken).ConfigureAwait(false);
+            DefaultEndpointWriteResult write = await policy.SetDefaultEndpointAsync(
+                target.Endpoint,
+                role,
+                cancellationToken).ConfigureAwait(false);
             if (!write.Accepted)
             {
                 evidence.Add(new DefaultEndpointRoleEvidence(
@@ -82,12 +87,8 @@ internal sealed class DefaultEndpointSwitchCoordinator(
                     cancellationToken).ConfigureAwait(false);
             }
 
-            DefaultEndpointNotification notification =
-                await policy.WaitForDefaultEndpointChangedAsync(
-                    target.Endpoint,
-                    role,
-                    generation,
-                    cancellationToken).ConfigureAwait(false);
+            DefaultEndpointNotification notification = await subscription.WaitAsync(
+                cancellationToken).ConfigureAwait(false);
             OpaqueEndpointHandle? readBack = await policy.GetDefaultEndpointAsync(
                 role,
                 cancellationToken).ConfigureAwait(false);

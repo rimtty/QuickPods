@@ -2,7 +2,7 @@
 
 ## Status
 
-**In progress**。`codex/phase-0d-default-endpoint-policy-spike`で、OS変更を行わない隔離契約と状態機械を実装した。Windows COMアダプター、明示確認付き診断CLI、実機Gateは未実装／未実施である。Bluetooth Gate Aが選択Containerの接続済みActiveステレオ再生Endpointを確定するまでは、実OSの既定出力を変更しない。
+**In progress**。`codex/phase-0d-default-endpoint-policy-spike`で、隔離契約、状態機械、Windows COMアダプター、通知購読、サニタイズ済みinventory、読み取り専用`probe`、明示確認付き`apply` CLIを実装した。Windows 11 Pro 25H2 build `26200.8973`の通常権限でPolicyConfig生成と3ロールの読み取りに成功した。実機の既定出力変更は未実施である。Bluetooth Gate Aで選択Containerの接続済みActiveステレオ再生Endpointを再確認するまでは、`apply`を実行しない。
 
 ## 目的
 
@@ -37,6 +37,14 @@ Microsoft Learnで公開されているCore Audio APIは既定Endpointの取得�
 | DEP-006 | 古いカタログ世代 | 現在の選択へ結果を誤適用しない | Pass |
 | DEP-007 | A→B→Aを10回 | クラッシュ、ハンドル増加、状態ずれがない | Pending |
 
+## 2026-08-06 読み取り検証
+
+- `inventory`で50 Render Endpointを生IDなしで列挙した。
+- AirPods Render Endpointを`Headphones`相当のform factor 3、`Stereo`、`Unplugged`として識別した。
+- Console／Multimediaは同じActive Endpoint、Communicationsは別のActive Endpointであり、ロール非干渉を検証できる構成である。
+- `probe`で`IPolicyConfig`境界の生成、通知クライアント登録、Console／Multimedia／Communicationsの既定値取得に成功した。
+- `SetDefaultEndpoint`呼び出しは0件。A→Bluetooth→Aの実変更はBluetooth再接続後に実施する。
+
 ## 実装済み契約
 
 - Endpoint／Containerの内部ハンドルは`ToString()`で実IDを露出しない。
@@ -46,6 +54,9 @@ Microsoft Learnで公開されているCore Audio APIは既定Endpointの取得�
 - 書き込み受理だけでは成功にせず、同一世代の通知と再取得の両方を要求する。
 - 途中拒否、通知／再取得不一致、世代更新は、既に受理された変更を含む証拠を保持して完全成功と区別する。
 - 既に両ロールが対象の場合は書き込みも通知待機も行わない。
+- 通知購読は各ロールの書き込み前に確立し、高速な通知を取り逃がさない。
+- 実アダプターは書き込み直前にも対象EndpointがActiveであることを再確認する。
+- CLIは64桁session、24桁Container aliasの完全一致再入力、明示的な変更同意が揃わなければPolicyConfigを生成しない。
 
 ## 成果物
 

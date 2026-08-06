@@ -11,10 +11,16 @@ internal interface IDefaultAudioEndpointPolicy
         DefaultEndpointRole role,
         CancellationToken cancellationToken);
 
-    ValueTask<DefaultEndpointNotification> WaitForDefaultEndpointChangedAsync(
+    ValueTask<IDefaultEndpointNotificationSubscription> SubscribeDefaultEndpointChangedAsync(
         OpaqueEndpointHandle endpoint,
         DefaultEndpointRole role,
         long generation,
+        CancellationToken cancellationToken);
+}
+
+internal interface IDefaultEndpointNotificationSubscription : IAsyncDisposable
+{
+    ValueTask<DefaultEndpointNotification> WaitAsync(
         CancellationToken cancellationToken);
 }
 
