@@ -28,6 +28,27 @@ public sealed class BluetoothCatalogControllerTests
     }
 
     [Fact]
+    public void WindowsBindingRegistryRequiresTheExactNewestInventoryGeneration()
+    {
+        var registry = new WindowsBluetoothBindingRegistry();
+        var binding = new WindowsBluetoothDeviceBinding(
+            DeviceA,
+            new Guid("11223344-5566-7788-99AA-BBCCDDEEFF00"),
+            [new(
+                "synthetic-endpoint",
+                BluetoothEndpointDirection.Render,
+                BluetoothAudioProfile.Stereo,
+                BluetoothEndpointAvailability.NotPresent,
+                [])]);
+
+        Assert.True(registry.Publish(2, [binding]));
+        Assert.False(registry.Publish(1, []));
+        Assert.False(registry.TryResolve(new BluetoothOperationTarget(DeviceA, 1), out _));
+        Assert.True(registry.TryResolve(new BluetoothOperationTarget(DeviceA, 2), out var resolved));
+        Assert.Same(binding, resolved);
+    }
+
+    [Fact]
     public async Task CatalogAggregatesProfilesAndKeepsDeviceFaultsIndependent()
     {
         var port = new QueueCatalogPort();

@@ -18,6 +18,8 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
     private const ushort VariantTypeWideString = 31;
     private const ushort VariantTypeClassId = 72;
     private const uint StorageModeRead = 0;
+    private const int ElementNotFound = unchecked((int)0x80070490);
+    private const int PathNotFound = unchecked((int)0x80070003);
 
     private static readonly PropertyKey DeviceFriendlyName = new(
         new Guid("A45C254E-DF1C-4EFD-8020-67D146A850E0"),
@@ -39,6 +41,7 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
     private static readonly TimeSpan DiscoveryTimeout = TimeSpan.FromSeconds(8);
 
     private readonly MtaAudioWorker worker = new();
+    private readonly WindowsBluetoothBindingRegistry bindingRegistry = new();
     private int disposed;
 
     public async ValueTask<BluetoothAudioCatalogObservation> DiscoverAsync(
@@ -52,6 +55,7 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
             // Association-endpoint discovery can remain pending for the lifetime of an RDP
             // session. A remote audio redirector is not evidence about the console user's
             // paired Bluetooth inventory, so return a safe read-only empty observation.
+            _ = bindingRegistry.Publish(inventoryGeneration, []);
             return new BluetoothAudioCatalogObservation(inventoryGeneration, []);
         }
 
@@ -59,11 +63,17 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
         timeout.CancelAfter(DiscoveryTimeout);
         IReadOnlyDictionary<Guid, AepContainerMetadata> containers =
             await ReadPairedBluetoothContainersAsync(timeout.Token).ConfigureAwait(false);
-        ImmutableArray<BluetoothAudioEndpointEvidence> endpoints = await worker.InvokeAsync(
+        WindowsBluetoothDiscovery discovery = await worker.InvokeAsync(
             () => ReadAudioEndpoints(containers),
             timeout.Token).ConfigureAwait(false);
-        return new BluetoothAudioCatalogObservation(inventoryGeneration, endpoints);
+        _ = bindingRegistry.Publish(inventoryGeneration, discovery.Bindings);
+        return new BluetoothAudioCatalogObservation(inventoryGeneration, discovery.Endpoints);
     }
+
+    internal bool TryResolveBinding(
+        BluetoothOperationTarget target,
+        out WindowsBluetoothDeviceBinding binding) =>
+        bindingRegistry.TryResolve(target, out binding);
 
     public void Dispose()
     {
@@ -103,17 +113,17 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
         return result;
     }
 
-    private static ImmutableArray<BluetoothAudioEndpointEvidence> ReadAudioEndpoints(
+    private static WindowsBluetoothDiscovery ReadAudioEndpoints(
         IReadOnlyDictionary<Guid, AepContainerMetadata> containers)
     {
         if (containers.Count == 0)
         {
-            return [];
+            return new([], []);
         }
 
         IMMDeviceEnumerator? enumerator = null;
         IMMDeviceCollection? collection = null;
-        var endpoints = ImmutableArray.CreateBuilder<BluetoothAudioEndpointEvidence>();
+        var endpoints = ImmutableArray.CreateBuilder<WindowsBluetoothEndpointDiscovery>();
         try
         {
             enumerator = (IMMDeviceEnumerator)(object)new MMDeviceEnumeratorComObject();
@@ -133,7 +143,7 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
                 try
                 {
                     HResult.ThrowIfFailed(collection.Item(index, out device), nameof(IMMDeviceCollection.Item));
-                    if (TryReadEndpoint(device, containers, out BluetoothAudioEndpointEvidence endpoint))
+                    if (TryReadEndpoint(device, containers, out WindowsBluetoothEndpointDiscovery endpoint))
                     {
                         endpoints.Add(endpoint);
                     }
@@ -154,18 +164,33 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
             ReleaseComObject(enumerator);
         }
 
-        return endpoints.ToImmutable();
+        ImmutableArray<WindowsBluetoothEndpointDiscovery> discovered = endpoints.ToImmutable();
+        ImmutableArray<WindowsBluetoothDeviceBinding> bindings = [.. discovered
+            .GroupBy(endpoint => endpoint.Evidence.DeviceKey)
+            .Select(group => new WindowsBluetoothDeviceBinding(
+                group.Key,
+                group.First().ContainerId,
+                [.. group.Select(endpoint => endpoint.Binding)]))];
+        return new(
+            [.. discovered.Select(endpoint => endpoint.Evidence)],
+            bindings);
     }
 
     private static bool TryReadEndpoint(
         IMMDevice device,
         IReadOnlyDictionary<Guid, AepContainerMetadata> containers,
-        out BluetoothAudioEndpointEvidence endpoint)
+        out WindowsBluetoothEndpointDiscovery endpoint)
     {
         endpoint = null!;
         HResult.ThrowIfFailed(device.GetState(out AudioDeviceState state), nameof(IMMDevice.GetState));
         var nativeEndpoint = (IMMEndpoint)device;
         HResult.ThrowIfFailed(nativeEndpoint.GetDataFlow(out AudioDataFlow flow), nameof(IMMEndpoint.GetDataFlow));
+        if (flow is not AudioDataFlow.Render and not AudioDataFlow.Capture)
+        {
+            return false;
+        }
+
+        HResult.ThrowIfFailed(device.GetId(out string endpointId), nameof(IMMDevice.GetId));
         IPropertyStore? properties = null;
         try
         {
@@ -185,18 +210,31 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
                 displayName = ReadStringProperty(properties, DeviceFriendlyName) ?? "Bluetooth audio";
             }
 
+            BluetoothDeviceKey deviceKey = BluetoothDeviceKeyFactory.Create(id);
+            BluetoothAudioProfile profile = ResolveProfile(flow, formFactor);
+            BluetoothEndpointDirection direction = flow == AudioDataFlow.Render
+                ? BluetoothEndpointDirection.Render
+                : BluetoothEndpointDirection.Capture;
+            BluetoothEndpointAvailability availability = MapAvailability(state);
+            ImmutableArray<string> adapterDeviceIds = ReadAdapterDeviceIds(device);
             endpoint = new(
-                BluetoothDeviceKeyFactory.Create(id),
-                displayName,
-                ResolveKind(metadata.Categories, formFactor),
-                ResolveProfile(flow, formFactor),
-                flow == AudioDataFlow.Render
-                    ? BluetoothEndpointDirection.Render
-                    : BluetoothEndpointDirection.Capture,
-                MapAvailability(state),
-                BluetoothDeviceCapability.OwnershipUnknown,
-                IsPaired: true,
-                IsBluetooth: true);
+                id,
+                new(
+                    deviceKey,
+                    displayName,
+                    ResolveKind(metadata.Categories, formFactor),
+                    profile,
+                    direction,
+                    availability,
+                    BluetoothDeviceCapability.OwnershipUnknown,
+                    IsPaired: true,
+                    IsBluetooth: true),
+                new(
+                    endpointId,
+                    direction,
+                    profile,
+                    availability,
+                    adapterDeviceIds));
             return true;
         }
         finally
@@ -263,6 +301,77 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
         }
 
         return BluetoothEndpointAvailability.Unknown;
+    }
+
+    private static ImmutableArray<string> ReadAdapterDeviceIds(IMMDevice device)
+    {
+        object? activatedInterface = null;
+        try
+        {
+            Guid topologyInterfaceId = typeof(IDeviceTopology).GUID;
+            int activationResult = device.Activate(
+                ref topologyInterfaceId,
+                ComClassContext.All,
+                nint.Zero,
+                out activatedInterface);
+            if (activationResult < 0)
+            {
+                return [];
+            }
+
+            var topology = (IDeviceTopology)activatedInterface;
+            HResult.ThrowIfFailed(
+                topology.GetConnectorCount(out uint connectorCount),
+                nameof(IDeviceTopology.GetConnectorCount));
+            var adapterIds = new HashSet<string>(StringComparer.Ordinal);
+            for (uint index = 0; index < connectorCount; index++)
+            {
+                IConnector? connector = null;
+                try
+                {
+                    HResult.ThrowIfFailed(
+                        topology.GetConnector(index, out connector),
+                        nameof(IDeviceTopology.GetConnector));
+                    nint adapterIdPointer = nint.Zero;
+                    try
+                    {
+                        int result = connector.GetDeviceIdConnectedTo(out adapterIdPointer);
+                        if (result is PathNotFound or ElementNotFound)
+                        {
+                            continue;
+                        }
+
+                        HResult.ThrowIfFailed(result, nameof(IConnector.GetDeviceIdConnectedTo));
+                        string? adapterId = Marshal.PtrToStringUni(adapterIdPointer);
+                        if (!string.IsNullOrWhiteSpace(adapterId))
+                        {
+                            adapterIds.Add(adapterId);
+                        }
+                    }
+                    finally
+                    {
+                        if (adapterIdPointer != nint.Zero)
+                        {
+                            Marshal.FreeCoTaskMem(adapterIdPointer);
+                        }
+                    }
+                }
+                finally
+                {
+                    ReleaseComObject(connector);
+                }
+            }
+
+            return [.. adapterIds.Order(StringComparer.Ordinal)];
+        }
+        catch (Exception exception) when (IsEndpointLocalFailure(exception))
+        {
+            return [];
+        }
+        finally
+        {
+            ReleaseComObject(activatedInterface);
+        }
     }
 
     private static Guid? ReadGuidProperty(IPropertyStore properties, PropertyKey key)
@@ -358,6 +467,15 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .Order(StringComparer.OrdinalIgnoreCase)]);
     }
+
+    private sealed record WindowsBluetoothEndpointDiscovery(
+        Guid ContainerId,
+        BluetoothAudioEndpointEvidence Evidence,
+        WindowsBluetoothEndpointBinding Binding);
+
+    private sealed record WindowsBluetoothDiscovery(
+        ImmutableArray<BluetoothAudioEndpointEvidence> Endpoints,
+        ImmutableArray<WindowsBluetoothDeviceBinding> Bindings);
 
     private static partial class NativeMethods
     {

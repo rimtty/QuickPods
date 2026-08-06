@@ -33,3 +33,5 @@ OS要求の直前と結果反映前に、選択キー、inventory generation、�
 - RDPではローカル所有権を証明できないため、KSと既定出力の変更要求を拒否する。
 
 物理AirPods操作はローカルコンソールGateまで実行しない。
+
+初期Windows binding実装は、列挙時に取得した生のContainer ID、MMDevice Endpoint ID、DeviceTopology接続先IDを`QuickPods.Windows`内部のregistryだけへ保存する。公開にはopaque keyだけを使い、最新generationと完全一致しない操作targetは解決しない。古い並行列挙はregistryを上書きできない。DeviceTopologyを取得できないEndpointもカタログから消さず、候補なしとして後続の能力判定を`OwnershipUnknown`へ縮退させる。

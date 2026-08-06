@@ -10,4 +10,4 @@
 - `SettingsOnly`機器へ変更要求を送らない。
 - 同時操作をグローバルに直列化する。
 
-Foundation focused testsは60件（Phase 4B追加5件を含む）でPassしている。物理KS、PolicyConfig、RDP拒否の製品アダプター検証は後続コミットで追加する。DPI、解像度、描画、Floating、クリック、ホイール試験は現在のRDP環境では実施しない。
+Foundation focused testsは61件（Phase 4B追加6件を含む）でPassしている。追加したWindows binding試験では、最新generationだけを公開し、古いgenerationの操作targetを解決しないことを確認した。物理KS、PolicyConfig、RDP拒否の製品アダプター検証は後続コミットで追加する。DPI、解像度、描画、Floating、クリック、ホイール試験は現在のRDP環境では実施しない。
