@@ -24,6 +24,8 @@ Phase 5Aでは過剰なedge-caseテストを増やさず、次の製品境界に
   - Taskbar Host 183
   - Smoke 1
 
+初回GitHub Actionsでは既存Taskbar spikeのMTA watcher試験が、coverage付き並行実行中に5秒の偽タイムアウトとなった。専用MTAが完了した後の通知をThreadPool continuationへ戻していたことが原因であり、同期待機専用の通知だけをinline完了へ変更した。製品の5秒上限と試験ケースは緩和・削除していない。同型の製品Observer起動通知にも同じ修正を適用し、CIと同一のcoverage付き全374件がローカルでPassした。
+
 ## 非視覚プロセススモーク
 
 2026-08-06、Releaseの`QuickPods.exe`をRDPセッションで`--background`起動し、次を確認した。

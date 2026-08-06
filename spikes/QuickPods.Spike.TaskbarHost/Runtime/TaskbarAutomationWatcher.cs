@@ -14,8 +14,10 @@ internal sealed class TaskbarAutomationWatcher : IDisposable
     private readonly BlockingCollection<WatcherCommand> commands = [];
     private readonly Func<ITaskbarAutomationSubscription> subscriptionFactory;
     private readonly TaskbarAutomationInvalidationSignal signal;
-    private readonly TaskCompletionSource<bool> workerReady = new(
-        TaskCreationOptions.RunContinuationsAsynchronously);
+    // These completions are consumed by bounded synchronous waits. Completing
+    // inline on the dedicated worker prevents ThreadPool saturation from
+    // producing a false operation timeout.
+    private readonly TaskCompletionSource<bool> workerReady = new();
     private readonly Thread worker;
     private long activeSubscriptionEpoch;
     private long nextSubscriptionEpoch;
@@ -278,8 +280,7 @@ internal sealed class TaskbarAutomationWatcher : IDisposable
 
         internal nint TaskbarHandle { get; } = taskbarHandle;
 
-        internal TaskCompletionSource<bool> Completion { get; } = new(
-            TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource<bool> Completion { get; } = new();
     }
 
     private sealed class UiaSubscription : ITaskbarAutomationSubscription
