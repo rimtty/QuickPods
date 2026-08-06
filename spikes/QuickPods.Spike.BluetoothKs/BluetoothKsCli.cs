@@ -141,7 +141,7 @@ internal static class BluetoothKsCli
 
         SupportProbe reconnectSupport = await ProbeSupportAsync(
             resolvedTarget.Target.ContainerHash,
-            resolvedTarget.AdapterDeviceId,
+            resolvedTarget.RenderAdapterDeviceId,
             KsChildOperation.BasicSupportReconnect,
             childRunner,
             cancellationToken).ConfigureAwait(false);
@@ -153,33 +153,57 @@ internal static class BluetoothKsCli
             return 1;
         }
 
-        SupportProbe disconnectSupport = await ProbeSupportAsync(
-            resolvedTarget.Target.ContainerHash,
-            resolvedTarget.AdapterDeviceId,
-            KsChildOperation.BasicSupportDisconnect,
-            childRunner,
-            cancellationToken).ConfigureAwait(false);
-        WriteSupport("disconnect", disconnectSupport, output);
+        var disconnectSupport = new List<SupportProbe>();
+        foreach (ResolvedKsCandidate candidate in resolvedTarget.DisconnectCandidates)
+        {
+            SupportProbe support = await ProbeSupportAsync(
+                resolvedTarget.Target.ContainerHash,
+                candidate.AdapterDeviceId,
+                KsChildOperation.BasicSupportDisconnect,
+                childRunner,
+                cancellationToken).ConfigureAwait(false);
+            disconnectSupport.Add(support);
+            WriteSupport(
+                $"disconnect-{candidate.Flow.ToString().ToLowerInvariant()}",
+                support,
+                output);
+            if (support.ChildStatus != KsChildRunStatus.Completed)
+            {
+                error.WriteLine(
+                    "A later Basic Support query was not attempted after an isolated child failure.");
+                return 1;
+            }
+        }
 
         if (options.Command == BluetoothKsCommand.Probe)
         {
-            return reconnectSupport.Supported && disconnectSupport.Supported ? 0 : 1;
+            return reconnectSupport.Supported && disconnectSupport.All(item => item.Supported)
+                ? 0
+                : 1;
         }
 
-        if (!reconnectSupport.Supported || !disconnectSupport.Supported)
+        if (!reconnectSupport.Supported || disconnectSupport.Any(item => !item.Supported))
         {
-            error.WriteLine("Mutation refused: both reconnect and disconnect Basic Support must be confirmed.");
+            error.WriteLine(
+                "Mutation refused: reconnect and every target-owned disconnect candidate must be supported.");
             return 1;
         }
 
-        var commandInvoker = new ProcessKsCommandInvoker(
-            resolvedTarget.AdapterDeviceId,
-            childRunner);
-        var stateObserver = new DiscoveryBluetoothStateObserver(discovery);
-        var coordinator = new BluetoothOperationCoordinator(commandInvoker, stateObserver);
         BluetoothOperationKind operationKind = options.Command == BluetoothKsCommand.Connect
             ? BluetoothOperationKind.Connect
             : BluetoothOperationKind.Disconnect;
+        string[] operationAdapters = operationKind == BluetoothOperationKind.Connect
+            ? [resolvedTarget.RenderAdapterDeviceId]
+            : [.. resolvedTarget.DisconnectCandidates
+                .Select(candidate => candidate.AdapterDeviceId)
+                .Distinct(StringComparer.Ordinal)];
+        var commandInvoker = new ProcessKsCommandInvoker(
+            operationAdapters,
+            childRunner);
+        var stateObserver = new DiscoveryBluetoothStateObserver(
+            discovery,
+            includeCapture: operationKind == BluetoothOperationKind.Disconnect);
+        var coordinator = new BluetoothOperationCoordinator(commandInvoker, stateObserver);
         BluetoothOperationResult result = await coordinator.ExecuteAsync(
             resolvedTarget.Target.ContainerHash,
             operationKind,
@@ -243,22 +267,33 @@ internal static class BluetoothKsCli
             return null;
         }
 
-        int owningContainers = result.Targets.Values
-            .Where(candidateTarget => candidateTarget.Candidates.Any(candidate =>
-                StringComparer.Ordinal.Equals(
-                    candidate.AdapterDeviceId,
-                    renderCandidates[0])))
-            .Select(candidateTarget => candidateTarget.ContainerHash)
-            .Distinct(StringComparer.Ordinal)
-            .Count();
-        if (owningContainers != 1)
+        RawKsCandidate[] disconnectCandidates = [.. target.Candidates
+            .Where(candidate => candidate.SourceFlow is NativeDataFlow.Render or NativeDataFlow.Capture)
+            .Distinct(new RawKsCandidateIdentityComparer())];
+        foreach (RawKsCandidate candidate in disconnectCandidates)
         {
-            error.WriteLine(
-                $"Target {targetHash} uses a KS candidate shared by {owningContainers.ToString(CultureInfo.InvariantCulture)} containers; refusing ambiguous ownership.");
-            return null;
+            int owningContainers = result.Targets.Values
+                .Where(candidateTarget => candidateTarget.Candidates.Any(other =>
+                    StringComparer.Ordinal.Equals(
+                        other.AdapterDeviceId,
+                        candidate.AdapterDeviceId)))
+                .Select(candidateTarget => candidateTarget.ContainerHash)
+                .Distinct(StringComparer.Ordinal)
+                .Count();
+            if (owningContainers != 1)
+            {
+                error.WriteLine(
+                    $"Target {targetHash} uses a KS candidate shared by {owningContainers.ToString(CultureInfo.InvariantCulture)} containers; refusing ambiguous ownership.");
+                return null;
+            }
         }
 
-        return new ResolvedTarget(target, renderCandidates[0]);
+        return new ResolvedTarget(
+            target,
+            renderCandidates[0],
+            [.. disconnectCandidates.Select(candidate => new ResolvedKsCandidate(
+                candidate.AdapterDeviceId,
+                candidate.SourceFlow))]);
     }
 
     private static async Task<SupportProbe> ProbeSupportAsync(
@@ -393,5 +428,24 @@ internal static class BluetoothKsCli
 
     private sealed record ResolvedTarget(
         RawKsTarget Target,
-        string AdapterDeviceId);
+        string RenderAdapterDeviceId,
+        IReadOnlyList<ResolvedKsCandidate> DisconnectCandidates);
+
+    private sealed record ResolvedKsCandidate(
+        string AdapterDeviceId,
+        NativeDataFlow Flow);
+
+    private sealed class RawKsCandidateIdentityComparer : IEqualityComparer<RawKsCandidate>
+    {
+        public bool Equals(RawKsCandidate? left, RawKsCandidate? right) =>
+            ReferenceEquals(left, right) ||
+            left is not null &&
+            right is not null &&
+            left.SourceFlow == right.SourceFlow &&
+            StringComparer.Ordinal.Equals(left.AdapterDeviceId, right.AdapterDeviceId);
+
+        public int GetHashCode(RawKsCandidate value) => HashCode.Combine(
+            StringComparer.Ordinal.GetHashCode(value.AdapterDeviceId),
+            value.SourceFlow);
+    }
 }

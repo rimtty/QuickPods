@@ -6,7 +6,7 @@ using QuickPods.Spike.BluetoothKs.Operations;
 namespace QuickPods.Spike.BluetoothKs.Runtime;
 
 internal sealed class ProcessKsCommandInvoker(
-    string adapterDeviceId,
+    IReadOnlyList<string> adapterDeviceIds,
     IKsChildProcessRunner childRunner) : IBluetoothKsCommandInvoker
 {
     public async Task<int> InvokeAsync(BluetoothOperationRequest request)
@@ -16,29 +16,38 @@ internal sealed class ProcessKsCommandInvoker(
         KsChildOperation operation = request.Kind == BluetoothOperationKind.Connect
             ? KsChildOperation.Reconnect
             : KsChildOperation.Disconnect;
-        KsChildRunResult result = await childRunner.RunAsync(
-            new KsChildInvocation(
-                request.ContainerKey,
-                adapterDeviceId,
-                operation,
-                KsChildConsent.Mutation),
-            CancellationToken.None).ConfigureAwait(false);
-        if (result.Status == KsChildRunStatus.TimedOut)
+        foreach (string adapterDeviceId in adapterDeviceIds)
         {
-            throw new BluetoothKsInvocationTimedOutException();
+            KsChildRunResult result = await childRunner.RunAsync(
+                new KsChildInvocation(
+                    request.ContainerKey,
+                    adapterDeviceId,
+                    operation,
+                    KsChildConsent.Mutation),
+                CancellationToken.None).ConfigureAwait(false);
+            if (result.Status == KsChildRunStatus.TimedOut)
+            {
+                throw new BluetoothKsInvocationTimedOutException();
+            }
+
+            if (result.Status != KsChildRunStatus.Completed || result.Response is null)
+            {
+                throw new KsChildProcessException(result.Status);
+            }
+
+            if (result.Response.HResult != 0)
+            {
+                return result.Response.HResult;
+            }
         }
 
-        if (result.Status != KsChildRunStatus.Completed || result.Response is null)
-        {
-            throw new KsChildProcessException(result.Status);
-        }
-
-        return result.Response.HResult;
+        return 0;
     }
 }
 
 internal sealed class DiscoveryBluetoothStateObserver(
-    IBluetoothKsDiscovery discovery) : IBluetoothStateObserver
+    IBluetoothKsDiscovery discovery,
+    bool includeCapture = false) : IBluetoothStateObserver
 {
     public Task<BluetoothStateObservation> ObserveAsync(
         string containerKey,
@@ -63,7 +72,8 @@ internal sealed class DiscoveryBluetoothStateObserver(
             containerKey);
         bool enumerationComplete = ownership.IsComplete;
         IReadOnlyList<BluetoothEndpointState> endpointStates = group?.Endpoints
-            .Where(endpoint => endpoint.Flow == NativeDataFlow.Render)
+            .Where(endpoint => endpoint.Flow == NativeDataFlow.Render ||
+                includeCapture && endpoint.Flow == NativeDataFlow.Capture)
             .Select(endpoint => MapState(endpoint.State))
             .ToArray() ?? [];
         var evidence = new BluetoothContainerEvidence(

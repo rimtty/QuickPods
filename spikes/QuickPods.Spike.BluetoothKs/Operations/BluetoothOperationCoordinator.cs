@@ -6,6 +6,7 @@ public sealed class BluetoothOperationCoordinator
 {
     public static readonly TimeSpan OperationDeadline = TimeSpan.FromSeconds(15);
     public static readonly TimeSpan ObservationInterval = TimeSpan.FromMilliseconds(250);
+    public static readonly TimeSpan DisconnectStabilityWindow = TimeSpan.FromSeconds(5);
 
     private readonly IBluetoothKsCommandInvoker _commandInvoker;
     private readonly IBluetoothStateObserver _stateObserver;
@@ -176,7 +177,9 @@ public sealed class BluetoothOperationCoordinator
                 return CreateSupersededResult(request, actualState, call.Status, call.HResult, requestIssued: true);
             }
 
-            if (IsDesiredState(request.Kind, actualState) && call.HResult == 0)
+            if (!final.DeadlineExpired &&
+                IsDesiredState(request.Kind, actualState) &&
+                call.HResult == 0)
             {
                 return CreateResult(
                     request,
@@ -302,6 +305,7 @@ public sealed class BluetoothOperationCoordinator
         CancellationToken cancellationToken)
     {
         BluetoothAudioState state = initialState;
+        long? desiredSince = null;
         while (GetRemaining(request) > TimeSpan.Zero)
         {
             ObservationAttempt observation = await ObserveOnceAsync(
@@ -318,7 +322,20 @@ public sealed class BluetoothOperationCoordinator
                 state = observation.State;
                 if (IsDesiredState(request.Kind, state))
                 {
-                    return observation;
+                    if (request.Kind == BluetoothOperationKind.Connect)
+                    {
+                        return observation;
+                    }
+
+                    desiredSince ??= _clock.GetTimestamp();
+                    if (_clock.GetElapsedTime(desiredSince.Value) >= DisconnectStabilityWindow)
+                    {
+                        return observation;
+                    }
+                }
+                else
+                {
+                    desiredSince = null;
                 }
 
                 if (state == BluetoothAudioState.NotConfigured)
