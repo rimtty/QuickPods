@@ -55,6 +55,10 @@
 
 MSIの二回buildは正規化したProductCode、PackageCode、summary timestamp、およびdecompile後の全database tableが一致した。MSI containerのbyte列はWiX／Windows Installerのcompound storage／cabinet bindingにより一致せず、各buildのSHA-256はそれぞれ`8daba295b600b6ede8860f67c02ab91c4413ae390dd34b5ea15c848beb995268`と`667f93d69a7d84b56a55537fe6ec3aab998e80fae26bac920c4d9236041c938f`だった。したがってportable ZIPのbyte-for-byte deterministic保証は維持する一方、MSIは同一identity／同一database／同一payloadの再生成とbuildごとのchecksum発行を保証範囲とする。
 
+2026-08-06に署名入力経路を追加した。`Publish-Installer.ps1`はPFXをephemeral user keyとして読み込み、private key、証明書有効期間、code-signing EKU、HTTP timestamp、最終`Valid` statusをfail-closedで検証する。`-RequireSignature`だけを指定した誤構成と、PFX passwordだけを指定した誤構成はMSI build前に拒否する。正式workflowは保護environmentのsecretを一時PFXへ復元し、常にcleanupした後、署名済みMSIだけをuploadする。通常CIはsecretを参照せず未署名検証を維持する。実証明書による署名結果は証明書準備後のrelease gateに残す。
+
+同じ監査で、実行中のQuickPodsが既定のproject `bin`をロックするとローカルRC publishが失敗することを検出した。RC生成はoutput directory配下の一時`--artifacts-path`へrestore／publish中間成果物を隔離し、成功／失敗後に削除するよう変更した。これにより目視確認用QuickPodsを停止せず、配布payloadを別経路で再生成できる。
+
 固定per-user file packageに対するWiX公式既知制約のためICE64／ICE91だけを抑止し、他のICE検証は有効である。
 
 ## 未実施

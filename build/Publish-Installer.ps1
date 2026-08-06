@@ -4,10 +4,25 @@ param(
     [string]$Version = "0.1.0-rc.1",
     [string]$PayloadDirectory,
     [switch]$SkipPayloadPublish,
-    [switch]$SkipRestore
+    [switch]$SkipRestore,
+    [string]$SigningCertificatePath,
+    [Security.SecureString]$SigningCertificatePassword,
+    [string]$TimestampServer = "http://timestamp.digicert.com",
+    [switch]$RequireSignature
 )
 
 $ErrorActionPreference = "Stop"
+$signingRequested = -not [string]::IsNullOrWhiteSpace($SigningCertificatePath)
+if ($RequireSignature -and -not $signingRequested) {
+    throw "RequireSignature requires SigningCertificatePath for the newly built installer."
+}
+if ($null -ne $SigningCertificatePassword -and -not $signingRequested) {
+    throw "SigningCertificatePassword requires SigningCertificatePath."
+}
+if ($signingRequested -and $TimestampServer -notmatch '^http://') {
+    throw "TimestampServer must use http:// because the Windows Authenticode API does not support HTTPS timestamping."
+}
+
 $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $outputRoot = if ([System.IO.Path]::IsPathRooted($OutputDirectory)) {
     [System.IO.Path]::GetFullPath($OutputDirectory)
@@ -137,7 +152,76 @@ Remove-Item -LiteralPath $wixOutputDirectory -Recurse -Force
     -InstallerPath $installerPath `
     -PackageCode $packageCode
 
+if ($signingRequested) {
+    $resolvedCertificatePath = (Resolve-Path -LiteralPath $SigningCertificatePath).Path
+    $plainPassword = $null
+    $passwordPointer = [IntPtr]::Zero
+    $certificate = $null
+    try {
+        if ($null -ne $SigningCertificatePassword) {
+            $passwordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR(
+                $SigningCertificatePassword)
+            $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
+        }
+
+        $keyStorageFlags =
+            [Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet -bor
+            [Security.Cryptography.X509Certificates.X509KeyStorageFlags]::UserKeySet
+        $certificate = [Security.Cryptography.X509Certificates.X509Certificate2]::new(
+            $resolvedCertificatePath,
+            $plainPassword,
+            $keyStorageFlags)
+
+        if (-not $certificate.HasPrivateKey) {
+            throw "Signing certificate does not contain a private key."
+        }
+
+        $now = [DateTime]::UtcNow
+        if ($now -lt $certificate.NotBefore.ToUniversalTime() -or
+            $now -gt $certificate.NotAfter.ToUniversalTime()) {
+            throw "Signing certificate is outside its validity period."
+        }
+
+        $enhancedKeyUsage = @(
+            $certificate.Extensions |
+                Where-Object { $_.Oid.Value -eq "2.5.29.37" }
+        )
+        if ($enhancedKeyUsage.Count -gt 0) {
+            $codeSigningOid = "1.3.6.1.5.5.7.3.3"
+            $supportsCodeSigning = $enhancedKeyUsage[0].EnhancedKeyUsages |
+                Where-Object { $_.Value -eq $codeSigningOid }
+            if (-not $supportsCodeSigning) {
+                throw "Signing certificate is not valid for code signing."
+            }
+        }
+
+        $signingResult = Set-AuthenticodeSignature `
+            -LiteralPath $installerPath `
+            -Certificate $certificate `
+            -HashAlgorithm SHA256 `
+            -IncludeChain All `
+            -TimestampServer $TimestampServer `
+            -Force
+        if ($signingResult.Status -ne [System.Management.Automation.SignatureStatus]::Valid) {
+            throw "Installer signing failed validation: $($signingResult.Status)."
+        }
+    } finally {
+        if ($null -ne $certificate) {
+            $certificate.Dispose()
+        }
+        if ($passwordPointer -ne [IntPtr]::Zero) {
+            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordPointer)
+        }
+        $plainPassword = $null
+    }
+}
+
 $signature = Get-AuthenticodeSignature -LiteralPath $installerPath
+$signatureRequired = $RequireSignature -or $signingRequested
+if ($signatureRequired -and
+    $signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid) {
+    throw "A valid installer signature is required; actual status is $($signature.Status)."
+}
 $installerHash = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
 "$installerHash  $([System.IO.Path]::GetFileName($installerPath))" |
     Set-Content -LiteralPath $checksumPath -Encoding ascii
@@ -167,7 +251,8 @@ Copy-Item `
 & (Join-Path $PSScriptRoot "Test-InstallerPackage.ps1") `
     -InstallerPath $installerPath `
     -ExpectedVersion $packageVersion `
-    -ExpectedPackageCode $packageCode
+    -ExpectedPackageCode $packageCode `
+    -RequireSignature:$signatureRequired
 
 [pscustomobject]@{
     Version = $Version
