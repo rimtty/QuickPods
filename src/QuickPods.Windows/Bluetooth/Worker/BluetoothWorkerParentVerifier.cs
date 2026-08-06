@@ -26,7 +26,7 @@ internal static partial class BluetoothWorkerParentVerifier
                 workerPath is not null &&
                 string.Equals(
                     Path.GetFileName(parentPath),
-                    "QuickPods.App.exe",
+                    "QuickPods.exe",
                     StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(
                     Path.GetDirectoryName(Path.GetFullPath(parentPath)),

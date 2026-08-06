@@ -1,19 +1,29 @@
 using System.IO;
+using System.Text;
 using System.Windows;
+using System.Windows.Media;
+using Microsoft.Win32;
 using QuickPods.Contracts;
 using QuickPods.Core;
 using QuickPods.Core.Models;
 using QuickPods.Core.Ports;
+using QuickPods.Infrastructure.Logging;
 using QuickPods.Infrastructure.Runtime;
 using QuickPods.Infrastructure.Settings;
+using QuickPods.Presentation;
 using QuickPods.Windows.Audio;
 using QuickPods.Windows.Bluetooth;
 using QuickPods.Windows.Settings;
+using QuickPods.Windows.Startup;
+using MediaColor = System.Windows.Media.Color;
+using WpfApplication = System.Windows.Application;
 
 namespace QuickPods.App;
 
-public partial class App : Application, IDisposable
+public partial class App : WpfApplication, IDisposable
 {
+    private const string SingleInstanceId = "QuickPods.App.v1";
+
     private AudioController? controller;
     private BluetoothCatalogController? bluetoothCatalog;
     private WindowsBluetoothAudioCatalogPort? bluetoothCatalogPort;
@@ -24,12 +34,34 @@ public partial class App : Application, IDisposable
     private CancellationTokenSource? bluetoothLifetime;
     private Task? bluetoothInitialization;
     private TaskbarHostProcessManager? taskbarHost;
+    private SingleInstanceLease? singleInstance;
+    private TrayIconController? trayIcon;
     private WindowsCoreAudioEndpointPort? windowsAudio;
+    private JsonLineLogger? logger;
+    private string logsDirectory = string.Empty;
+    private readonly ProductLifetimePolicy lifetimePolicy = new();
+    private QuickPodsSettings productSettings = QuickPodsSettings.Default;
+    private bool productSettingsInitialized;
     private bool disposed;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        singleInstance = SingleInstanceLease.TryAcquire(SingleInstanceId);
+        if (!singleInstance.IsPrimary)
+        {
+            singleInstance.SignalPrimary();
+            singleInstance.Dispose();
+            singleInstance = null;
+            Shutdown();
+            return;
+        }
+
+        singleInstance.ActivationRequested += OnActivationRequested;
+        singleInstance.StartActivationListener();
+        InitializeLogging();
+        Log(QuickPodsLogLevel.Information, "ApplicationStarted", "QuickPods started.");
 
         IAudioEndpointPort audioPort;
         string? startupDiagnostic = null;
@@ -45,11 +77,53 @@ public partial class App : Application, IDisposable
         }
 
         controller = new AudioController(audioPort);
-        MainWindow = new MainWindow(
+        InitializeSettingsStore();
+        StartBluetoothCatalog();
+        var settingsLauncher = new WindowsSettingsLauncher();
+        string applicationExecutable = Path.Combine(AppContext.BaseDirectory, "QuickPods.exe");
+        var startupRegistration = new WindowsStartupRegistration(applicationExecutable);
+        var window = new MainWindow(
             controller,
-            new WindowsSettingsLauncher(),
+            bluetoothCatalog,
+            bluetoothOperations,
+            settingsLauncher,
+            bluetoothSelectionStore!,
+            startupRegistration,
+            lifetimePolicy,
+            logsDirectory,
             startupDiagnostic);
-        MainWindow.Show();
+        window.SettingsChanged += OnProductSettingsChanged;
+        MainWindow = window;
+
+        bool startInBackground = e.Args.Any(argument => string.Equals(
+            argument,
+            "--background",
+            StringComparison.OrdinalIgnoreCase));
+        try
+        {
+            trayIcon = new TrayIconController(
+                ShowMainWindow,
+                () => _ = window.RequestRefreshAsync(),
+                visible => _ = window.SetTaskbarSurfaceVisibleAsync(visible),
+                () => settingsLauncher.TryOpenSoundSettings(),
+                () => settingsLauncher.TryOpenBluetoothSettings(),
+                ExitApplication);
+        }
+        catch (Exception exception)
+        {
+            startInBackground = false;
+            window.ReportSettingsFailure(
+                $"通知領域アイコンを初期化できませんでした: {exception.Message}");
+        }
+
+        if (startInBackground)
+        {
+            _ = window.InitializeAsync();
+        }
+        else
+        {
+            window.Show();
+        }
 
         string hostExecutable = Path.Combine(AppContext.BaseDirectory, "QuickPods.TaskbarHost.exe");
         taskbarHost = new TaskbarHostProcessManager(hostExecutable);
@@ -57,13 +131,22 @@ public partial class App : Application, IDisposable
         taskbarHost.InteractionReceived += OnHostInteractionReceived;
         taskbarHost.Start(CreateTaskbarSnapshot(controller.State));
 
-        StartBluetoothCatalog();
+        if (bluetoothCatalog is not null && bluetoothLifetime is not null)
+        {
+            bluetoothInitialization = InitializeBluetoothCatalogAsync(bluetoothLifetime.Token);
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
         Dispose();
         base.OnExit(e);
+    }
+
+    protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
+    {
+        lifetimePolicy.RequestExit();
+        base.OnSessionEnding(e);
     }
 
     public void Dispose()
@@ -74,10 +157,19 @@ public partial class App : Application, IDisposable
         }
 
         disposed = true;
+        lifetimePolicy.RequestExit();
+        Log(QuickPodsLogLevel.Information, "ApplicationStopping", "QuickPods is stopping.");
         bluetoothLifetime?.Cancel();
+        trayIcon?.Dispose();
+        trayIcon = null;
         if (controller is not null)
         {
             controller.StateChanged -= OnAudioStateChanged;
+        }
+
+        if (MainWindow is MainWindow window)
+        {
+            window.SettingsChanged -= OnProductSettingsChanged;
         }
 
         if (taskbarHost is not null)
@@ -113,6 +205,15 @@ public partial class App : Application, IDisposable
         bluetoothCatalogPort?.Dispose();
         bluetoothLifetime?.Dispose();
         windowsAudio?.Dispose();
+        logger?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        logger = null;
+        if (singleInstance is not null)
+        {
+            singleInstance.ActivationRequested -= OnActivationRequested;
+            singleInstance.Dispose();
+            singleInstance = null;
+        }
+
         GC.SuppressFinalize(this);
     }
 
@@ -121,30 +222,85 @@ public partial class App : Application, IDisposable
 
     private void OnBluetoothCatalogStateChanged(
         object? sender,
-        BluetoothAudioCatalogSnapshot catalog) =>
+        BluetoothAudioCatalogSnapshot catalog)
+    {
+        Log(
+            QuickPodsLogLevel.Information,
+            "BluetoothCatalogUpdated",
+            "Bluetooth audio catalog updated.",
+            new Dictionary<string, object?>
+            {
+                ["DeviceCount"] = catalog.Devices.Length,
+                ["InventoryGeneration"] = catalog.InventoryGeneration,
+                ["Revision"] = catalog.Revision,
+                ["HasSelection"] = catalog.SelectedDeviceKey is not null,
+            });
         taskbarHost?.Publish(CreateTaskbarSnapshot(controller?.State ?? AudioState.Unavailable, catalog));
+    }
 
     private void OnBluetoothOperationStateChanged(
         object? sender,
-        BluetoothOperationSnapshot operation) =>
+        BluetoothOperationSnapshot operation)
+    {
+        Log(
+            operation.Error is null ? QuickPodsLogLevel.Information : QuickPodsLogLevel.Warning,
+            "BluetoothOperationStateChanged",
+            "Bluetooth operation state changed.",
+            new Dictionary<string, object?>
+            {
+                ["Action"] = operation.RequestedAction.ToString(),
+                ["Operation"] = operation.Operation.ToString(),
+                ["Outcome"] = operation.Outcome.ToString(),
+                ["ConnectionState"] = operation.ConnectionState.ToString(),
+                ["DefaultOutputState"] = operation.DefaultOutputState.ToString(),
+                ["Error"] = operation.Error?.ToString(),
+                ["Revision"] = operation.Revision,
+            });
         taskbarHost?.Publish(CreateTaskbarSnapshot(
             controller?.State ?? AudioState.Unavailable,
             operation: operation));
+    }
+
+    private void OnProductSettingsChanged(QuickPodsSettings settings)
+    {
+        QuickPodsSettings normalized = settings.Normalize();
+        if (productSettingsInitialized && normalized == productSettings)
+        {
+            return;
+        }
+
+        productSettings = normalized;
+        productSettingsInitialized = true;
+        Log(
+            QuickPodsLogLevel.Information,
+            "SettingsApplied",
+            "Product settings applied.",
+            new Dictionary<string, object?>
+            {
+                ["DisplayMode"] = productSettings.DisplayMode.ToString(),
+                ["Theme"] = productSettings.Theme.ToString(),
+                ["MouseWheelStepPercent"] = productSettings.MouseWheelStepPercent,
+                ["SetConnectedDeviceAsDefault"] =
+                    productSettings.SetConnectedDeviceAsDefault,
+                ["ConfirmBluetoothDisconnect"] =
+                    productSettings.ConfirmBluetoothDisconnect,
+                ["StartWithWindows"] = productSettings.StartWithWindows,
+            });
+        ApplyTheme(productSettings.Theme);
+        trayIcon?.SetTaskbarSurfaceVisible(
+            productSettings.DisplayMode != QuickPodsDisplayMode.TrayOnly);
+        taskbarHost?.Publish(CreateTaskbarSnapshot(
+            controller?.State ?? AudioState.Unavailable));
+    }
 
     private void StartBluetoothCatalog()
     {
         try
         {
-            string settingsPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "QuickPods",
-                "settings.json");
             bluetoothCatalogPort = new WindowsBluetoothAudioCatalogPort();
-            bluetoothSelectionStore = new JsonBluetoothSelectionStore(
-                new JsonSettingsStore<QuickPodsSettings>(settingsPath));
             bluetoothCatalog = new BluetoothCatalogController(
                 bluetoothCatalogPort,
-                bluetoothSelectionStore);
+                bluetoothSelectionStore!);
             bluetoothCatalog.StateChanged += OnBluetoothCatalogStateChanged;
             bluetoothOperationPort = new WindowsBluetoothDeviceOperationPort(bluetoothCatalogPort);
             defaultOutputOperationPort = new WindowsDefaultOutputOperationPort(bluetoothCatalogPort);
@@ -155,7 +311,6 @@ public partial class App : Application, IDisposable
                 new WindowsBluetoothOperationGate());
             bluetoothOperations.StateChanged += OnBluetoothOperationStateChanged;
             bluetoothLifetime = new CancellationTokenSource();
-            bluetoothInitialization = InitializeBluetoothCatalogAsync(bluetoothLifetime.Token);
         }
         catch
         {
@@ -163,16 +318,77 @@ public partial class App : Application, IDisposable
             defaultOutputOperationPort?.Dispose();
             bluetoothOperationPort?.Dispose();
             bluetoothCatalog?.DisposeAsync().AsTask().GetAwaiter().GetResult();
-            bluetoothSelectionStore?.Dispose();
             bluetoothCatalogPort?.Dispose();
             bluetoothLifetime?.Dispose();
             bluetoothCatalog = null;
             bluetoothOperations = null;
             defaultOutputOperationPort = null;
             bluetoothOperationPort = null;
-            bluetoothSelectionStore = null;
             bluetoothCatalogPort = null;
             bluetoothLifetime = null;
+        }
+    }
+
+    private void InitializeSettingsStore()
+    {
+        string settingsPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "QuickPods",
+            "settings.json");
+        bluetoothSelectionStore = new JsonBluetoothSelectionStore(
+            new JsonSettingsStore<QuickPodsSettings>(settingsPath));
+    }
+
+    private void InitializeLogging()
+    {
+        logsDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "QuickPods",
+            "logs");
+        try
+        {
+            Directory.CreateDirectory(logsDirectory);
+            string logPath = Path.Combine(
+                logsDirectory,
+                $"quickpods-{DateTimeOffset.Now:yyyyMMdd}.jsonl");
+            var stream = new FileStream(
+                logPath,
+                FileMode.Append,
+                FileAccess.Write,
+                FileShare.ReadWrite,
+                bufferSize: 4096,
+                FileOptions.Asynchronous | FileOptions.WriteThrough);
+            logger = new JsonLineLogger(new StreamWriter(stream, new UTF8Encoding(false)));
+        }
+        catch
+        {
+            logger = null;
+        }
+    }
+
+    private void Log(
+        QuickPodsLogLevel level,
+        string eventName,
+        string message,
+        IReadOnlyDictionary<string, object?>? properties = null)
+    {
+        if (logger is null)
+        {
+            return;
+        }
+
+        try
+        {
+            logger.WriteAsync(new QuickPodsLogEntry(
+                DateTimeOffset.UtcNow,
+                level,
+                eventName,
+                message,
+                properties ?? new Dictionary<string, object?>())).AsTask().GetAwaiter().GetResult();
+        }
+        catch
+        {
+            // Logging must never disable audio control, Bluetooth fallback, or shutdown.
         }
     }
 
@@ -188,9 +404,16 @@ public partial class App : Application, IDisposable
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
         }
-        catch
+        catch (Exception exception)
         {
             // Catalog faults do not disable master-volume control or terminate the app.
+            _ = Dispatcher.InvokeAsync(() =>
+            {
+                if (MainWindow is MainWindow window)
+                {
+                    window.ReportBluetoothCatalogFailure(exception.Message);
+                }
+            });
         }
     }
 
@@ -198,6 +421,9 @@ public partial class App : Application, IDisposable
     {
         _ = Dispatcher.InvokeAsync(() => HandleHostInteractionAsync(interaction)).Task.Unwrap();
     }
+
+    private void OnActivationRequested(object? sender, EventArgs eventArgs) =>
+        _ = Dispatcher.InvokeAsync(ShowMainWindow);
 
     private async Task HandleHostInteractionAsync(HostInteractionEnvelope interaction)
     {
@@ -237,7 +463,24 @@ public partial class App : Application, IDisposable
             window.WindowState = WindowState.Normal;
         }
 
+        if (window is MainWindow productWindow)
+        {
+            productWindow.PositionAbovePrimaryTaskbar();
+        }
+
         _ = window.Activate();
+    }
+
+    private void ExitApplication()
+    {
+        if (lifetimePolicy.IsExitRequested)
+        {
+            return;
+        }
+
+        lifetimePolicy.RequestExit();
+        MainWindow?.Close();
+        Shutdown();
     }
 
     private TaskbarStateSnapshot CreateTaskbarSnapshot(
@@ -261,10 +504,61 @@ public partial class App : Application, IDisposable
                     currentCatalog.InventoryGeneration,
                     currentOperation));
         return new(
-            TaskbarSurfaceMode.Native,
+            productSettings.DisplayMode == QuickPodsDisplayMode.TrayOnly
+                ? TaskbarSurfaceMode.Hidden
+                : TaskbarSurfaceMode.Native,
             Math.Clamp(audio.VolumePercent, 0, 100),
             audio.IsMuted,
             selectedView);
+    }
+
+    private void ApplyTheme(QuickPodsThemeMode theme)
+    {
+        bool useLightTheme = theme == QuickPodsThemeMode.Light ||
+            (theme == QuickPodsThemeMode.System && IsWindowsAppsLightTheme());
+        if (useLightTheme)
+        {
+            SetBrushColor("WindowBrush", MediaColor.FromRgb(0xF5, 0xF7, 0xFA));
+            SetBrushColor("PanelBrush", Colors.White);
+            SetBrushColor("PanelBorderBrush", MediaColor.FromRgb(0xD5, 0xDA, 0xE1));
+            SetBrushColor("ControlSurfaceBrush", MediaColor.FromRgb(0xE9, 0xED, 0xF2));
+            SetBrushColor("TrackBrush", MediaColor.FromRgb(0xCB, 0xD1, 0xD9));
+            SetBrushColor("PrimaryTextBrush", MediaColor.FromRgb(0x15, 0x18, 0x1C));
+            SetBrushColor("SecondaryTextBrush", MediaColor.FromRgb(0x5A, 0x62, 0x6C));
+            SetBrushColor("AccentBrush", MediaColor.FromRgb(0x32, 0xB9, 0xD0));
+            return;
+        }
+
+        SetBrushColor("WindowBrush", MediaColor.FromRgb(0x17, 0x19, 0x1D));
+        SetBrushColor("PanelBrush", MediaColor.FromRgb(0x20, 0x23, 0x28));
+        SetBrushColor("PanelBorderBrush", MediaColor.FromRgb(0x36, 0x3A, 0x41));
+        SetBrushColor("ControlSurfaceBrush", MediaColor.FromRgb(0x2B, 0x2E, 0x34));
+        SetBrushColor("TrackBrush", MediaColor.FromRgb(0x48, 0x4D, 0x55));
+        SetBrushColor("PrimaryTextBrush", MediaColor.FromRgb(0xF5, 0xF7, 0xFA));
+        SetBrushColor("SecondaryTextBrush", MediaColor.FromRgb(0xAE, 0xB5, 0xBF));
+        SetBrushColor("AccentBrush", MediaColor.FromRgb(0x67, 0xD7, 0xEA));
+    }
+
+    private void SetBrushColor(string resourceKey, MediaColor color)
+    {
+        if (Resources[resourceKey] is SolidColorBrush brush)
+        {
+            brush.Color = color;
+        }
+    }
+
+    private static bool IsWindowsAppsLightTheme()
+    {
+        try
+        {
+            using RegistryKey? personalize = Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            return personalize?.GetValue("AppsUseLightTheme") is int value && value != 0;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static string CreateBluetoothStatus(

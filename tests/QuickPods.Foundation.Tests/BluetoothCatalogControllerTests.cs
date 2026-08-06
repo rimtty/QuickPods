@@ -81,7 +81,11 @@ public sealed class BluetoothCatalogControllerTests
         var port = new QueueCatalogPort();
         port.Enqueue(
             Endpoint(DeviceA, "Same name", BluetoothAudioProfile.Stereo, BluetoothEndpointDirection.Render,
-                BluetoothEndpointAvailability.Active, BluetoothDeviceCapability.DirectControl),
+                BluetoothEndpointAvailability.Active, BluetoothDeviceCapability.DirectControl) with
+            {
+                IsConsoleDefault = true,
+                IsMultimediaDefault = true,
+            },
             Endpoint(DeviceA, "Same name", BluetoothAudioProfile.HandsFree, BluetoothEndpointDirection.Capture,
                 BluetoothEndpointAvailability.Active, BluetoothDeviceCapability.DirectControl),
             Endpoint(DeviceB, "Same name", BluetoothAudioProfile.Stereo, BluetoothEndpointDirection.Render,
@@ -104,6 +108,7 @@ public sealed class BluetoothCatalogControllerTests
             state.Devices,
             device => device.DeviceKey == DeviceA);
         Assert.Equal(BluetoothConnectionState.Connected, connected.ConnectionState);
+        Assert.Equal(DefaultOutputState.Default, connected.DefaultOutputState);
         Assert.Equal(BluetoothDeviceCapability.DirectControl, connected.Capability);
         Assert.Equal(
             [BluetoothAudioProfile.Stereo, BluetoothAudioProfile.HandsFree],

@@ -17,21 +17,20 @@ public sealed class JsonBluetoothSelectionStore : IBluetoothSelectionStore, IDis
     public async ValueTask<BluetoothDeviceKey?> LoadAsync(
         CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
-        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            QuickPodsSettings? current = await settings.LoadAsync(cancellationToken).ConfigureAwait(false);
-            return current?.SelectedDevice;
-        }
-        finally
-        {
-            gate.Release();
-        }
+        QuickPodsSettings current = await LoadSettingsAsync(cancellationToken).ConfigureAwait(false);
+        return current.SelectedDevice;
     }
 
     public async ValueTask SaveAsync(
         BluetoothDeviceKey? selectedDevice,
+        CancellationToken cancellationToken = default)
+    {
+        _ = await UpdateSettingsAsync(
+            current => current with { SelectedDevice = selectedDevice },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask<QuickPodsSettings> LoadSettingsAsync(
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
@@ -41,9 +40,32 @@ public sealed class JsonBluetoothSelectionStore : IBluetoothSelectionStore, IDis
             QuickPodsSettings current =
                 await settings.LoadAsync(cancellationToken).ConfigureAwait(false) ??
                 QuickPodsSettings.Default;
-            await settings.SaveAsync(
-                current with { SelectedDevice = selectedDevice },
-                cancellationToken).ConfigureAwait(false);
+            return current.Normalize();
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    public async ValueTask<QuickPodsSettings> UpdateSettingsAsync(
+        Func<QuickPodsSettings, QuickPodsSettings> update,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(update);
+        ObjectDisposedException.ThrowIf(disposed, this);
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            QuickPodsSettings current =
+                await settings.LoadAsync(cancellationToken).ConfigureAwait(false) ??
+                QuickPodsSettings.Default;
+            current = current.Normalize();
+            QuickPodsSettings updated = update(current) ??
+                throw new InvalidOperationException("The settings update returned null.");
+            updated = updated.Normalize();
+            await settings.SaveAsync(updated, cancellationToken).ConfigureAwait(false);
+            return updated;
         }
         finally
         {

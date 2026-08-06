@@ -39,7 +39,7 @@ OS要求の直前と結果反映前に、選択キー、inventory generation、�
 
 初期Windows binding実装は、列挙時に取得した生のContainer ID、MMDevice Endpoint ID、DeviceTopology接続先IDを`QuickPods.Windows`内部のregistryだけへ保存する。公開にはopaque keyだけを使い、最新generationと完全一致しない操作targetは解決しない。古い並行列挙はregistryを上書きできない。DeviceTopologyを取得できないEndpointもカタログから消さず、候補なしとして後続の能力判定を`OwnershipUnknown`へ縮退させる。
 
-`QuickPods.BluetoothWorker.exe`は専用の短命プロセスであり、要求は認証token、nonce、opaque target key、操作種別へ相関する。生のadapter IDはstrict JSONの標準入力だけで渡す。workerは同一配置ディレクトリの`QuickPods.App.exe`が実親であることを確認し、Basic Supportではmutation capabilityを拒否し、Reconnect／Disconnectでは明示mutation capabilityを要求する。親はworkerをkill-on-close Job Objectへ割り当ててから要求を書き込み、4秒timeout後はprocess treeが空になった証明を必要とする。証明できない場合はそのrunnerのcircuitを閉じ、後続操作を拒否する。
+`QuickPods.BluetoothWorker.exe`は専用の短命プロセスであり、要求は認証token、nonce、opaque target key、操作種別へ相関する。生のadapter IDはstrict JSONの標準入力だけで渡す。workerは同一配置ディレクトリの`QuickPods.exe`が実親であることを確認し、Basic Supportではmutation capabilityを拒否し、Reconnect／Disconnectでは明示mutation capabilityを要求する。親はworkerをkill-on-close Job Objectへ割り当ててから要求を書き込み、4秒timeout後はprocess treeが空になった証明を必要とする。証明できない場合はそのrunnerのcircuitを閉じ、後続操作を拒否する。
 
 能力判定はStereo render候補が一意であり、全EndpointにContainer所有のDeviceTopology接続先がある場合だけ行う。Reconnectと全Disconnect候補のBasic SupportがGET対応なら`DirectControl`、明示非対応なら`SettingsOnly`、所有関係が不完全なら`OwnershipUnknown`、worker timeout／faultなら`TemporarilyUnavailable`とする。
 
@@ -51,4 +51,4 @@ OS要求の直前と結果反映前に、選択キー、inventory generation、�
 
 RDPではカタログはローカルBluetooth所有権を表さないため、両mutation portはCOM／KS変更前に`RequestSubmitted=false`で拒否する。これは実機成立性の証拠ではなく、安全な縮退の証拠としてのみ扱う。物理列挙はIssue #38、物理接続・切断・既定出力はPhase 4BのローカルコンソールGateで別途確認する。
 
-`IWindowsSettingsLauncher`は`ms-settings:sound`と`ms-settings:bluetooth`の起動をWindows境界へ隔離する。現行MVP画面は既定出力の部分成功から回復できる「サウンド設定を開く」導線を公開し、Bluetooth設定導線はPhase 5の機器別主ボタンから同じ境界を使用する。
+`IWindowsSettingsLauncher`は`ms-settings:sound`と`ms-settings:bluetooth`の起動をWindows境界へ隔離する。Phase 5A製品画面は既定出力の部分成功から回復できるサウンド設定導線と、機器別のBluetooth設定fallbackから同じ境界を使用する。

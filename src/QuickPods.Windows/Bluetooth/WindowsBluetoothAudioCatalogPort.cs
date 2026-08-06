@@ -180,6 +180,12 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
                     AudioDeviceState.Unplugged,
                     out collection),
                 nameof(IMMDeviceEnumerator.EnumAudioEndpoints));
+            string? consoleDefaultId = TryReadDefaultRenderEndpointId(
+                enumerator,
+                AudioRole.Console);
+            string? multimediaDefaultId = TryReadDefaultRenderEndpointId(
+                enumerator,
+                AudioRole.Multimedia);
             HResult.ThrowIfFailed(collection.GetCount(out uint count), nameof(IMMDeviceCollection.GetCount));
             for (uint index = 0; index < count; index++)
             {
@@ -187,7 +193,12 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
                 try
                 {
                     HResult.ThrowIfFailed(collection.Item(index, out device), nameof(IMMDeviceCollection.Item));
-                    if (TryReadEndpoint(device, containers, out WindowsBluetoothEndpointDiscovery endpoint))
+                    if (TryReadEndpoint(
+                        device,
+                        containers,
+                        consoleDefaultId,
+                        multimediaDefaultId,
+                        out WindowsBluetoothEndpointDiscovery endpoint))
                     {
                         endpoints.Add(endpoint);
                     }
@@ -245,6 +256,8 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
     private static bool TryReadEndpoint(
         IMMDevice device,
         IReadOnlyDictionary<Guid, AepContainerMetadata> containers,
+        string? consoleDefaultId,
+        string? multimediaDefaultId,
         out WindowsBluetoothEndpointDiscovery endpoint)
     {
         endpoint = null!;
@@ -285,7 +298,7 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
             ImmutableArray<string> adapterDeviceIds = ReadAdapterDeviceIds(device);
             endpoint = new(
                 id,
-                new(
+                new BluetoothAudioEndpointEvidence(
                     deviceKey,
                     displayName,
                     ResolveKind(metadata.Categories, formFactor),
@@ -294,7 +307,17 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
                     availability,
                     BluetoothDeviceCapability.OwnershipUnknown,
                     IsPaired: true,
-                    IsBluetooth: true),
+                    IsBluetooth: true)
+                {
+                    IsConsoleDefault = string.Equals(
+                        endpointId,
+                        consoleDefaultId,
+                        StringComparison.Ordinal),
+                    IsMultimediaDefault = string.Equals(
+                        endpointId,
+                        multimediaDefaultId,
+                        StringComparison.Ordinal),
+                },
                 new(
                     endpointId,
                     direction,
@@ -306,6 +329,33 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
         finally
         {
             ReleaseComObject(properties);
+        }
+    }
+
+    private static string? TryReadDefaultRenderEndpointId(
+        IMMDeviceEnumerator enumerator,
+        AudioRole role)
+    {
+        IMMDevice? device = null;
+        try
+        {
+            int result = enumerator.GetDefaultAudioEndpoint(AudioDataFlow.Render, role, out device);
+            if (result == ElementNotFound)
+            {
+                return null;
+            }
+
+            HResult.ThrowIfFailed(result, nameof(IMMDeviceEnumerator.GetDefaultAudioEndpoint));
+            HResult.ThrowIfFailed(device.GetId(out string endpointId), nameof(IMMDevice.GetId));
+            return endpointId;
+        }
+        catch (Exception exception) when (IsEndpointLocalFailure(exception))
+        {
+            return null;
+        }
+        finally
+        {
+            ReleaseComObject(device);
         }
     }
 
