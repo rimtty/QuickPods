@@ -72,7 +72,7 @@
 |---:|---|---|---|---:|---|---|---|
 | 1 | Reconnect | `S_OK` | Render/Capture Active | 13.647秒 | 正常 | 変化0（操作者確認） | 探索的Pass |
 | 2 | Reconnect | `S_OK` | Unplugged維持 | 15.001秒 | 正常 | 未観測 | Fail（正しくDeadlineExceeded） |
-| 3 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
+| 3 | Reconnect | `S_OK` | Render/Capture Active | 8.178秒 | 正常 | 未確認 | 修正版Pass |
 | 4 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
 | 5 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
 | 6 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
@@ -90,7 +90,7 @@
 | 1 | Render Disconnect | `S_OK` | 一時Unplugged後Active | 1.788秒（旧判定） | 正常 | 変化0 | Fail（探索的誤成功、修正済み） |
 | 2 | Render Disconnect | `S_OK` | Render Unplugged / Capture Active | 0.175秒（旧判定） | 正常 | 未観測 | Fail（部分切断、修正済み） |
 | 3 | Render/Capture Disconnect | `S_OK` | 両Endpoint Unpluggedを5秒維持 | 7.167秒 | 正常 | 未観測 | 修正版Pass |
-| 4 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
+| 4 | Render/Capture Disconnect | `S_OK` | 両Endpoint Unpluggedを5秒維持 | 7.969秒 | 正常 | 未確認 | 修正版Pass（操作者確認） |
 | 5 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
 | 6 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
 | 7 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
@@ -104,8 +104,8 @@
 |---|---:|---|
 | Reconnect Basic Support | 対応 | Pass |
 | Disconnect Basic Support | 対応 | Pass（Render／Capture） |
-| 接続成功 | 10回中9回以上、各15秒以内 | 正式反復Pending（探索2回中1回Pass） |
-| 切断成功 | 10回中9回以上、各15秒以内 | 正式反復Pending（修正版1回Pass） |
+| 接続成功 | 10回中9回以上、各15秒以内 | 正式反復Pending（有効な修正版2回中2回Pass） |
+| 切断成功 | 10回中9回以上、各15秒以内 | 正式反復Pending（有効な修正版2回中2回Pass） |
 | 誤成功表示 | 0件 | 探索的1件を修正、修正版反復Pending |
 | 他機器への影響 | 0件 | 初回比較0件、反復Pending |
 | 管理者権限 | 不要 | Pass |
