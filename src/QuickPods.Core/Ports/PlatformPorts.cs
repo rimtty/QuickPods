@@ -47,6 +47,35 @@ public interface IBluetoothAudioCatalogPort
         CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Performs one validated physical-device mutation. Implementations must never retry a submitted
+/// OS request. After submission they settle observation and return a result instead of surfacing
+/// caller cancellation as proof that the OS request did not occur.
+/// </summary>
+public interface IBluetoothDeviceOperationPort
+{
+    ValueTask<BluetoothDeviceOperationResult> ConnectAsync(
+        BluetoothOperationTarget target,
+        CancellationToken cancellationToken);
+
+    ValueTask<BluetoothDeviceOperationResult> DisconnectAsync(
+        BluetoothOperationTarget target,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Changes and verifies the default render endpoint for an already connected physical device.
+/// A failed result must not disconnect the Bluetooth device or restore an unrelated endpoint.
+/// </summary>
+public interface IDefaultOutputOperationPort
+{
+    DefaultOutputCapability Capability { get; }
+
+    ValueTask<DefaultOutputOperationResult> MakeDefaultAsync(
+        BluetoothOperationTarget target,
+        CancellationToken cancellationToken);
+}
+
 public interface IBluetoothSelectionStore
 {
     ValueTask<BluetoothDeviceKey?> LoadAsync(CancellationToken cancellationToken = default);
