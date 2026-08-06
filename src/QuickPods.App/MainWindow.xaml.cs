@@ -3,6 +3,7 @@ using System.Windows.Input;
 using QuickPods.Core;
 using QuickPods.Core.Models;
 using QuickPods.Core.Ports;
+using QuickPods.Windows.Settings;
 
 namespace QuickPods.App;
 
@@ -10,11 +11,17 @@ public partial class MainWindow : Window
 {
     private const int MouseWheelStepPercent = 2;
     private readonly AudioController controller;
+    private readonly IWindowsSettingsLauncher settingsLauncher;
     private bool applyingState;
 
-    public MainWindow(AudioController controller, string? startupDiagnostic)
+    public MainWindow(
+        AudioController controller,
+        IWindowsSettingsLauncher settingsLauncher,
+        string? startupDiagnostic)
     {
         this.controller = controller ?? throw new ArgumentNullException(nameof(controller));
+        this.settingsLauncher = settingsLauncher ??
+            throw new ArgumentNullException(nameof(settingsLauncher));
         InitializeComponent();
         DiagnosticText.Text = startupDiagnostic ?? string.Empty;
         controller.StateChanged += OnAudioStateChanged;
@@ -76,6 +83,14 @@ public partial class MainWindow : Window
     private async void OnRefresh(object sender, RoutedEventArgs eventArgs)
     {
         await RunOperationAsync(() => controller.InitializeAsync().AsTask());
+    }
+
+    private void OnOpenSoundSettings(object sender, RoutedEventArgs eventArgs)
+    {
+        if (!settingsLauncher.TryOpenSoundSettings())
+        {
+            DiagnosticText.Text = "Windowsのサウンド設定を開けませんでした。";
+        }
     }
 
     private void OnAudioStateChanged(object? sender, AudioStateChangedEventArgs eventArgs)
