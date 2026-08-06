@@ -6,16 +6,16 @@ namespace QuickPods.Foundation.Tests;
 public sealed class FlyoutDismissPolicyTests
 {
     [Fact]
-    public void PreviewPollingRearmsOverFlyoutAndHidesAfterPointerLeaves()
+    public void AutoDismissPollingRearmsOverFlyoutAndHidesAfterPointerLeaves()
     {
         Assert.Equal(
             FlyoutDismissAction.Ignore,
-            FlyoutDismissPolicy.Decide(previewActive: false, pointerWithinFlyout: false));
+            FlyoutDismissPolicy.Decide(autoDismissActive: false, pointerWithinFlyout: false));
         Assert.Equal(
             FlyoutDismissAction.Rearm,
-            FlyoutDismissPolicy.Decide(previewActive: true, pointerWithinFlyout: true));
+            FlyoutDismissPolicy.Decide(autoDismissActive: true, pointerWithinFlyout: true));
         Assert.Equal(
             FlyoutDismissAction.Hide,
-            FlyoutDismissPolicy.Decide(previewActive: true, pointerWithinFlyout: false));
+            FlyoutDismissPolicy.Decide(autoDismissActive: true, pointerWithinFlyout: false));
     }
 }

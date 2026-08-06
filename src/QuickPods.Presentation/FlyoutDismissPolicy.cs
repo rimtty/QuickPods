@@ -9,8 +9,8 @@ public enum FlyoutDismissAction
 
 public static class FlyoutDismissPolicy
 {
-    public static FlyoutDismissAction Decide(bool previewActive, bool pointerWithinFlyout) =>
-        !previewActive
+    public static FlyoutDismissAction Decide(bool autoDismissActive, bool pointerWithinFlyout) =>
+        !autoDismissActive
             ? FlyoutDismissAction.Ignore
             : pointerWithinFlyout
                 ? FlyoutDismissAction.Rearm
