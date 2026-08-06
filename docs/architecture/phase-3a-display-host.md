@@ -48,14 +48,15 @@ The first product slice contains:
 - mouse capture, drag preview/commit, wheel commit, monotonic interaction envelopes, and fail-closed layout invalidation;
 - an explicit-confirmation, bounded static preview command with natural HWND teardown;
 - pure, overflow-safe floating fallback placement constrained to the verified primary work area;
+- hidden-first, unowned, non-topmost Floating HWND validation with the same renderer and interaction contracts;
+- explicit routing of `Place` to Native, `VerifiedNoFit` to verified Floating, and every `TransientUnknown` to Hidden;
 - a sanitized, read-only product `inspect` command;
 - focused coverage for centered placement, left-aligned NoFit, incomplete and contradictory evidence, 100/125/150/200% DPI, negative coordinates, compact fragmentation, discovery adaptation, and render geometry.
 
-The suite remains intentionally focused: eighteen new test executions were added to the existing Foundation suite rather than porting the Spike's diagnostic test inventory.
+The suite remains intentionally focused: twenty new test executions were added to the existing Foundation suite rather than porting the Spike's diagnostic test inventory.
 
 ## Remaining in Phase 3A
 
-- unowned floating HWND and product presentation routing;
 - live validation of native preview placement, input, Start/Search continuity, and natural shutdown;
-- complete the remaining host-creation race checks from Issue #15 (the exclusion provenance boundary is implemented);
+- complete the retained-continuity race checks from Issue #15 in Phase 3B (the Phase 3A exclusion provenance and create-time invalidation boundaries are implemented);
 - an explicit disposition for the UIA watcher lifetime risk in Issue #18 before Phase 3B recovery loops are enabled.

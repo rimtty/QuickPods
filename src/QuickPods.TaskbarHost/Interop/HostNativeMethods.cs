@@ -13,6 +13,7 @@ internal static class HostNativeMethods
     internal const int GwlpUserData = -21;
     internal const int GwlStyle = -16;
     internal const int GwlExtendedStyle = -20;
+    internal const uint GetWindowOwner = 4;
 
     internal const uint WmNcCreate = 0x0081;
     internal const uint WmNcDestroy = 0x0082;
@@ -90,6 +91,9 @@ internal static class HostNativeMethods
 
     [DllImport("user32.dll", EntryPoint = "GetParent", ExactSpelling = true)]
     internal static extern nint GetParent(nint child);
+
+    [DllImport("user32.dll", EntryPoint = "GetWindow", ExactSpelling = true)]
+    internal static extern nint GetWindow(nint window, uint command);
 
     [DllImport("user32.dll", EntryPoint = "GetClassNameW", CharSet = CharSet.Unicode, SetLastError = true)]
     internal static extern int GetClassName(nint window, [Out] char[] className, int capacity);

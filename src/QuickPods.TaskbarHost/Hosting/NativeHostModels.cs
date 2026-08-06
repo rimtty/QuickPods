@@ -21,6 +21,15 @@ internal readonly record struct NativeHostCreationSnapshot(
     uint Style,
     uint ExtendedStyle);
 
+internal readonly record struct NativeFloatingHostCreationSnapshot(
+    nint WindowHandle,
+    PixelRect RequestedScreenBounds,
+    PixelRect ActualScreenBounds,
+    PixelRect VerifiedWorkArea,
+    uint Dpi,
+    uint Style,
+    uint ExtendedStyle);
+
 internal static class HostInteractionCalculator
 {
     private const int WheelStepPercent = 2;

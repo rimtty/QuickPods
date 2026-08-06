@@ -2,22 +2,21 @@ using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using QuickPods.Contracts;
-using QuickPods.TaskbarHost.Discovery;
 using QuickPods.TaskbarHost.Geometry;
 using QuickPods.TaskbarHost.Interop;
 
 namespace QuickPods.TaskbarHost.Hosting;
 
-internal sealed class NativeTaskbarHost : IDisposable
+internal sealed class NativeFloatingHost : IDisposable
 {
     private readonly ConcurrentQueue<HostInteractionEnvelope> pendingInteractions = new();
     private readonly ConcurrentQueue<NativeLayoutInvalidationReason> pendingInvalidations = new();
     private GCHandle instanceHandle;
-    private TaskbarStateSnapshot state = new(TaskbarSurfaceMode.Native, 0, false, null);
+    private TaskbarStateSnapshot state = new(TaskbarSurfaceMode.Floating, 0, false, null);
     private Exception? pendingWindowFailure;
     private nint windowHandle;
-    private nint expectedParent;
     private PixelRect expectedBounds;
+    private PixelRect expectedWorkArea;
     private uint expectedDpi;
     private int ownerThreadId;
     private long nextInteractionSequence;
@@ -33,19 +32,19 @@ internal sealed class NativeTaskbarHost : IDisposable
 
     internal bool IsCreated => windowHandle != nint.Zero;
 
-    internal NativeHostCreationSnapshot Create(
-        nint taskbarHandle,
+    internal NativeFloatingHostCreationSnapshot Create(
         PixelRect screenBounds,
+        PixelRect verifiedWorkArea,
         uint dpi,
         TaskbarStateSnapshot initialState) =>
-        CreateCore(taskbarHandle, screenBounds, dpi, initialState, showAfterValidation: true);
+        CreateCore(screenBounds, verifiedWorkArea, dpi, initialState, showAfterValidation: true);
 
-    internal NativeHostCreationSnapshot CreateHidden(
-        nint taskbarHandle,
+    internal NativeFloatingHostCreationSnapshot CreateHidden(
         PixelRect screenBounds,
+        PixelRect verifiedWorkArea,
         uint dpi,
         TaskbarStateSnapshot initialState) =>
-        CreateCore(taskbarHandle, screenBounds, dpi, initialState, showAfterValidation: false);
+        CreateCore(screenBounds, verifiedWorkArea, dpi, initialState, showAfterValidation: false);
 
     internal void SetState(TaskbarStateSnapshot snapshot)
     {
@@ -58,7 +57,7 @@ internal sealed class NativeTaskbarHost : IDisposable
 
         TaskbarStateSnapshot normalized = snapshot with
         {
-            SurfaceMode = TaskbarSurfaceMode.Native,
+            SurfaceMode = TaskbarSurfaceMode.Floating,
             VolumePercent = Math.Clamp(snapshot.VolumePercent, 0, 100),
         };
         if (normalized == state)
@@ -83,15 +82,16 @@ internal sealed class NativeTaskbarHost : IDisposable
             ThrowIfWindowFailed();
             if (requiresRevalidation)
             {
-                throw new InvalidOperationException("The taskbar layout must be rediscovered before the host can be shown.");
+                throw new InvalidOperationException(
+                    "The monitor layout must be rediscovered before the floating host can be shown.");
             }
 
-            ValidateAttachment();
+            ValidateWindow();
             _ = HostNativeMethods.ShowWindow(windowHandle, HostNativeMethods.ShowWindowNoActivate);
-            ValidateAttachment();
+            ValidateWindow();
             if (!TaskbarNativeMethods.IsWindowVisible(windowHandle))
             {
-                throw new InvalidOperationException("The verified taskbar host did not become visible.");
+                throw new InvalidOperationException("The verified floating host did not become visible.");
             }
 
             _ = HostNativeMethods.InvalidateRect(windowHandle, nint.Zero, false);
@@ -182,7 +182,7 @@ internal sealed class NativeTaskbarHost : IDisposable
 
     internal static nint StaticWindowProcedure(nint window, uint message, nuint wParam, nint lParam)
     {
-        NativeTaskbarHost? target = null;
+        NativeFloatingHost? target = null;
         try
         {
             if (message == HostNativeMethods.WmNcCreate)
@@ -211,7 +211,7 @@ internal sealed class NativeTaskbarHost : IDisposable
             if (instancePointer != nint.Zero)
             {
                 var instance = GCHandle.FromIntPtr(instancePointer);
-                target = instance.Target as NativeTaskbarHost;
+                target = instance.Target as NativeFloatingHost;
                 if (target is not null)
                 {
                     if (message == HostNativeMethods.WmNcCreate)
@@ -244,9 +244,9 @@ internal sealed class NativeTaskbarHost : IDisposable
         return HostNativeMethods.DefWindowProcedure(window, message, wParam, lParam);
     }
 
-    private NativeHostCreationSnapshot CreateCore(
-        nint taskbarHandle,
+    private NativeFloatingHostCreationSnapshot CreateCore(
         PixelRect screenBounds,
+        PixelRect verifiedWorkArea,
         uint dpi,
         TaskbarStateSnapshot initialState,
         bool showAfterValidation)
@@ -254,36 +254,24 @@ internal sealed class NativeTaskbarHost : IDisposable
         ObjectDisposedException.ThrowIf(disposed, this);
         if (!OperatingSystem.IsWindows())
         {
-            throw new PlatformNotSupportedException("The raw taskbar host requires Windows.");
+            throw new PlatformNotSupportedException("The raw floating host requires Windows.");
         }
 
         if (IsCreated || instanceHandle.IsAllocated)
         {
-            throw new InvalidOperationException("This native taskbar host has already been created.");
+            throw new InvalidOperationException("This native floating host has already been created.");
         }
 
-        if (taskbarHandle == nint.Zero || !TaskbarNativeMethods.IsWindow(taskbarHandle))
+        if (!screenBounds.IsValid || !verifiedWorkArea.Contains(screenBounds))
         {
-            throw new ArgumentException("The supplied taskbar HWND is not live.", nameof(taskbarHandle));
+            throw new ArgumentOutOfRangeException(
+                nameof(screenBounds),
+                "The floating rectangle must be contained by the verified work area.");
         }
 
-        if (!screenBounds.IsValid)
+        if (dpi == 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(screenBounds), "The host rectangle must be valid.");
-        }
-
-        if (dpi == 0 || TaskbarNativeMethods.GetDpiForWindow(taskbarHandle) != dpi)
-        {
-            throw new ArgumentOutOfRangeException(nameof(dpi), "The expected DPI must match the taskbar HWND.");
-        }
-
-        if (!TaskbarNativeMethods.IsWindowVisible(taskbarHandle) ||
-            !NativeWindowVerifier.IsUncloaked(taskbarHandle) ||
-            !NativeWindowVerifier.ReadScreenBounds(taskbarHandle).Contains(screenBounds))
-        {
-            throw new ArgumentException(
-                "The supplied host rectangle is not contained by a visible, uncloaked taskbar.",
-                nameof(screenBounds));
+            throw new ArgumentOutOfRangeException(nameof(dpi), "The expected monitor DPI must be positive.");
         }
 
         ArgumentNullException.ThrowIfNull(initialState);
@@ -297,8 +285,8 @@ internal sealed class NativeTaskbarHost : IDisposable
             nint instancePointer = GCHandle.ToIntPtr(instanceHandle);
             windowHandle = HostNativeMethods.CreateWindow(
                 NativeWindowStyles.RequiredExtendedStyle,
-            registration.TaskbarViewClassName,
-                "QuickPods taskbar audio control",
+                registration.FloatingViewClassName,
+                "QuickPods floating audio control",
                 NativeWindowStyles.PopupPreservedStyle,
                 screenBounds.Left,
                 screenBounds.Top,
@@ -313,15 +301,14 @@ internal sealed class NativeTaskbarHost : IDisposable
                 throw new Win32Exception();
             }
 
-            VerifyInitiallyHidden(windowHandle);
-            AttachPopupPreserved(windowHandle, taskbarHandle);
+            VerifyInitiallyHiddenAndUnowned(windowHandle);
             NativeWindowVerifier.ApplyAndVerifyColorKey(windowHandle);
-            PlaceInParentCoordinates(windowHandle, taskbarHandle, screenBounds);
+            PlaceAndVerify(windowHandle, screenBounds);
 
-            expectedParent = taskbarHandle;
             expectedBounds = screenBounds;
+            expectedWorkArea = verifiedWorkArea;
             expectedDpi = dpi;
-            ValidateAttachment();
+            ValidateWindow();
             ThrowIfRevalidationRequired();
             ThrowIfWindowFailed();
 
@@ -329,11 +316,11 @@ internal sealed class NativeTaskbarHost : IDisposable
             uint extendedStyle = NativeWindowVerifier.ReadWindowLong(
                 windowHandle,
                 HostNativeMethods.GwlExtendedStyle);
-            var creation = new NativeHostCreationSnapshot(
+            var creation = new NativeFloatingHostCreationSnapshot(
                 windowHandle,
-                taskbarHandle,
                 screenBounds,
-            NativeWindowVerifier.ReadScreenBounds(windowHandle),
+                NativeWindowVerifier.ReadScreenBounds(windowHandle),
+                verifiedWorkArea,
                 dpi,
                 style,
                 extendedStyle);
@@ -354,7 +341,7 @@ internal sealed class NativeTaskbarHost : IDisposable
             catch (Exception cleanupFailure)
             {
                 throw new AggregateException(
-                    "Native host creation failed and cleanup also failed.",
+                    "Floating host creation failed and cleanup also failed.",
                     creationFailure,
                     cleanupFailure);
             }
@@ -456,105 +443,77 @@ internal sealed class NativeTaskbarHost : IDisposable
             normalized));
     }
 
-    private void ValidateAttachment()
+    private void ValidateWindow()
     {
         if (windowHandle == nint.Zero || !TaskbarNativeMethods.IsWindow(windowHandle))
         {
-            throw new InvalidOperationException("The native host HWND is no longer live.");
+            throw new InvalidOperationException("The floating HWND is no longer live.");
         }
 
-        if (expectedParent == nint.Zero || !TaskbarNativeMethods.IsWindow(expectedParent) ||
-            !TaskbarNativeMethods.IsWindowVisible(expectedParent) ||
-            HostNativeMethods.GetParent(windowHandle) != expectedParent)
+        if (HostNativeMethods.GetParent(windowHandle) != nint.Zero ||
+            HostNativeMethods.GetWindow(windowHandle, HostNativeMethods.GetWindowOwner) != nint.Zero)
         {
-            throw new InvalidOperationException("The native host is no longer attached to its verified taskbar.");
+            throw new InvalidOperationException("The floating HWND acquired a parent or owner.");
         }
 
-        NativeWindowVerifier.VerifyIdentity(windowHandle, Win32TaskbarDiscovery.HostViewClassName);
+        NativeWindowVerifier.VerifyIdentity(
+            windowHandle,
+            NativeWindowClassRegistry.FloatingViewClassName);
         uint style = NativeWindowVerifier.ReadWindowLong(windowHandle, HostNativeMethods.GwlStyle);
-        uint extendedStyle = NativeWindowVerifier.ReadWindowLong(windowHandle, HostNativeMethods.GwlExtendedStyle);
+        uint extendedStyle = NativeWindowVerifier.ReadWindowLong(
+            windowHandle,
+            HostNativeMethods.GwlExtendedStyle);
         if (!NativeWindowStyles.MatchesPopupPreserved(style) ||
             !NativeWindowStyles.MatchesRequiredExtendedStyle(extendedStyle))
         {
-            throw new InvalidOperationException("The taskbar host lost its popup-preserved style contract.");
+            throw new InvalidOperationException(
+                "The floating HWND lost its unowned, non-topmost popup style contract.");
         }
 
-        if (NativeWindowVerifier.ReadScreenBounds(windowHandle) != expectedBounds)
+        if (NativeWindowVerifier.ReadScreenBounds(windowHandle) != expectedBounds ||
+            !expectedWorkArea.Contains(expectedBounds))
         {
-            throw new InvalidOperationException("The taskbar host moved outside its verified rectangle.");
+            throw new InvalidOperationException("The floating HWND moved outside its verified work area.");
         }
 
-        if (!NativeWindowVerifier.ReadScreenBounds(expectedParent).Contains(expectedBounds))
+        if (TaskbarNativeMethods.GetDpiForWindow(windowHandle) != expectedDpi)
         {
-            throw new InvalidOperationException("The verified host rectangle is no longer contained by the taskbar.");
+            throw new InvalidOperationException("The floating HWND DPI no longer matches its verified monitor.");
         }
 
-        if (TaskbarNativeMethods.GetDpiForWindow(expectedParent) != expectedDpi ||
-            TaskbarNativeMethods.GetDpiForWindow(windowHandle) != expectedDpi)
+        if (!NativeWindowVerifier.IsUncloaked(windowHandle))
         {
-            throw new InvalidOperationException("The taskbar host DPI no longer matches its verified parent.");
-        }
-
-        if (!NativeWindowVerifier.IsUncloaked(expectedParent) ||
-            !NativeWindowVerifier.IsUncloaked(windowHandle))
-        {
-            throw new InvalidOperationException("The taskbar host or its parent is cloaked.");
+            throw new InvalidOperationException("The floating HWND is cloaked.");
         }
     }
 
-    private static void VerifyInitiallyHidden(nint window)
+    private static void VerifyInitiallyHiddenAndUnowned(nint window)
     {
-        if (TaskbarNativeMethods.IsWindowVisible(window) || HostNativeMethods.GetParent(window) != nint.Zero)
+        if (TaskbarNativeMethods.IsWindowVisible(window) ||
+            HostNativeMethods.GetParent(window) != nint.Zero ||
+            HostNativeMethods.GetWindow(window, HostNativeMethods.GetWindowOwner) != nint.Zero)
         {
-            throw new InvalidOperationException("The taskbar view must start hidden and top-level.");
+            throw new InvalidOperationException(
+                "The floating HWND must start hidden, top-level, and unowned.");
         }
 
-        NativeWindowVerifier.VerifyIdentity(window, Win32TaskbarDiscovery.HostViewClassName);
+        NativeWindowVerifier.VerifyIdentity(window, NativeWindowClassRegistry.FloatingViewClassName);
         if (!NativeWindowStyles.MatchesPopupPreserved(
                 NativeWindowVerifier.ReadWindowLong(window, HostNativeMethods.GwlStyle)) ||
             !NativeWindowStyles.MatchesRequiredExtendedStyle(
                 NativeWindowVerifier.ReadWindowLong(window, HostNativeMethods.GwlExtendedStyle)))
         {
-            throw new InvalidOperationException("The initial taskbar view styles are unsafe.");
+            throw new InvalidOperationException("The initial floating HWND styles are unsafe.");
         }
     }
 
-    private static void AttachPopupPreserved(nint window, nint taskbar)
+    private static void PlaceAndVerify(nint window, PixelRect screenBounds)
     {
-        HostNativeMethods.SetLastError(0);
-        nint previousParent = HostNativeMethods.SetParent(window, taskbar);
-        int error = Marshal.GetLastWin32Error();
-        if (previousParent == nint.Zero && error != 0)
-        {
-            throw new Win32Exception(error);
-        }
-
-        if (HostNativeMethods.GetParent(window) != taskbar ||
-            !NativeWindowStyles.MatchesPopupPreserved(
-                NativeWindowVerifier.ReadWindowLong(window, HostNativeMethods.GwlStyle)))
-        {
-            throw new InvalidOperationException("SetParent did not preserve the verified WS_POPUP attachment.");
-        }
-    }
-
-    private static void PlaceInParentCoordinates(
-        nint window,
-        nint taskbar,
-        PixelRect screenBounds)
-    {
-        var point = new HostNativeMethods.NativePoint(screenBounds.Left, screenBounds.Top);
-        HostNativeMethods.SetLastError(0);
-        int mapped = HostNativeMethods.MapWindowPoints(nint.Zero, taskbar, ref point, 1);
-        if (mapped == 0 && Marshal.GetLastWin32Error() != 0)
-        {
-            throw new Win32Exception();
-        }
-
         if (!HostNativeMethods.SetWindowPosition(
                 window,
                 nint.Zero,
-                point.X,
-                point.Y,
+                screenBounds.Left,
+                screenBounds.Top,
                 screenBounds.Width,
                 screenBounds.Height,
                 HostNativeMethods.SetWindowPositionNoZOrder |
@@ -567,7 +526,7 @@ internal sealed class NativeTaskbarHost : IDisposable
 
         if (NativeWindowVerifier.ReadScreenBounds(window) != screenBounds)
         {
-            throw new InvalidOperationException("The taskbar host placement was not honored exactly.");
+            throw new InvalidOperationException("The floating HWND placement was not honored exactly.");
         }
     }
 
@@ -630,8 +589,8 @@ internal sealed class NativeTaskbarHost : IDisposable
         {
             int error = Marshal.GetLastWin32Error();
             throw error == 0
-                ? new InvalidOperationException("The native taskbar host HWND could not be destroyed.")
-                : new Win32Exception(error, "The native taskbar host HWND could not be destroyed.");
+                ? new InvalidOperationException("The floating HWND could not be destroyed.")
+                : new Win32Exception(error, "The floating HWND could not be destroyed.");
         }
 
         windowHandle = nint.Zero;
@@ -645,8 +604,8 @@ internal sealed class NativeTaskbarHost : IDisposable
         }
 
         ownerThreadId = 0;
-        expectedParent = nint.Zero;
         expectedBounds = default;
+        expectedWorkArea = default;
         expectedDpi = 0;
         nextInteractionSequence = 0;
         requiresRevalidation = false;
@@ -665,12 +624,12 @@ internal sealed class NativeTaskbarHost : IDisposable
     {
         if (ownerThreadId == 0)
         {
-            throw new InvalidOperationException("The native taskbar host has not been created.");
+            throw new InvalidOperationException("The native floating host has not been created.");
         }
 
         if (ownerThreadId != Environment.CurrentManagedThreadId)
         {
-            throw new InvalidOperationException("Native window operations must run on the HWND owner thread.");
+            throw new InvalidOperationException("Floating HWND operations must run on the owner thread.");
         }
     }
 
@@ -684,7 +643,7 @@ internal sealed class NativeTaskbarHost : IDisposable
     {
         if (pendingWindowFailure is { } failure)
         {
-            throw new InvalidOperationException("The native window procedure failed.", failure);
+            throw new InvalidOperationException("The floating window procedure failed.", failure);
         }
     }
 
@@ -693,7 +652,7 @@ internal sealed class NativeTaskbarHost : IDisposable
         if (requiresRevalidation)
         {
             throw new InvalidOperationException(
-                "The taskbar layout changed while the native host was being created.");
+                "The monitor layout changed while the floating host was being created.");
         }
     }
 
