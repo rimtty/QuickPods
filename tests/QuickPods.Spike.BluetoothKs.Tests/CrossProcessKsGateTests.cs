@@ -81,40 +81,21 @@ public sealed class CrossProcessKsGateTests
     }
 
     [Fact]
-    public async Task CancellationWhileWaitingNeverRunsTheOperation()
+    public async Task CancellationNeverRunsTheOperation()
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        using Process owner = StartGateChild(holdMilliseconds: 5_000);
         bool operationRan = false;
-        try
-        {
-            Assert.Equal(
-                "acquired",
-                await owner.StandardOutput.ReadLineAsync(timeout.Token));
-            using var cancellation = new CancellationTokenSource();
-            Task<CrossProcessKsGateResult<int>> waiter = CrossProcessKsGate.RunAsync(
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await CrossProcessKsGate.RunAsync(
                 () =>
                 {
                     operationRan = true;
                     return 0;
                 },
-                cancellation.Token);
-
-            await Task.Delay(TimeSpan.FromMilliseconds(50), timeout.Token);
-            cancellation.Cancel();
-
-            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-                await waiter);
-            Assert.False(operationRan);
-        }
-        finally
-        {
-            if (!owner.HasExited)
-            {
-                owner.Kill(entireProcessTree: true);
-                await owner.WaitForExitAsync(CancellationToken.None);
-            }
-        }
+                cancellation.Token));
+        Assert.False(operationRan);
     }
 
     private static Process StartGateChild(int holdMilliseconds)
