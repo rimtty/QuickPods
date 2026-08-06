@@ -125,6 +125,103 @@ internal enum TaskbarContinuityRoute
     DirectExpected,
 }
 
+internal enum TaskbarAutomationContinuityOrigin
+{
+    None,
+    FreshComplete,
+    RetainedStartFromCompleteAnchor,
+}
+
+/// <summary>
+/// In-memory proof that one strict DirectExpected scan reused the unique Start
+/// landmark from a previously complete observation of the same Explorer
+/// generation. Only the validated factory can mint this proof.
+/// </summary>
+internal sealed class RetainedStartButtonContinuityProof
+{
+    private RetainedStartButtonContinuityProof(
+        TaskbarContinuityAnchor anchor,
+        IReadOnlyList<AutomationButtonSnapshot> buttons)
+    {
+        TaskbarHandle = anchor.TaskbarHandle;
+        ExplorerProcessId = anchor.ExplorerProcessId;
+        TaskbarBounds = anchor.TaskbarBounds;
+        Dpi = anchor.Dpi;
+        MonitorBounds = anchor.MonitorBounds;
+        WorkArea = anchor.WorkArea;
+        Buttons = Array.AsReadOnly([.. buttons]);
+    }
+
+    private nint TaskbarHandle { get; }
+
+    private uint ExplorerProcessId { get; }
+
+    private PixelRect TaskbarBounds { get; }
+
+    private uint Dpi { get; }
+
+    private PixelRect MonitorBounds { get; }
+
+    private PixelRect WorkArea { get; }
+
+    internal IReadOnlyList<AutomationButtonSnapshot> Buttons { get; }
+
+    internal static bool TryCreate(
+        TaskbarContinuityRoute route,
+        PixelRect taskbarBounds,
+        AutomationTaskbarProbe automation,
+        TaskbarContinuityAnchor anchor,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)]
+        out RetainedStartButtonContinuityProof? proof)
+    {
+        ArgumentNullException.ThrowIfNull(automation);
+        ArgumentNullException.ThrowIfNull(anchor);
+        proof = null;
+        bool exactStartMissing =
+            automation.Faults.Count == 1 &&
+            automation.Faults[0].Code == TaskbarDiscoveryFaultCode.StartButtonMissing;
+        bool freshButtonsValid = automation.Buttons.All(button =>
+            button.Bounds.IsValid && button.Bounds.Intersects(taskbarBounds));
+        bool freshStartAbsent = !automation.Buttons.Any(button =>
+            string.Equals(
+                button.AutomationId,
+                "StartButton",
+                StringComparison.Ordinal));
+        if (route != TaskbarContinuityRoute.DirectExpected ||
+            !taskbarBounds.IsValid ||
+            taskbarBounds != anchor.TaskbarBounds ||
+            !exactStartMissing ||
+            !freshButtonsValid ||
+            !freshStartAbsent)
+        {
+            return false;
+        }
+
+        proof = new RetainedStartButtonContinuityProof(
+            anchor,
+            [.. automation.Buttons, anchor.RetainedStartButton]);
+        return true;
+    }
+
+    internal bool Matches(TaskbarDiscoveryResult discovery)
+    {
+        ArgumentNullException.ThrowIfNull(discovery);
+        TaskbarSnapshot? snapshot = discovery.Snapshot;
+        return discovery.IsComplete &&
+            snapshot is not null &&
+            snapshot.TaskbarHandle == TaskbarHandle &&
+            snapshot.ExplorerProcessId == ExplorerProcessId &&
+            snapshot.Bounds == TaskbarBounds &&
+            snapshot.Dpi == Dpi &&
+            snapshot.Monitor.IsPrimary &&
+            snapshot.Monitor.Bounds == MonitorBounds &&
+            snapshot.Monitor.WorkArea == WorkArea &&
+            snapshot.AutomationButtons.SequenceEqual(Buttons);
+    }
+
+    public override string ToString() => nameof(RetainedStartButtonContinuityProof);
+}
+
 internal enum TaskbarContinuityFailureReason
 {
     None,
@@ -167,6 +264,7 @@ internal enum TaskbarContinuityFailureReason
     AutomationTimedOut,
     AutomationWorkerFailed,
     AutomationIncomplete,
+    AutomationProvenanceInvalid,
     InvalidatedDuringScan,
     TimedOut,
     UnexpectedFailure,
@@ -174,8 +272,8 @@ internal enum TaskbarContinuityFailureReason
 
 /// <summary>
 /// Diagnostic-safe continuity evidence. It intentionally contains only
-/// booleans; raw HWNDs, process identifiers and coordinates remain in the
-/// in-memory anchor and verified discovery snapshot.
+/// booleans and one bounded provenance enum; raw HWNDs, process identifiers
+/// and coordinates remain in the in-memory anchor and proof.
 /// </summary>
 internal readonly record struct TaskbarContinuityEvidence
 {
@@ -223,7 +321,7 @@ internal readonly record struct TaskbarContinuityEvidence
 
     internal bool AutomationComplete { get; init; }
 
-    internal bool RetainedStartButtonContinuity { get; init; }
+    internal TaskbarAutomationContinuityOrigin AutomationOrigin { get; init; }
 
     internal bool IgnoredHostMatched { get; init; }
 
@@ -350,11 +448,26 @@ internal static class TaskbarContinuityEvidencePolicy
             return TaskbarContinuityFailureReason.ExistingHostNotAttached;
         }
 
-        return requireAutomation &&
-            !evidence.AutomationComplete &&
-            !evidence.RetainedStartButtonContinuity
-            ? TaskbarContinuityFailureReason.AutomationIncomplete
-            : TaskbarContinuityFailureReason.None;
+        if (!requireAutomation)
+        {
+            return TaskbarContinuityFailureReason.None;
+        }
+
+        if (evidence.AutomationComplete)
+        {
+            return evidence.AutomationOrigin == TaskbarAutomationContinuityOrigin.FreshComplete
+                ? TaskbarContinuityFailureReason.None
+                : TaskbarContinuityFailureReason.AutomationProvenanceInvalid;
+        }
+
+        return evidence.AutomationOrigin switch
+        {
+            TaskbarAutomationContinuityOrigin.RetainedStartFromCompleteAnchor =>
+                TaskbarContinuityFailureReason.None,
+            TaskbarAutomationContinuityOrigin.None =>
+                TaskbarContinuityFailureReason.AutomationIncomplete,
+            _ => TaskbarContinuityFailureReason.AutomationProvenanceInvalid,
+        };
     }
 }
 
@@ -389,18 +502,21 @@ internal sealed class TaskbarContinuityDiscoveryResult
     internal static TaskbarContinuityDiscoveryResult Verified(
         TaskbarDiscoveryResult discovery,
         TaskbarContinuityEvidence evidence,
-        TaskbarContinuityRoute route)
+        TaskbarContinuityRoute route,
+        RetainedStartButtonContinuityProof? retainedStartProof = null)
     {
         ArgumentNullException.ThrowIfNull(discovery);
+        bool retainedStart = evidence.AutomationOrigin ==
+            TaskbarAutomationContinuityOrigin.RetainedStartFromCompleteAnchor;
         if (!discovery.IsComplete ||
             !evidence.IsVerified ||
             route == TaskbarContinuityRoute.None ||
             (evidence.RetainedNotificationAreaContinuity &&
                 route != TaskbarContinuityRoute.DirectExpected) ||
-            (evidence.RetainedStartButtonContinuity &&
+            (retainedStart &&
                 route != TaskbarContinuityRoute.DirectExpected) ||
-            (evidence.RetainedStartButtonContinuity &&
-                evidence.AutomationComplete) ||
+            retainedStart != (retainedStartProof is not null) ||
+            (retainedStartProof is not null && !retainedStartProof.Matches(discovery)) ||
             (evidence.DirectHostAttachmentVerified &&
                 route != TaskbarContinuityRoute.DirectExpected))
         {

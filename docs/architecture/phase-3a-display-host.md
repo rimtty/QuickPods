@@ -61,6 +61,6 @@ The suite remains intentionally focused: twenty-two new test executions were add
 
 ## Phase 3B follow-ups
 
-- complete the retained-continuity race checks from Issue #15 in Phase 3B (the Phase 3A exclusion provenance and create-time invalidation boundaries are implemented);
+- complete the retained-continuity race checks from Issue #15 in Phase 3B. Retained Start continuity now carries a private proof minted only from a complete same-generation anchor, and the verified-result factory rejects absent, mismatched, or route-inconsistent provenance; the remaining work is the deterministic obstacle/race matrix and physical negative verification;
 - implement the accepted ADR-0001 observer helper in Phase 3B before recovery loops are enabled.
 - keep the existing fail-closed center-aligned NoFit routing and automated invariants. A dedicated physical reproduction was tracked by Issue #33, then removed from the release gate by product decision on 2026-08-07; no behavior change was requested.

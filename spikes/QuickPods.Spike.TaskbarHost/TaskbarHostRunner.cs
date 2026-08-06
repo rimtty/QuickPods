@@ -422,7 +422,8 @@ internal sealed class TaskbarHostRunner
                 TaskbarLayoutObservation? safetyObservation =
                     verified is not null &&
                     (continuityScan.Result.Evidence.RetainedNotificationAreaContinuity ||
-                        continuityScan.Result.Evidence.RetainedStartButtonContinuity)
+                        continuityScan.Result.Evidence.AutomationOrigin ==
+                            TaskbarAutomationContinuityOrigin.RetainedStartFromCompleteAnchor)
                         ? TaskbarLayoutAdapter.CreateConservativeContinuityObservation(
                             verified.Observation,
                             current.Observation)
@@ -465,8 +466,8 @@ internal sealed class TaskbarHostRunner
                             $"trigger={trigger}; attempts={attempt}; current-bounds-safe=True; " +
                             $"retained-notification-area=" +
                             $"{continuityScan.Result.Evidence.RetainedNotificationAreaContinuity}; " +
-                            $"retained-start-button=" +
-                            $"{continuityScan.Result.Evidence.RetainedStartButtonContinuity}; " +
+                            $"automation-origin=" +
+                            $"{continuityScan.Result.Evidence.AutomationOrigin}; " +
                             $"direct-host-attachment=" +
                             $"{continuityScan.Result.Evidence.DirectHostAttachmentVerified}");
                     }
@@ -1023,7 +1024,8 @@ internal sealed class TaskbarHostRunner
                 TaskbarContinuityDiscoveryResult result = task.GetAwaiter().GetResult();
                 TaskbarContinuityAnchor nextAnchor = anchor;
                 if (result.IsVerified &&
-                    result.Evidence.AutomationComplete &&
+                    result.Evidence.AutomationOrigin ==
+                        TaskbarAutomationContinuityOrigin.FreshComplete &&
                     result.Discovery is TaskbarDiscoveryResult completeAutomationDiscovery &&
                     !anchor.TryWithFreshCompleteAutomation(
                         completeAutomationDiscovery,

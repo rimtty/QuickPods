@@ -174,6 +174,9 @@ internal sealed class TaskbarDiscoveryService
         TaskbarContinuityEvidence evidence = finalWin32.Evidence with
         {
             AutomationComplete = automation.Faults.Count == 0,
+            AutomationOrigin = automation.Faults.Count == 0
+                ? TaskbarAutomationContinuityOrigin.FreshComplete
+                : TaskbarAutomationContinuityOrigin.None,
         };
         if (!finalWin32.IsNativeVerified)
         {
@@ -192,16 +195,20 @@ internal sealed class TaskbarDiscoveryService
         }
 
         IReadOnlyList<AutomationButtonSnapshot> automationButtons = automation.Buttons;
-        bool retainedAutomationContinuity = TryRetainStartButtonContinuity(
+        _ = TryRetainStartButtonContinuity(
             finalWin32.Route,
             target.Bounds,
             automation,
-            anchor.RetainedStartButton,
-            out IReadOnlyList<AutomationButtonSnapshot> retainedButtons);
-        if (retainedAutomationContinuity)
+            anchor,
+            out RetainedStartButtonContinuityProof? retainedStartProof);
+        if (retainedStartProof is not null)
         {
-            automationButtons = retainedButtons;
-            evidence = evidence with { RetainedStartButtonContinuity = true };
+            automationButtons = retainedStartProof.Buttons;
+            evidence = evidence with
+            {
+                AutomationOrigin =
+                    TaskbarAutomationContinuityOrigin.RetainedStartFromCompleteAnchor,
+            };
         }
 
         TaskbarContinuityFailureReason failureReason =
@@ -238,49 +245,23 @@ internal sealed class TaskbarDiscoveryService
         return TaskbarContinuityDiscoveryResult.Verified(
             discovery,
             evidence,
-            finalWin32.Route);
+            finalWin32.Route,
+            retainedStartProof);
     }
 
     internal static bool TryRetainStartButtonContinuity(
         TaskbarContinuityRoute route,
         PixelRect taskbarBounds,
         AutomationTaskbarProbe automation,
-        AutomationButtonSnapshot retainedStartButton,
-        out IReadOnlyList<AutomationButtonSnapshot> buttons)
-    {
-        ArgumentNullException.ThrowIfNull(automation);
-        ArgumentNullException.ThrowIfNull(retainedStartButton);
-        buttons = automation.Buttons;
-        bool exactStartMissing =
-            automation.Faults.Count == 1 &&
-            automation.Faults[0].Code == TaskbarDiscoveryFaultCode.StartButtonMissing;
-        bool retainedStartValid =
-            string.Equals(
-                retainedStartButton.AutomationId,
-                "StartButton",
-                StringComparison.Ordinal) &&
-            retainedStartButton.Bounds.IsValid &&
-            retainedStartButton.Bounds.Intersects(taskbarBounds);
-        bool freshButtonsValid = automation.Buttons.All(button =>
-            button.Bounds.IsValid && button.Bounds.Intersects(taskbarBounds));
-        bool freshStartAbsent = !automation.Buttons.Any(button =>
-            string.Equals(
-                button.AutomationId,
-                "StartButton",
-                StringComparison.Ordinal));
-        if (route != TaskbarContinuityRoute.DirectExpected ||
-            !taskbarBounds.IsValid ||
-            !exactStartMissing ||
-            !retainedStartValid ||
-            !freshButtonsValid ||
-            !freshStartAbsent)
-        {
-            return false;
-        }
-
-        buttons = [.. automation.Buttons, retainedStartButton];
-        return true;
-    }
+        TaskbarContinuityAnchor anchor,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)]
+        out RetainedStartButtonContinuityProof? proof) =>
+        RetainedStartButtonContinuityProof.TryCreate(
+            route,
+            taskbarBounds,
+            automation,
+            anchor,
+            out proof);
 
     internal static TaskbarContinuityFailureReason GetAutomationFailureReason(
         IReadOnlyList<TaskbarDiscoveryFault> faults)
