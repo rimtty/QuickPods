@@ -46,12 +46,12 @@ public partial class App : WpfApplication, IDisposable
     private readonly HashSet<string> pendingLifecycleReasons = new(StringComparer.Ordinal);
     private QuickPodsSettings productSettings = QuickPodsSettings.Default;
     private DispatcherTimer? lifecycleRecoveryTimer;
-    private DispatcherTimer? flyoutPreviewDismissTimer;
+    private DispatcherTimer? flyoutDismissTimer;
     private TaskbarSurfaceAnchor? lastTaskbarAnchor;
     private bool lifecycleRecoveryRunning;
     private bool lifecycleEventsSubscribed;
     private bool productSettingsInitialized;
-    private bool flyoutPreviewActive;
+    private bool flyoutAutoDismissActive;
     private bool disposed;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -115,10 +115,10 @@ public partial class App : WpfApplication, IDisposable
         window.FlyoutPointerEntered += OnFlyoutPointerEntered;
         window.FlyoutPointerExited += OnFlyoutPointerExited;
         MainWindow = window;
-        flyoutPreviewDismissTimer = new DispatcherTimer(
+        flyoutDismissTimer = new DispatcherTimer(
             TimeSpan.FromMilliseconds(420),
             DispatcherPriority.Background,
-            OnFlyoutPreviewDismissTick,
+            OnFlyoutDismissTick,
             Dispatcher)
         {
             IsEnabled = false,
@@ -224,8 +224,8 @@ public partial class App : WpfApplication, IDisposable
             window.FlyoutPointerExited -= OnFlyoutPointerExited;
         }
 
-        flyoutPreviewDismissTimer?.Stop();
-        flyoutPreviewDismissTimer = null;
+        flyoutDismissTimer?.Stop();
+        flyoutDismissTimer = null;
 
         if (taskbarHost is not null)
         {
@@ -543,13 +543,13 @@ public partial class App : WpfApplication, IDisposable
                 break;
             case HostInteractionKind.OpenAudioFlyout:
             case HostInteractionKind.OpenContextMenu:
-                ShowMainWindow(interaction.Anchor, activate: true, preview: false);
+                ShowMainWindow(interaction.Anchor, activate: true, autoDismiss: true);
                 break;
             case HostInteractionKind.PreviewAudioFlyout:
-                ShowMainWindow(interaction.Anchor, activate: false, preview: true);
+                ShowMainWindow(interaction.Anchor, activate: false, autoDismiss: true);
                 break;
             case HostInteractionKind.TaskbarPointerExited:
-                ScheduleFlyoutPreviewDismiss();
+                ScheduleFlyoutDismiss();
                 break;
         }
     }
@@ -753,12 +753,12 @@ public partial class App : WpfApplication, IDisposable
     }
 
     private void ShowMainWindow() =>
-        ShowMainWindow(lastTaskbarAnchor, activate: true, preview: false);
+        ShowMainWindow(lastTaskbarAnchor, activate: true, autoDismiss: false);
 
     private void ShowMainWindow(
         TaskbarSurfaceAnchor? anchor,
         bool activate,
-        bool preview)
+        bool autoDismiss)
     {
         if (MainWindow is not MainWindow window)
         {
@@ -777,8 +777,8 @@ public partial class App : WpfApplication, IDisposable
         }
 
         window.PositionAboveTaskbar(lastTaskbarAnchor);
-        flyoutPreviewActive = preview;
-        flyoutPreviewDismissTimer?.Stop();
+        flyoutAutoDismissActive = autoDismiss;
+        flyoutDismissTimer?.Stop();
 
         if (activate)
         {
@@ -787,39 +787,39 @@ public partial class App : WpfApplication, IDisposable
     }
 
     private void OnFlyoutPointerEntered(object? sender, EventArgs eventArgs) =>
-        ScheduleFlyoutPreviewDismiss();
+        ScheduleFlyoutDismiss();
 
     private void OnFlyoutPointerExited(object? sender, EventArgs eventArgs) =>
-        ScheduleFlyoutPreviewDismiss();
+        ScheduleFlyoutDismiss();
 
-    private void ScheduleFlyoutPreviewDismiss()
+    private void ScheduleFlyoutDismiss()
     {
-        if (!flyoutPreviewActive || flyoutPreviewDismissTimer is null)
+        if (!flyoutAutoDismissActive || flyoutDismissTimer is null)
         {
             return;
         }
 
-        flyoutPreviewDismissTimer.Stop();
-        flyoutPreviewDismissTimer.Start();
+        flyoutDismissTimer.Stop();
+        flyoutDismissTimer.Start();
     }
 
-    private void OnFlyoutPreviewDismissTick(object? sender, EventArgs eventArgs)
+    private void OnFlyoutDismissTick(object? sender, EventArgs eventArgs)
     {
-        flyoutPreviewDismissTimer?.Stop();
+        flyoutDismissTimer?.Stop();
         if (MainWindow is not MainWindow window)
         {
             return;
         }
 
         switch (FlyoutDismissPolicy.Decide(
-            flyoutPreviewActive,
+            flyoutAutoDismissActive,
             window.IsPointerWithinFlyoutBounds()))
         {
             case FlyoutDismissAction.Rearm:
-                ScheduleFlyoutPreviewDismiss();
+                ScheduleFlyoutDismiss();
                 break;
             case FlyoutDismissAction.Hide:
-                flyoutPreviewActive = false;
+                flyoutAutoDismissActive = false;
                 window.Hide();
                 break;
         }
