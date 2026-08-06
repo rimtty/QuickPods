@@ -348,7 +348,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 業務サービスから独立した表示ホストを完成させる |
-| 状態 | **進行中** — Issue #30。Native/Floating/Hidden表示経路と左揃え非対応判定を実装。Foundation 45/45、全solution Release 0 warning、150% read-only inspectに合格。175%中央揃えNativeではclick／drag／wheel、Start／Search中の同位置維持、自然破棄、残留0に合格し、移植時の`GetParent`誤用を`GetAncestor(GA_PARENT)`へ修正。175%左揃えは`UnsupportedAlignment → Hidden`、previewでもHWND生成なし・残留0に合格。中央揃え復帰gate待ち |
+| 状態 | **実装・Phase 3A実機Gate完了** — Issue #30／PR #32。Native/Floating/Hidden表示経路と左揃え非対応判定を実装。Foundation 45/45、全solution Release 0 warning、最新stacked CIに合格。175%中央揃えNativeではclick／drag／wheel、Start／Search中の同位置維持、自然破棄、残留0に合格し、移植時の`GetParent`誤用を`GetAncestor(GA_PARENT)`へ修正。175%左揃えは`UnsupportedAlignment → Hidden`、previewでもHWND生成なし・残留0に合格し、中央揃えへ戻した後の`Place → Native`と実描画復帰も確認。中央揃えNoFit時のFloating Z順はPhase 3B Issue #33へ分離 |
 | Gate BがGo | raw Win32 `QuickPods.TaskbarHost`、UIA探索、安全領域、描画、ヒットテスト |
 | Gate BがNo-Go | タスクバー直上のフローティングストリップを実装 |
 | 共通 | `Place`／`VerifiedNoFit`／`UnsupportedConfiguration`／`TransientUnknown`、DPI座標、負座標、テーマ入力 |

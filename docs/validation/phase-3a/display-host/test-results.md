@@ -21,6 +21,7 @@
 | Isolated full solution Release build | Pass — 0 warnings, 0 errors; repeated after the Native parent-verification fix without stopping the running Audio MVP |
 | Solution locked restore | Pass |
 | Format / diff check | Pass |
+| Latest stacked PR CI | Pass — run 31072401444, head `c0f5bfc` |
 
 The focused coverage includes standard placement, left-aligned unsupported/Hidden routing, center-aligned verified NoFit, incomplete and contradictory evidence, compact fragmentation, negative coordinates, 100/125/150/200% DPI conversion, automation/native obstacle merging, duplicate Start fail-closed behavior, shared slider hit-test geometry, render-state normalization, PopupPreserved style invariants, pointer/wheel volume conversion, contained floating fallback placement, and Native/Floating/Hidden routing. The Phase 0 diagnostic suite was not copied into the product suite.
 
@@ -83,6 +84,28 @@ residual_process_count=0
 ```
 
 The read-only inspection and an explicit-confirmation three-second preview agreed. The preview created no surface, emitted no interaction, and left no process. Historical Phase 0 left-aligned Floating evidence remains useful research, but is superseded as a product requirement. Floating remains available only for a verified NoFit inside the supported center-aligned configuration.
+
+## Center-alignment recovery gate
+
+After the operator restored Windows 11 center alignment, the same manifest-applied product EXE immediately returned to the supported route:
+
+```text
+decision=Place
+reason=None
+surface=Native
+surface_reason=NativePlacement
+dpi=168
+taskbar_size=5120x84
+automation_buttons=28
+native_obstacles=1
+preview_shutdown=natural
+exit_code=0
+residual_process_count=0
+```
+
+A 20-second preview and a separate 15-second evidence preview both completed naturally. A full virtual-screen capture taken while the latter was live showed the rendered QuickPods strip inside the center-aligned taskbar at the bottom center. The capture included unrelated application content and therefore remains an ignored local artifact rather than repository evidence. Together with the earlier operator input/Start/Search run, this proves `left-aligned Hidden → center-aligned Native`, actual rendering, input, continuity, and teardown. Phase 3A live acceptance is complete.
+
+The pre-policy Floating investigation exposed a possible generic z-order issue: a non-topmost Floating HWND could be live and visible according to Win32 while remaining below existing normal windows. Left alignment no longer exercises that path, so it does not block Phase 3A. Center-aligned NoFit reproduction and resolution are tracked by Issue #33 for Phase 3B.
 
 ## Safety notes
 

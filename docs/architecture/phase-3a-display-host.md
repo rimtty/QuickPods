@@ -2,7 +2,7 @@
 
 ## Status
 
-Phase 3A is in progress on `codex/phase-3a-display-host` and is tracked by Issue #30. The branch is stacked on the Phase 2 Audio MVP until PR #28 is merged.
+Phase 3A implementation and live gates are complete on `codex/phase-3a-display-host`, tracked by Issue #30 and PR #32. The branch remains stacked on the Phase 2 Audio MVP until PR #28 is merged.
 CI is configured for every pull-request base so stacked phase branches receive the same Windows build/test gate as PRs targeting `main`.
 
 ## Scope boundary
@@ -59,8 +59,8 @@ The first product slice contains:
 
 The suite remains intentionally focused: twenty-two new test executions were added to the existing Foundation suite rather than porting the Spike's diagnostic test inventory.
 
-## Remaining in Phase 3A
+## Phase 3B follow-ups
 
-- live validation that a supported center-aligned layout is restored from the left-aligned Hidden state;
 - complete the retained-continuity race checks from Issue #15 in Phase 3B (the Phase 3A exclusion provenance and create-time invalidation boundaries are implemented);
 - implement the accepted ADR-0001 observer helper in Phase 3B before recovery loops are enabled.
+- reproduce and resolve center-aligned NoFit Floating z-order behavior from Issue #33; if safe visibility cannot be guaranteed, route that condition to Hidden and update the specification.
