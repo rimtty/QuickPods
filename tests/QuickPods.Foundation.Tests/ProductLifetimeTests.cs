@@ -26,5 +26,10 @@ public sealed class ProductLifetimeTests
         policy.RequestExit();
         Assert.True(policy.IsExitRequested);
         Assert.False(policy.ShouldHideMainWindowOnClose);
+
+        Assert.False(StartupPresentationPolicy.ShouldShowInitialFlyout(
+            trayIconAvailable: true));
+        Assert.True(StartupPresentationPolicy.ShouldShowInitialFlyout(
+            trayIconAvailable: false));
     }
 }

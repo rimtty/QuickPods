@@ -28,6 +28,8 @@ internal static class HostNativeMethods
     internal const uint WmLeftButtonUp = 0x0202;
     internal const uint WmRightButtonUp = 0x0205;
     internal const uint WmMouseWheel = 0x020A;
+    internal const uint WmMouseHover = 0x02A1;
+    internal const uint WmMouseLeave = 0x02A3;
     internal const uint WmCaptureChanged = 0x0215;
     internal const uint WmDpiChanged = 0x02E0;
     internal const uint WmDpiChangedBeforeParent = 0x02E2;
@@ -50,6 +52,9 @@ internal static class HostNativeMethods
     internal const uint PeekMessageRemove = 0x0001;
     internal const uint SpiGetHighContrast = 0x0042;
     internal const uint HighContrastOn = 0x00000001;
+    internal const uint TrackMouseEventHover = 0x00000001;
+    internal const uint TrackMouseEventLeave = 0x00000002;
+    internal const uint FlyoutHoverTimeMilliseconds = 180;
     internal const int ColorWindow = 5;
     internal const int ColorWindowText = 8;
     internal const int ColorHighlight = 13;
@@ -165,6 +170,10 @@ internal static class HostNativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool ReleaseCapture();
 
+    [DllImport("user32.dll", EntryPoint = "TrackMouseEvent", ExactSpelling = true, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool TrackMouseEvent(ref NativeTrackMouseEvent tracking);
+
     [DllImport("user32.dll", EntryPoint = "PeekMessageW", CharSet = CharSet.Unicode)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool PeekMessage(
@@ -272,6 +281,15 @@ internal static class HostNativeMethods
         internal uint Time;
         internal NativePoint Point;
         internal uint Private;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct NativeTrackMouseEvent
+    {
+        internal uint Size;
+        internal uint Flags;
+        internal nint TrackWindow;
+        internal uint HoverTime;
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]

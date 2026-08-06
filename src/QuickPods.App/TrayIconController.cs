@@ -15,6 +15,7 @@ internal sealed class TrayIconController : IDisposable
     internal TrayIconController(
         Action open,
         Action refresh,
+        Action openSettings,
         Action<bool> setTaskbarSurfaceVisible,
         Action openSoundSettings,
         Action openBluetoothSettings,
@@ -22,6 +23,7 @@ internal sealed class TrayIconController : IDisposable
     {
         ArgumentNullException.ThrowIfNull(open);
         ArgumentNullException.ThrowIfNull(refresh);
+        ArgumentNullException.ThrowIfNull(openSettings);
         ArgumentNullException.ThrowIfNull(setTaskbarSurfaceVisible);
         ArgumentNullException.ThrowIfNull(openSoundSettings);
         ArgumentNullException.ThrowIfNull(openBluetoothSettings);
@@ -37,6 +39,11 @@ internal sealed class TrayIconController : IDisposable
         openItem.Click += (_, _) => open();
         menu.Items.Add(openItem);
         menu.Items.Add(new ToolStripMenuItem("更新", null, (_, _) => refresh()));
+        menu.Items.Add(new ToolStripMenuItem(
+            "QuickPods 設定...",
+            null,
+            (_, _) => openSettings()));
+        menu.Items.Add(new ToolStripSeparator());
         taskbarSurfaceItem = new ToolStripMenuItem("タスクバー操作バーを表示")
         {
             CheckOnClick = true,
@@ -50,7 +57,6 @@ internal sealed class TrayIconController : IDisposable
             }
         };
         menu.Items.Add(taskbarSurfaceItem);
-        menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(new ToolStripMenuItem(
             "サウンド設定",
             null,

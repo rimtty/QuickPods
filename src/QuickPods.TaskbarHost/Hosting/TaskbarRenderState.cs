@@ -5,22 +5,44 @@ namespace QuickPods.TaskbarHost.Hosting;
 
 internal readonly record struct TaskbarRenderState
 {
-    private TaskbarRenderState(double volumeFraction, bool isMuted)
+    private TaskbarRenderState(
+        int volumePercent,
+        bool isMuted,
+        string deviceDisplayName,
+        string deviceStatusText,
+        bool hasSelectedDevice)
     {
-        VolumeFraction = volumeFraction;
+        VolumePercent = volumePercent;
         IsMuted = isMuted;
+        DeviceDisplayName = deviceDisplayName;
+        DeviceStatusText = deviceStatusText;
+        HasSelectedDevice = hasSelectedDevice;
     }
 
-    internal double VolumeFraction { get; }
+    internal int VolumePercent { get; }
+
+    internal double VolumeFraction => VolumePercent / 100d;
 
     internal bool IsMuted { get; }
+
+    internal string DeviceDisplayName { get; }
+
+    internal string DeviceStatusText { get; }
+
+    internal bool HasSelectedDevice { get; }
 
     internal static TaskbarRenderState FromSnapshot(TaskbarStateSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 
-        double volumeFraction = Math.Clamp(snapshot.VolumePercent, 0, 100) / 100d;
-        return new(volumeFraction, snapshot.IsMuted);
+        int volumePercent = Math.Clamp(snapshot.VolumePercent, 0, 100);
+        TaskbarDeviceView? selected = snapshot.SelectedDevice;
+        return new(
+            volumePercent,
+            snapshot.IsMuted,
+            selected?.DisplayName ?? "BTデバイスなし",
+            selected?.StatusText ?? string.Empty,
+            selected is not null);
     }
 }
 

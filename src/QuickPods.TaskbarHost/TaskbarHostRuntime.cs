@@ -155,7 +155,6 @@ internal sealed class TaskbarHostRuntime : IDisposable
 
             if (layoutInvalidated && IsSurfaceRequested)
             {
-                DestroySurface();
                 StartDiscoveryIfNeeded();
             }
 
@@ -188,7 +187,22 @@ internal sealed class TaskbarHostRuntime : IDisposable
                 TaskbarRuntimePlacement placement = attempt.Placement;
                 if (layoutInvalidated || placement.Identity != currentPlacement)
                 {
-                    ApplyPlacement(placement);
+                    bool continuityStable = nativeHost?.IsCurrentContinuityStable() == true;
+                    if (TaskbarContinuityPolicy.CanRetainNativeSurface(
+                            placement.Route,
+                            placement.Identity == currentPlacement,
+                            continuityStable))
+                    {
+                        if (TaskbarContinuityPolicy.ShouldEnsureObserverAfterRetention(
+                                placement.Route))
+                        {
+                            EnsureObserver(currentPlacement.ExplorerProcessId);
+                        }
+                    }
+                    else
+                    {
+                        ApplyPlacement(placement);
+                    }
                 }
 
                 layoutInvalidated = false;
@@ -329,7 +343,8 @@ internal sealed class TaskbarHostRuntime : IDisposable
             QuickPodsProtocol.Version,
             nextInteractionSequence++,
             interaction.Kind,
-            interaction.VolumePercent);
+            interaction.VolumePercent,
+            interaction.Anchor);
         writer.WriteLine(QuickPodsProtocolJson.Serialize(normalized));
     }
 
@@ -346,7 +361,8 @@ internal sealed class TaskbarHostRuntime : IDisposable
             return;
         }
 
-        bool invalidate = observer.Failure is not null || observer.IsDisconnected;
+        bool observerUnavailable = observer.Failure is not null || observer.IsDisconnected;
+        bool invalidate = observerUnavailable;
         while (observer.TryDequeue(out ObserverInvalidationBatch? batch))
         {
             if (batch is null || batch.Source == ObserverSourceClassification.Owned)
@@ -363,8 +379,11 @@ internal sealed class TaskbarHostRuntime : IDisposable
             return;
         }
 
-        DestroySurface();
-        DisposeObserver();
+        if (observerUnavailable)
+        {
+            DisposeObserver();
+        }
+
         InvalidateLayout();
         StartDiscoveryIfNeeded();
     }

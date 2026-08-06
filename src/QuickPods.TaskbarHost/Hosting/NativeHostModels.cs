@@ -48,3 +48,39 @@ internal static class HostInteractionCalculator
             100);
     }
 }
+
+internal sealed class NativeHoverInteractionSession
+{
+    private bool tracking;
+    private bool previewRequested;
+
+    internal bool TryArm()
+    {
+        if (tracking)
+        {
+            return false;
+        }
+
+        tracking = true;
+        return true;
+    }
+
+    internal bool TryRequestPreview()
+    {
+        if (!tracking || previewRequested)
+        {
+            return false;
+        }
+
+        previewRequested = true;
+        return true;
+    }
+
+    internal bool Reset()
+    {
+        bool wasTracking = tracking;
+        tracking = false;
+        previewRequested = false;
+        return wasTracking;
+    }
+}
