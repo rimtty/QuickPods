@@ -8,6 +8,7 @@ namespace QuickPods.App;
 
 public partial class MainWindow : Window
 {
+    private const int MouseWheelStepPercent = 2;
     private readonly AudioController controller;
     private bool applyingState;
 
@@ -47,6 +48,26 @@ public partial class MainWindow : Window
         await RunOperationAsync(() => controller.CommitVolumeAsync(value).AsTask());
     }
 
+    private async void OnVolumeMouseWheel(object sender, MouseWheelEventArgs eventArgs)
+    {
+        if (!VolumeSlider.IsEnabled || eventArgs.Delta == 0)
+        {
+            return;
+        }
+
+        int notches = Math.Max(1, Math.Abs(eventArgs.Delta) / Mouse.MouseWheelDeltaForOneLine);
+        int direction = Math.Sign(eventArgs.Delta);
+        int current = (int)Math.Round(VolumeSlider.Value, MidpointRounding.AwayFromZero);
+        int value = Math.Clamp(
+            current + (direction * notches * MouseWheelStepPercent),
+            (int)VolumeSlider.Minimum,
+            (int)VolumeSlider.Maximum);
+
+        eventArgs.Handled = true;
+        VolumeSlider.Value = value;
+        await RunOperationAsync(() => controller.CommitVolumeAsync(value).AsTask());
+    }
+
     private async void OnToggleMute(object sender, RoutedEventArgs eventArgs)
     {
         await RunOperationAsync(() => controller.ToggleMuteAsync().AsTask());
@@ -73,7 +94,8 @@ public partial class MainWindow : Window
             MuteButton.IsEnabled = available;
             VolumeSlider.Value = state.VolumePercent;
             VolumePercentText.Text = available ? $"{state.VolumePercent}%" : "--%";
-            MuteButton.Content = state.IsMuted ? "ミュート解除" : "ミュート";
+            MuteButton.ToolTip = state.IsMuted ? "ミュート解除" : "ミュート";
+            MuteGlyph.Text = state.IsMuted ? "\uE74F" : "\uE767";
             StatusText.Text = state.Capability switch
             {
                 AudioCapability.Available => state.IsMuted ? "ミュート中" : "利用可能",
