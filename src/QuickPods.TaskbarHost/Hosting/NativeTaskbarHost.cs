@@ -378,6 +378,13 @@ internal sealed class NativeTaskbarHost : IDisposable
                 return HostNativeMethods.MouseActivateNoActivate;
             case HostNativeMethods.WmLeftButtonDown:
                 return OnLeftButtonDown(window, lParam);
+            case HostNativeMethods.WmRightButtonUp:
+                if (sliderSession.TryOpenContextMenu(out NativeSliderInteractionResult contextMenu))
+                {
+                    EnqueueInteraction(contextMenu);
+                }
+
+                return nint.Zero;
             case HostNativeMethods.WmMouseMove when sliderSession.IsDragging:
                 HandlePointerMove(lParam);
                 return nint.Zero;
@@ -402,9 +409,21 @@ internal sealed class NativeTaskbarHost : IDisposable
 
     private nint OnLeftButtonDown(nint window, nint lParam)
     {
-        if (!NativeWindowVerifier.TryReadSliderLayout(window, out SliderLayout layout) ||
-            !NativeSliderInteractionSession.CanBegin(layout, lParam))
+        if (!NativeWindowVerifier.TryReadSliderLayout(window, out SliderLayout layout))
         {
+            return nint.Zero;
+        }
+
+        if (!NativeSliderInteractionSession.CanBegin(layout, lParam))
+        {
+            if (sliderSession.TryInvokePrimary(
+                    layout,
+                    lParam,
+                    out NativeSliderInteractionResult primary))
+            {
+                EnqueueInteraction(primary);
+            }
+
             return nint.Zero;
         }
 

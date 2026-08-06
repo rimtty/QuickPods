@@ -26,6 +26,7 @@ internal static class HostNativeMethods
     internal const uint WmMouseMove = 0x0200;
     internal const uint WmLeftButtonDown = 0x0201;
     internal const uint WmLeftButtonUp = 0x0202;
+    internal const uint WmRightButtonUp = 0x0205;
     internal const uint WmMouseWheel = 0x020A;
     internal const uint WmCaptureChanged = 0x0215;
     internal const uint WmDpiChanged = 0x02E0;
