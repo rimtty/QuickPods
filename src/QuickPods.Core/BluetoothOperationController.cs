@@ -42,11 +42,25 @@ public sealed class BluetoothOperationController : IDisposable
 
     public ValueTask<BluetoothOperationSnapshot> ConnectSelectedAsync(
         CancellationToken cancellationToken = default) =>
-        ExecuteAsync(BluetoothRequestedAction.Connect, cancellationToken);
+        ExecuteAsync(
+            BluetoothRequestedAction.Connect,
+            setConnectedDeviceAsDefault: true,
+            cancellationToken);
+
+    public ValueTask<BluetoothOperationSnapshot> ConnectSelectedAsync(
+        bool setConnectedDeviceAsDefault,
+        CancellationToken cancellationToken = default) =>
+        ExecuteAsync(
+            BluetoothRequestedAction.Connect,
+            setConnectedDeviceAsDefault,
+            cancellationToken);
 
     public ValueTask<BluetoothOperationSnapshot> DisconnectSelectedAsync(
         CancellationToken cancellationToken = default) =>
-        ExecuteAsync(BluetoothRequestedAction.Disconnect, cancellationToken);
+        ExecuteAsync(
+            BluetoothRequestedAction.Disconnect,
+            setConnectedDeviceAsDefault: false,
+            cancellationToken);
 
     public void Dispose()
     {
@@ -60,6 +74,7 @@ public sealed class BluetoothOperationController : IDisposable
 
     private async ValueTask<BluetoothOperationSnapshot> ExecuteAsync(
         BluetoothRequestedAction action,
+        bool setConnectedDeviceAsDefault,
         CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
@@ -99,7 +114,12 @@ public sealed class BluetoothOperationController : IDisposable
             try
             {
                 admitted = await globalOperationGate.RunAsync(
-                    () => ExecuteSelectedAsync(action, target, selected, cancellationToken),
+                    () => ExecuteSelectedAsync(
+                        action,
+                        target,
+                        selected,
+                        setConnectedDeviceAsDefault,
+                        cancellationToken),
                     cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -140,12 +160,14 @@ public sealed class BluetoothOperationController : IDisposable
         BluetoothRequestedAction action,
         BluetoothOperationTarget target,
         BluetoothAudioDeviceDescriptor selected,
+        bool setConnectedDeviceAsDefault,
         CancellationToken cancellationToken) =>
         action switch
         {
             BluetoothRequestedAction.Connect => ConnectAsync(
                 target,
                 selected,
+                setConnectedDeviceAsDefault,
                 cancellationToken),
             BluetoothRequestedAction.Disconnect => DisconnectAsync(
                 target,
@@ -157,6 +179,7 @@ public sealed class BluetoothOperationController : IDisposable
     private async ValueTask<BluetoothOperationSnapshot> ConnectAsync(
         BluetoothOperationTarget target,
         BluetoothAudioDeviceDescriptor selected,
+        bool setConnectedDeviceAsDefault,
         CancellationToken cancellationToken)
     {
         Publish(
@@ -209,6 +232,17 @@ public sealed class BluetoothOperationController : IDisposable
                 connection.ConnectionState,
                 DefaultOutputState.NotApplicable,
                 connection.Failure);
+        }
+
+        if (!setConnectedDeviceAsDefault)
+        {
+            return PublishTerminal(
+                target,
+                BluetoothRequestedAction.Connect,
+                BluetoothOperationOutcome.Succeeded,
+                BluetoothConnectionState.Connected,
+                DefaultOutputState.NotDefault,
+                null);
         }
 
         if (defaultOutput.Capability != DefaultOutputCapability.Supported)

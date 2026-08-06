@@ -231,12 +231,20 @@ internal static class BluetoothAudioCatalogBuilder
             .Order()];
         BluetoothAudioEndpointEvidence[] renderEndpoints = [.. endpoints.Where(
             endpoint => endpoint.Direction == BluetoothEndpointDirection.Render)];
+        BluetoothConnectionState connection = ResolveConnection(renderEndpoints);
+        bool connected = connection == BluetoothConnectionState.Connected;
+        bool isDefault = renderEndpoints.Any(endpoint =>
+            endpoint.Profile == BluetoothAudioProfile.Stereo &&
+            endpoint.IsConsoleDefault &&
+            endpoint.IsMultimediaDefault);
         return new(
             group.Key,
             displayName,
             kinds.Length == 1 ? kinds[0] : BluetoothAudioKind.Unknown,
-            ResolveConnection(renderEndpoints),
-            DefaultOutputState.NotApplicable,
+            connection,
+            connected
+                ? isDefault ? DefaultOutputState.Default : DefaultOutputState.NotDefault
+                : DefaultOutputState.NotApplicable,
             ResolveCapability(endpoints),
             profiles,
             group.Key == selectedDevice);

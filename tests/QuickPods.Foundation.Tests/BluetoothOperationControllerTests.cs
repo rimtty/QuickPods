@@ -31,6 +31,27 @@ public sealed class BluetoothOperationControllerTests
     }
 
     [Fact]
+    public async Task ConnectCanExplicitlySkipDefaultOutputMutation()
+    {
+        await using BluetoothCatalogController catalog = await CreateCatalogAsync(
+            BluetoothDeviceCapability.DirectControl,
+            includeSecondDevice: false);
+        var bluetooth = new FakeBluetoothOperationPort();
+        var defaultOutput = new FakeDefaultOutputOperationPort(
+            new(DefaultOutputState.Default, RequestSubmitted: true, BluetoothMutationFailure.None));
+        using var controller = CreateController(catalog, bluetooth, defaultOutput);
+
+        BluetoothOperationSnapshot result = await controller.ConnectSelectedAsync(
+            setConnectedDeviceAsDefault: false);
+
+        Assert.Equal(BluetoothOperationOutcome.Succeeded, result.Outcome);
+        Assert.Equal(BluetoothConnectionState.Connected, result.ConnectionState);
+        Assert.Equal(DefaultOutputState.NotDefault, result.DefaultOutputState);
+        Assert.Equal(1, bluetooth.ConnectCalls);
+        Assert.Equal(0, defaultOutput.Calls);
+    }
+
+    [Fact]
     public async Task SelectionChangeSupersedesConnectAndSkipsDefaultOutput()
     {
         await using BluetoothCatalogController catalog = await CreateCatalogAsync(

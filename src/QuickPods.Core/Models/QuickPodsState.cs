@@ -44,6 +44,19 @@ public enum QuickPodsErrorCode
     ProtocolMismatch,
 }
 
+public enum QuickPodsDisplayMode
+{
+    Auto,
+    TrayOnly,
+}
+
+public enum QuickPodsThemeMode
+{
+    System,
+    Dark,
+    Light,
+}
+
 public readonly record struct BluetoothDeviceKey
 {
     [JsonConstructor]
@@ -83,9 +96,25 @@ public sealed record AudioState(
 public sealed record QuickPodsSettings(
     BluetoothDeviceKey? SelectedDevice,
     bool StartWithWindows,
-    bool PreferNativeTaskbarSurface)
+    bool PreferNativeTaskbarSurface,
+    QuickPodsDisplayMode DisplayMode = QuickPodsDisplayMode.Auto,
+    bool SetConnectedDeviceAsDefault = true,
+    int MouseWheelStepPercent = 2,
+    QuickPodsThemeMode Theme = QuickPodsThemeMode.System,
+    bool ConfirmBluetoothDisconnect = false,
+    int SchemaVersion = 1)
 {
     public static QuickPodsSettings Default { get; } = new(null, false, true);
+
+    public QuickPodsSettings Normalize() => this with
+    {
+        SchemaVersion = 1,
+        DisplayMode = Enum.IsDefined(DisplayMode) ? DisplayMode : QuickPodsDisplayMode.Auto,
+        MouseWheelStepPercent = MouseWheelStepPercent is 1 or 2 or 5 or 10
+            ? MouseWheelStepPercent
+            : Default.MouseWheelStepPercent,
+        Theme = Enum.IsDefined(Theme) ? Theme : QuickPodsThemeMode.System,
+    };
 }
 
 public sealed record QuickPodsState(

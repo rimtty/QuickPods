@@ -158,8 +158,10 @@ internal sealed class ObserverRuntime : IDisposable
     {
         private readonly BlockingCollection<ObserverSignal> signals = [];
         private readonly ManualResetEventSlim stop = new(false);
-        private readonly TaskCompletionSource<bool> ready = new(
-            TaskCreationOptions.RunContinuationsAsynchronously);
+        // Start waits synchronously with a product timeout. Complete inline on
+        // this dedicated MTA so unrelated ThreadPool load cannot cause a false
+        // observer-start timeout after UIA registration has already succeeded.
+        private readonly TaskCompletionSource<bool> ready = new();
         private readonly Thread worker;
         private readonly int ownedProcessId;
         private Exception? failure;

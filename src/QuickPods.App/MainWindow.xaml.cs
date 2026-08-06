@@ -1,58 +1,157 @@
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Text;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using QuickPods.Core;
 using QuickPods.Core.Models;
 using QuickPods.Core.Ports;
+using QuickPods.Infrastructure.Settings;
+using QuickPods.Presentation;
 using QuickPods.Windows.Settings;
+using WpfClipboard = System.Windows.Clipboard;
+using WpfKeyEventArgs = System.Windows.Input.KeyEventArgs;
+using WpfMessageBox = System.Windows.MessageBox;
 
 namespace QuickPods.App;
 
 public partial class MainWindow : Window
 {
-    private const int MouseWheelStepPercent = 2;
-    private readonly AudioController controller;
+    private readonly AudioController audio;
+    private readonly BluetoothCatalogController? bluetoothCatalog;
+    private readonly BluetoothOperationController? bluetoothOperations;
     private readonly IWindowsSettingsLauncher settingsLauncher;
-    private bool applyingState;
+    private readonly JsonBluetoothSelectionStore settingsStore;
+    private readonly IStartupRegistration startupRegistration;
+    private readonly ProductLifetimePolicy lifetimePolicy;
+    private readonly string logsDirectory;
+    private bool applyingAudioState;
+    private bool applyingBluetoothState;
+    private bool applyingSettings;
+    private bool bluetoothRefreshing;
+    private string? bluetoothCatalogError;
+    private BluetoothProductPresentation bluetoothView;
+    private QuickPodsSettings productSettings = QuickPodsSettings.Default;
+    private Task? initialization;
+
+    internal event Action<QuickPodsSettings>? SettingsChanged;
 
     public MainWindow(
-        AudioController controller,
+        AudioController audio,
+        BluetoothCatalogController? bluetoothCatalog,
+        BluetoothOperationController? bluetoothOperations,
         IWindowsSettingsLauncher settingsLauncher,
+        JsonBluetoothSelectionStore settingsStore,
+        IStartupRegistration startupRegistration,
+        ProductLifetimePolicy lifetimePolicy,
+        string logsDirectory,
         string? startupDiagnostic)
     {
-        this.controller = controller ?? throw new ArgumentNullException(nameof(controller));
+        this.audio = audio ?? throw new ArgumentNullException(nameof(audio));
+        this.bluetoothCatalog = bluetoothCatalog;
+        this.bluetoothOperations = bluetoothOperations;
         this.settingsLauncher = settingsLauncher ??
             throw new ArgumentNullException(nameof(settingsLauncher));
+        this.settingsStore = settingsStore ?? throw new ArgumentNullException(nameof(settingsStore));
+        this.startupRegistration = startupRegistration ??
+            throw new ArgumentNullException(nameof(startupRegistration));
+        this.lifetimePolicy = lifetimePolicy ??
+            throw new ArgumentNullException(nameof(lifetimePolicy));
+        ArgumentException.ThrowIfNullOrWhiteSpace(logsDirectory);
+        this.logsDirectory = Path.GetFullPath(logsDirectory);
+        bluetoothRefreshing = bluetoothCatalog is not null;
+        bluetoothCatalogError = bluetoothCatalog is null
+            ? "Bluetoothサービスを初期化できませんでした。"
+            : null;
+        bluetoothView = BluetoothProductPresenter.Project(
+            bluetoothCatalog?.State ?? BluetoothAudioCatalogSnapshot.Empty,
+            bluetoothOperations?.State ?? BluetoothOperationSnapshot.Idle,
+            bluetoothRefreshing,
+            bluetoothCatalogError);
+
         InitializeComponent();
-        DiagnosticText.Text = startupDiagnostic ?? string.Empty;
-        controller.StateChanged += OnAudioStateChanged;
+        InitializeSettingsChoices();
+        VersionText.Text = $"QuickPods {GetProductVersion()}";
+        AudioDiagnosticText.Text = startupDiagnostic ?? string.Empty;
+        audio.StateChanged += OnAudioStateChanged;
+        if (bluetoothCatalog is not null)
+        {
+            bluetoothCatalog.StateChanged += OnBluetoothCatalogStateChanged;
+        }
+
+        if (bluetoothOperations is not null)
+        {
+            bluetoothOperations.StateChanged += OnBluetoothOperationStateChanged;
+        }
+
+        ApplyBluetoothPresentation();
     }
+
+    internal void ReportBluetoothCatalogFailure(string message)
+    {
+        bluetoothRefreshing = false;
+        bluetoothCatalogError = string.IsNullOrWhiteSpace(message)
+            ? "Bluetoothデバイス一覧を更新できませんでした。"
+            : $"Bluetoothデバイス一覧を更新できませんでした: {message}";
+        ApplyBluetoothPresentation();
+    }
+
+    internal void ReportSettingsFailure(string message)
+    {
+        SettingsDiagnosticText.Text = message;
+    }
+
+    internal Task InitializeAsync() => initialization ??= InitializeCoreAsync();
 
     private async void OnLoaded(object sender, RoutedEventArgs eventArgs)
     {
-        await RunOperationAsync(() => controller.InitializeAsync().AsTask());
+        await InitializeAsync();
+    }
+
+    private void OnClosing(object? sender, CancelEventArgs eventArgs)
+    {
+        if (!lifetimePolicy.ShouldHideMainWindowOnClose)
+        {
+            return;
+        }
+
+        eventArgs.Cancel = true;
+        Hide();
     }
 
     private void OnClosed(object? sender, EventArgs eventArgs)
     {
-        controller.StateChanged -= OnAudioStateChanged;
+        audio.StateChanged -= OnAudioStateChanged;
+        if (bluetoothCatalog is not null)
+        {
+            bluetoothCatalog.StateChanged -= OnBluetoothCatalogStateChanged;
+        }
+
+        if (bluetoothOperations is not null)
+        {
+            bluetoothOperations.StateChanged -= OnBluetoothOperationStateChanged;
+        }
     }
 
     private void OnVolumeChanged(object sender, RoutedPropertyChangedEventArgs<double> eventArgs)
     {
-        if (applyingState || !VolumeSlider.IsEnabled)
+        if (applyingAudioState || !VolumeSlider.IsEnabled)
         {
             return;
         }
 
         int value = (int)Math.Round(eventArgs.NewValue, MidpointRounding.AwayFromZero);
         VolumePercentText.Text = $"{value}%";
-        controller.PreviewVolume(value);
+        audio.PreviewVolume(value);
     }
 
     private async void OnVolumeCommit(object sender, MouseButtonEventArgs eventArgs)
     {
         int value = (int)Math.Round(VolumeSlider.Value, MidpointRounding.AwayFromZero);
-        await RunOperationAsync(() => controller.CommitVolumeAsync(value).AsTask());
+        await RunAudioOperationAsync(() => audio.CommitVolumeAsync(value).AsTask());
     }
 
     private async void OnVolumeMouseWheel(object sender, MouseWheelEventArgs eventArgs)
@@ -72,35 +171,249 @@ public partial class MainWindow : Window
 
         eventArgs.Handled = true;
         VolumeSlider.Value = value;
-        await RunOperationAsync(() => controller.CommitVolumeAsync(value).AsTask());
+        await RunAudioOperationAsync(() => audio.CommitVolumeAsync(value).AsTask());
     }
 
     private async void OnToggleMute(object sender, RoutedEventArgs eventArgs)
     {
-        await RunOperationAsync(() => controller.ToggleMuteAsync().AsTask());
+        await RunAudioOperationAsync(() => audio.ToggleMuteAsync().AsTask());
     }
 
     private async void OnRefresh(object sender, RoutedEventArgs eventArgs)
     {
-        await RunOperationAsync(() => controller.InitializeAsync().AsTask());
+        await RefreshAllAsync();
+    }
+
+    internal Task RequestRefreshAsync() => RefreshAllAsync();
+
+    internal Task SetTaskbarSurfaceVisibleAsync(bool visible) => PersistProductSettingsAsync(
+        productSettings with
+        {
+            DisplayMode = visible ? QuickPodsDisplayMode.Auto : QuickPodsDisplayMode.TrayOnly,
+        });
+
+    internal void PositionAbovePrimaryTaskbar()
+    {
+        UpdateLayout();
+        Rect workArea = SystemParameters.WorkArea;
+        double width = ActualWidth > 0 ? ActualWidth : Width;
+        double height = ActualHeight > 0 ? ActualHeight : MinHeight;
+        Left = Math.Max(workArea.Left + 8, workArea.Left + ((workArea.Width - width) / 2));
+        Top = Math.Max(workArea.Top + 8, workArea.Bottom - height - 8);
+    }
+
+    private void OnContentRendered(object? sender, EventArgs eventArgs) =>
+        PositionAbovePrimaryTaskbar();
+
+    private void OnWindowPreviewKeyDown(object sender, WpfKeyEventArgs eventArgs)
+    {
+        if (eventArgs.Key == Key.Escape)
+        {
+            eventArgs.Handled = true;
+            Close();
+        }
+    }
+
+    private async void OnBluetoothSelectionChanged(
+        object sender,
+        SelectionChangedEventArgs eventArgs)
+    {
+        if (applyingBluetoothState ||
+            bluetoothCatalog is null ||
+            BluetoothDeviceList.SelectedItem is not BluetoothDeviceRowPresentation selected ||
+            selected.DeviceKey == bluetoothCatalog.State.SelectedDeviceKey)
+        {
+            return;
+        }
+
+        try
+        {
+            bluetoothCatalogError = null;
+            await bluetoothCatalog.SelectAsync(selected.DeviceKey);
+        }
+        catch (Exception exception)
+        {
+            ReportBluetoothCatalogFailure(exception.Message);
+        }
+    }
+
+    private async void OnPrimaryAction(object sender, RoutedEventArgs eventArgs)
+    {
+        if (!bluetoothView.IsPrimaryActionEnabled)
+        {
+            return;
+        }
+
+        switch (bluetoothView.PrimaryAction)
+        {
+            case ProductPrimaryActionKind.Connect:
+                await RunBluetoothMutationAsync(
+                    () => bluetoothOperations!.ConnectSelectedAsync(
+                        productSettings.SetConnectedDeviceAsDefault).AsTask());
+                break;
+            case ProductPrimaryActionKind.MakeDefault:
+                await RunBluetoothMutationAsync(
+                    () => bluetoothOperations!.ConnectSelectedAsync(
+                        setConnectedDeviceAsDefault: true).AsTask());
+                break;
+            case ProductPrimaryActionKind.Disconnect:
+                if (productSettings.ConfirmBluetoothDisconnect &&
+                    WpfMessageBox.Show(
+                        this,
+                        "選択したBluetoothオーディオを切断しますか？",
+                        "QuickPods",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question,
+                        MessageBoxResult.No) != MessageBoxResult.Yes)
+                {
+                    return;
+                }
+
+                await RunBluetoothMutationAsync(
+                    () => bluetoothOperations!.DisconnectSelectedAsync().AsTask());
+                break;
+            case ProductPrimaryActionKind.OpenBluetoothSettings:
+                OnOpenBluetoothSettings(sender, eventArgs);
+                break;
+        }
     }
 
     private void OnOpenSoundSettings(object sender, RoutedEventArgs eventArgs)
     {
         if (!settingsLauncher.TryOpenSoundSettings())
         {
-            DiagnosticText.Text = "Windowsのサウンド設定を開けませんでした。";
+            BluetoothDiagnosticText.Text = "Windowsのサウンド設定を開けませんでした。";
         }
+    }
+
+    private void OnOpenBluetoothSettings(object sender, RoutedEventArgs eventArgs)
+    {
+        if (!settingsLauncher.TryOpenBluetoothSettings())
+        {
+            BluetoothDiagnosticText.Text = "WindowsのBluetooth設定を開けませんでした。";
+        }
+    }
+
+    private async void OnStartWithWindowsChanged(object sender, RoutedEventArgs eventArgs)
+    {
+        if (applyingSettings)
+        {
+            return;
+        }
+
+        bool requested = StartWithWindowsCheckBox.IsChecked == true;
+        bool previous = productSettings.StartWithWindows;
+        StartWithWindowsCheckBox.IsEnabled = false;
+        SettingsDiagnosticText.Text = string.Empty;
+        try
+        {
+            await startupRegistration.SetEnabledAsync(requested);
+            bool actual = await startupRegistration.IsEnabledAsync();
+            if (actual != requested)
+            {
+                throw new InvalidOperationException("自動起動設定を確認できませんでした。");
+            }
+
+            QuickPodsSettings saved = await settingsStore.UpdateSettingsAsync(
+                current => current with { StartWithWindows = actual });
+            ApplyProductSettings(saved);
+        }
+        catch (Exception exception)
+        {
+            SettingsDiagnosticText.Text = $"自動起動設定を変更できませんでした: {exception.Message}";
+            try
+            {
+                await startupRegistration.SetEnabledAsync(previous);
+            }
+            catch
+            {
+            }
+
+            bool? actual = await TryReadStartupRegistrationAsync();
+            ApplyStartWithWindows(actual ?? previous);
+        }
+        finally
+        {
+            StartWithWindowsCheckBox.IsEnabled = true;
+        }
+    }
+
+    private void OnOpenLogs(object sender, RoutedEventArgs eventArgs)
+    {
+        try
+        {
+            Directory.CreateDirectory(logsDirectory);
+            _ = Process.Start(new ProcessStartInfo
+            {
+                FileName = logsDirectory,
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception exception)
+        {
+            SettingsDiagnosticText.Text = $"ログフォルダーを開けませんでした: {exception.Message}";
+        }
+    }
+
+    private void OnCopyDiagnostics(object sender, RoutedEventArgs eventArgs)
+    {
+        try
+        {
+            WpfClipboard.SetText(CreateDiagnosticSummary());
+            SettingsDiagnosticText.Text = "診断情報をクリップボードへコピーしました。";
+        }
+        catch (Exception exception)
+        {
+            SettingsDiagnosticText.Text = $"診断情報をコピーできませんでした: {exception.Message}";
+        }
+    }
+
+    private async void OnProductSettingChanged(object sender, RoutedEventArgs eventArgs)
+    {
+        if (applyingSettings ||
+            DisplayModeComboBox.SelectedValue is not QuickPodsDisplayMode displayMode ||
+            ThemeComboBox.SelectedValue is not QuickPodsThemeMode theme ||
+            MouseWheelStepComboBox.SelectedValue is not int wheelStep)
+        {
+            return;
+        }
+
+        QuickPodsSettings requested = productSettings with
+        {
+            DisplayMode = displayMode,
+            Theme = theme,
+            MouseWheelStepPercent = wheelStep,
+            SetConnectedDeviceAsDefault = SetConnectedDeviceAsDefaultCheckBox.IsChecked == true,
+            ConfirmBluetoothDisconnect = ConfirmBluetoothDisconnectCheckBox.IsChecked == true,
+        };
+        await PersistProductSettingsAsync(requested);
     }
 
     private void OnAudioStateChanged(object? sender, AudioStateChangedEventArgs eventArgs)
     {
-        _ = Dispatcher.InvokeAsync(() => ApplyState(eventArgs.State));
+        _ = Dispatcher.InvokeAsync(() => ApplyAudioState(eventArgs.State));
     }
 
-    private void ApplyState(AudioState state)
+    private void OnBluetoothCatalogStateChanged(
+        object? sender,
+        BluetoothAudioCatalogSnapshot catalog)
     {
-        applyingState = true;
+        _ = Dispatcher.InvokeAsync(() =>
+        {
+            bluetoothRefreshing = false;
+            bluetoothCatalogError = null;
+            ApplyBluetoothPresentation();
+        });
+    }
+
+    private void OnBluetoothOperationStateChanged(
+        object? sender,
+        BluetoothOperationSnapshot operation) =>
+        _ = Dispatcher.InvokeAsync(ApplyBluetoothPresentation);
+
+    private void ApplyAudioState(AudioState state)
+    {
+        applyingAudioState = true;
         try
         {
             bool available = state.Capability == AudioCapability.Available;
@@ -111,7 +424,7 @@ public partial class MainWindow : Window
             VolumePercentText.Text = available ? $"{state.VolumePercent}%" : "--%";
             MuteButton.ToolTip = state.IsMuted ? "ミュート解除" : "ミュート";
             MuteGlyph.Text = state.IsMuted ? "\uE74F" : "\uE767";
-            StatusText.Text = state.Capability switch
+            AudioStatusText.Text = state.Capability switch
             {
                 AudioCapability.Available => state.IsMuted ? "ミュート中" : "利用可能",
                 AudioCapability.ServiceUnavailable => "Audio service利用不可",
@@ -120,35 +433,311 @@ public partial class MainWindow : Window
         }
         finally
         {
-            applyingState = false;
+            applyingAudioState = false;
         }
     }
 
-    private async Task RunOperationAsync(Func<Task<AudioState>> operation)
+    private void ApplyBluetoothPresentation()
+    {
+        bluetoothView = BluetoothProductPresenter.Project(
+            bluetoothCatalog?.State ?? BluetoothAudioCatalogSnapshot.Empty,
+            bluetoothOperations?.State ?? BluetoothOperationSnapshot.Idle,
+            bluetoothRefreshing,
+            bluetoothCatalogError);
+        applyingBluetoothState = true;
+        try
+        {
+            BluetoothDeviceList.ItemsSource = bluetoothView.Devices;
+            BluetoothDeviceList.SelectedValue = bluetoothView.SelectedDeviceKey;
+            BluetoothDeviceList.IsEnabled = !bluetoothView.IsRefreshing && !bluetoothView.IsBusy;
+            BluetoothEmptyText.Visibility = bluetoothView.HasDevices
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+            BluetoothEmptyText.Text = bluetoothView.IsRefreshing
+                ? "Bluetoothオーディオを確認しています…"
+                : "ペアリング済みのBluetoothオーディオが見つかりません";
+            PrimaryActionButton.Content = bluetoothView.PrimaryActionText;
+            PrimaryActionButton.IsEnabled = bluetoothView.IsPrimaryActionEnabled;
+            SoundSettingsButton.Visibility = bluetoothView.ShowSoundRecovery
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            BluetoothDiagnosticText.Text = bluetoothView.ErrorMessage ?? string.Empty;
+            RefreshButton.IsEnabled = !bluetoothView.IsRefreshing && !bluetoothView.IsBusy;
+        }
+        finally
+        {
+            applyingBluetoothState = false;
+        }
+    }
+
+    private async Task RefreshBluetoothAsync()
+    {
+        if (bluetoothCatalog is null || bluetoothView.IsBusy)
+        {
+            return;
+        }
+
+        bluetoothRefreshing = true;
+        bluetoothCatalogError = null;
+        ApplyBluetoothPresentation();
+        try
+        {
+            await bluetoothCatalog.RefreshAsync();
+        }
+        catch (Exception exception)
+        {
+            ReportBluetoothCatalogFailure(exception.Message);
+        }
+        finally
+        {
+            bluetoothRefreshing = false;
+            ApplyBluetoothPresentation();
+        }
+    }
+
+    private async Task RefreshAllAsync()
+    {
+        await RunAudioOperationAsync(() => audio.InitializeAsync().AsTask());
+        await RefreshBluetoothAsync();
+    }
+
+    private async Task InitializeSettingsAsync()
+    {
+        QuickPodsSettings stored;
+        try
+        {
+            stored = await settingsStore.LoadSettingsAsync();
+        }
+        catch (Exception exception)
+        {
+            SettingsDiagnosticText.Text = $"設定を読み込めませんでした: {exception.Message}";
+            ApplyProductSettings(QuickPodsSettings.Default);
+            return;
+        }
+
+        try
+        {
+            await startupRegistration.SetEnabledAsync(stored.StartWithWindows);
+            bool registered = await startupRegistration.IsEnabledAsync();
+            if (stored.StartWithWindows != registered)
+            {
+                throw new InvalidOperationException("自動起動設定を確認できませんでした。");
+            }
+
+        }
+        catch (Exception exception)
+        {
+            SettingsDiagnosticText.Text = $"自動起動設定を確認できませんでした: {exception.Message}";
+            bool? actual = await TryReadStartupRegistrationAsync();
+            if (actual is not null)
+            {
+                stored = stored with { StartWithWindows = actual.Value };
+            }
+        }
+
+        ApplyProductSettings(stored);
+    }
+
+    private async Task PersistProductSettingsAsync(QuickPodsSettings requested)
+    {
+        SettingsDiagnosticText.Text = string.Empty;
+        try
+        {
+            QuickPodsSettings saved = await settingsStore.UpdateSettingsAsync(current => current with
+            {
+                DisplayMode = requested.DisplayMode,
+                Theme = requested.Theme,
+                MouseWheelStepPercent = requested.MouseWheelStepPercent,
+                SetConnectedDeviceAsDefault = requested.SetConnectedDeviceAsDefault,
+                ConfirmBluetoothDisconnect = requested.ConfirmBluetoothDisconnect,
+            });
+            ApplyProductSettings(saved);
+        }
+        catch (Exception exception)
+        {
+            SettingsDiagnosticText.Text = $"設定を保存できませんでした: {exception.Message}";
+            ApplyProductSettings(productSettings);
+        }
+    }
+
+    private async Task InitializeCoreAsync()
+    {
+        await RunAudioOperationAsync(() => audio.InitializeAsync().AsTask());
+        await InitializeSettingsAsync();
+    }
+
+    private async Task<bool?> TryReadStartupRegistrationAsync()
+    {
+        try
+        {
+            return await startupRegistration.IsEnabledAsync();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private void ApplyStartWithWindows(bool enabled)
+    {
+        ApplyProductSettings(productSettings with { StartWithWindows = enabled });
+    }
+
+    private int MouseWheelStepPercent => productSettings.MouseWheelStepPercent;
+
+    private void InitializeSettingsChoices()
+    {
+        applyingSettings = true;
+        try
+        {
+            DisplayModeComboBox.ItemsSource = new SettingChoice<QuickPodsDisplayMode>[]
+            {
+                new(QuickPodsDisplayMode.Auto, "自動"),
+                new(QuickPodsDisplayMode.TrayOnly, "通知領域のみ"),
+            };
+            ThemeComboBox.ItemsSource = new SettingChoice<QuickPodsThemeMode>[]
+            {
+                new(QuickPodsThemeMode.System, "Windowsに合わせる"),
+                new(QuickPodsThemeMode.Dark, "ダーク"),
+                new(QuickPodsThemeMode.Light, "ライト"),
+            };
+            MouseWheelStepComboBox.ItemsSource = new SettingChoice<int>[]
+            {
+                new(1, "1%"),
+                new(2, "2%"),
+                new(5, "5%"),
+                new(10, "10%"),
+            };
+        }
+        finally
+        {
+            applyingSettings = false;
+        }
+    }
+
+    private void ApplyProductSettings(QuickPodsSettings settings)
+    {
+        productSettings = settings.Normalize();
+        applyingSettings = true;
+        try
+        {
+            DisplayModeComboBox.SelectedValue = productSettings.DisplayMode;
+            ThemeComboBox.SelectedValue = productSettings.Theme;
+            MouseWheelStepComboBox.SelectedValue = productSettings.MouseWheelStepPercent;
+            SetConnectedDeviceAsDefaultCheckBox.IsChecked =
+                productSettings.SetConnectedDeviceAsDefault;
+            ConfirmBluetoothDisconnectCheckBox.IsChecked =
+                productSettings.ConfirmBluetoothDisconnect;
+            StartWithWindowsCheckBox.IsChecked = productSettings.StartWithWindows;
+        }
+        finally
+        {
+            applyingSettings = false;
+        }
+
+        SettingsChanged?.Invoke(productSettings);
+    }
+
+    private string CreateDiagnosticSummary()
+    {
+        BluetoothDeviceRowPresentation? selected = bluetoothView.Devices.FirstOrDefault(
+            device => device.IsSelected);
+        var builder = new StringBuilder();
+        _ = builder.AppendLine(CultureInfo.InvariantCulture, $"QuickPods {GetProductVersion()}");
+        _ = builder.AppendLine(
+            CultureInfo.InvariantCulture,
+            $"Audio capability: {audio.State.Capability}");
+        _ = builder.AppendLine(
+            CultureInfo.InvariantCulture,
+            $"Audio volume: {audio.State.VolumePercent}%");
+        _ = builder.AppendLine(
+            CultureInfo.InvariantCulture,
+            $"Audio muted: {audio.State.IsMuted}");
+        _ = builder.AppendLine(
+            CultureInfo.InvariantCulture,
+            $"Bluetooth device count: {bluetoothView.Devices.Length}");
+        _ = builder.AppendLine(
+            CultureInfo.InvariantCulture,
+            $"Selected device: {selected?.DisplayName ?? "None"}");
+        _ = builder.AppendLine(
+            CultureInfo.InvariantCulture,
+            $"Selected status: {selected?.StatusText ?? "None"}");
+        _ = builder.AppendLine(
+            CultureInfo.InvariantCulture,
+            $"Display mode: {productSettings.DisplayMode}");
+        _ = builder.AppendLine(CultureInfo.InvariantCulture, $"Theme: {productSettings.Theme}");
+        _ = builder.AppendLine(
+            CultureInfo.InvariantCulture,
+            $"Wheel step: {productSettings.MouseWheelStepPercent}%");
+        _ = builder.AppendLine(
+            CultureInfo.InvariantCulture,
+            $"Start with Windows: {productSettings.StartWithWindows}");
+        return builder.ToString();
+    }
+
+    private static string GetProductVersion() =>
+        typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1.0";
+
+    private sealed record SettingChoice<T>(T Value, string Text);
+
+    private async Task RunBluetoothMutationAsync(
+        Func<Task<BluetoothOperationSnapshot>> operation)
+    {
+        if (bluetoothOperations is null)
+        {
+            return;
+        }
+
+        try
+        {
+            bluetoothCatalogError = null;
+            BluetoothOperationSnapshot result = await operation();
+            string? operationError = BluetoothProductPresenter.Project(
+                bluetoothCatalog?.State ?? BluetoothAudioCatalogSnapshot.Empty,
+                result,
+                isRefreshing: false).ErrorMessage;
+            await RefreshBluetoothAsync();
+            if (operationError is not null)
+            {
+                bluetoothCatalogError = operationError;
+            }
+
+            ApplyBluetoothPresentation();
+        }
+        catch (Exception exception)
+        {
+            bluetoothCatalogError = exception.Message;
+            ApplyBluetoothPresentation();
+        }
+    }
+
+    private async Task RunAudioOperationAsync(Func<Task<AudioState>> operation)
     {
         try
         {
             AudioState state = await operation();
-            ApplyState(state);
-            DiagnosticText.Text = string.Empty;
+            ApplyAudioState(state);
+            AudioDiagnosticText.Text = string.Empty;
         }
         catch (Exception exception)
         {
-            DiagnosticText.Text = exception.Message;
-            ApplyState(AudioState.Unavailable);
+            AudioDiagnosticText.Text = exception.Message;
+            ApplyAudioState(AudioState.Unavailable);
         }
     }
 
-    private async Task RunOperationAsync(Func<Task> operation)
+    private async Task RunAudioOperationAsync(Func<Task> operation)
     {
         try
         {
             await operation();
-            DiagnosticText.Text = string.Empty;
+            ApplyAudioState(audio.State);
+            AudioDiagnosticText.Text = string.Empty;
         }
         catch (Exception exception)
         {
-            DiagnosticText.Text = exception.Message;
+            AudioDiagnosticText.Text = exception.Message;
+            ApplyAudioState(AudioState.Unavailable);
         }
     }
 }

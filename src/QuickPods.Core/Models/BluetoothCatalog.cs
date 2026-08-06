@@ -42,7 +42,12 @@ public sealed record BluetoothAudioEndpointEvidence(
     BluetoothEndpointAvailability Availability,
     BluetoothDeviceCapability Capability,
     bool IsPaired,
-    bool IsBluetooth);
+    bool IsBluetooth)
+{
+    public bool IsConsoleDefault { get; init; }
+
+    public bool IsMultimediaDefault { get; init; }
+}
 
 public sealed record BluetoothAudioDeviceDescriptor(
     BluetoothDeviceKey DeviceKey,

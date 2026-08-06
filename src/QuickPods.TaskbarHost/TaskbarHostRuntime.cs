@@ -130,7 +130,11 @@ internal sealed class TaskbarHostRuntime : IDisposable
 
     private void RunLoop()
     {
-        ApplyPlacement(DiscoverPlacement());
+        if (IsSurfaceRequested)
+        {
+            ApplyPlacement(DiscoverPlacement());
+        }
+
         readTask = ReadStatesAsync(shutdown.Token);
 
         while (!shutdown.IsCancellationRequested && !parentProcess.HasExited)
@@ -140,7 +144,7 @@ internal sealed class TaskbarHostRuntime : IDisposable
             _ = notificationWindow.PumpMessages();
             _ = nativeHost?.PumpMessages();
             _ = floatingHost?.PumpMessages();
-            if (notificationWindow.TryConsumeTaskbarCreated())
+            if (notificationWindow.TryConsumeTaskbarCreated() && IsSurfaceRequested)
             {
                 DestroySurface();
                 DisposeObserver();
@@ -149,7 +153,7 @@ internal sealed class TaskbarHostRuntime : IDisposable
 
             DrainObserver();
 
-            if (layoutInvalidated)
+            if (layoutInvalidated && IsSurfaceRequested)
             {
                 DestroySurface();
                 StartDiscoveryIfNeeded();
@@ -159,13 +163,22 @@ internal sealed class TaskbarHostRuntime : IDisposable
             if (now >= nextWatchdogAt)
             {
                 nextWatchdogAt = now + WatchdogInterval;
-                StartDiscoveryIfNeeded();
+                if (IsSurfaceRequested)
+                {
+                    StartDiscoveryIfNeeded();
+                }
             }
 
             if (discoveryTask is { IsCompleted: true } completedDiscovery)
             {
                 discoveryTask = null;
                 DiscoveryAttempt attempt = completedDiscovery.GetAwaiter().GetResult();
+                if (!IsSurfaceRequested)
+                {
+                    layoutInvalidated = false;
+                    continue;
+                }
+
                 if (attempt.Epoch != discoveryEpoch)
                 {
                     StartDiscoveryIfNeeded();
@@ -231,7 +244,23 @@ internal sealed class TaskbarHostRuntime : IDisposable
             return;
         }
 
+        bool wasSurfaceRequested = IsSurfaceRequested;
         currentState = accepted;
+        if (!IsSurfaceRequested)
+        {
+            DestroySurface();
+            DisposeObserver();
+            currentPlacement = RuntimePlacementIdentity.Hidden;
+            layoutInvalidated = false;
+            return;
+        }
+
+        if (!wasSurfaceRequested)
+        {
+            InvalidateLayout();
+            return;
+        }
+
         ApplyStateToSurface();
     }
 
@@ -286,6 +315,8 @@ internal sealed class TaskbarHostRuntime : IDisposable
 
     private TaskbarStateSnapshot StateFor(TaskbarSurfaceMode mode) =>
         currentState with { SurfaceMode = mode };
+
+    private bool IsSurfaceRequested => currentState.SurfaceMode != TaskbarSurfaceMode.Hidden;
 
     private void ForwardInteraction(HostInteractionEnvelope interaction)
     {
