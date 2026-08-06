@@ -51,6 +51,7 @@
 - Windows Installer version：`0.0.60001`（正式`0.1.0`より低いpre-release mapping）
 - signature：`NotSigned`（証明書準備後の正式release gate）
 - MSI file count：495
+- lifecycle verifier safety preflight：既存`%LOCALAPPDATA%\QuickPods`を検出してMSI起動前に拒否し、install folder、Run値、QuickPods processはいずれも0件のまま
 
 MSIの二回buildは正規化したProductCode、PackageCode、summary timestamp、およびdecompile後の全database tableが一致した。MSI containerのbyte列はWiX／Windows Installerのcompound storage／cabinet bindingにより一致せず、各buildのSHA-256はそれぞれ`8daba295b600b6ede8860f67c02ab91c4413ae390dd34b5ea15c848beb995268`と`667f93d69a7d84b56a55537fe6ec3aab998e80fae26bac920c4d9236041c938f`だった。したがってportable ZIPのbyte-for-byte deterministic保証は維持する一方、MSIは同一identity／同一database／同一payloadの再生成とbuildごとのchecksum発行を保証範囲とする。
 
@@ -58,6 +59,6 @@ MSIの二回buildは正規化したProductCode、PackageCode、summary timestamp
 
 ## 未実施
 
-clean local-console環境でのinstall／launch／update／uninstall／startup残骸確認と、署名証明書を用いた署名検証は実施していない。Phase 6Bの最終mergeはロードマップどおりGate D [#48](https://github.com/rimtty/QuickPods/issues/48)通過後とする。
+clean local-console環境でのinstall／launch／update／uninstall／startup残骸確認と、署名証明書を用いた署名検証は実施していない。`build/Test-InstallerLifecycle.ps1`は既存user stateを拒否した上で旧版install、常駐中upgrade、常駐中uninstall、startup／user-data境界を一回で検証するが、現ホストにはWindows Sandboxが導入されておらず、通常user環境を変更して結果を代用していない。Phase 6Bの最終mergeはロードマップどおりGate D [#48](https://github.com/rimtty/QuickPods/issues/48)通過後とする。
 
 実Bluetooth [#38](https://github.com/rimtty/QuickPods/issues/38)／[#41](https://github.com/rimtty/QuickPods/issues/41)、local-console表示／電源 [#43](https://github.com/rimtty/QuickPods/issues/43)も未完了である。

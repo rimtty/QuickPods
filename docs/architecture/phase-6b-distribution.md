@@ -24,6 +24,6 @@ WiX v6のOpen Source Maintenance Fee条件はrelease前に配布主体が確認�
 
 ## Remaining gates
 
-- clean environmentで通常userのinstall／launch／update／uninstall／auto-start残骸0件
+- `build/Test-InstallerLifecycle.ps1`を使うclean standard-user環境でのinstall／launch／running update／running uninstall／auto-start残骸0件
 - code-signing証明書の準備、CI secret連携、署名済み正式artifact検証
 - #38、#41、#43、#48
