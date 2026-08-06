@@ -32,7 +32,13 @@ public sealed class TaskbarHostSupervisor
         State = State with { Lifecycle = TaskbarHostLifecycle.Starting, RetryAfter = null };
 
     public void RecordConnected() =>
+        State = State with { Lifecycle = TaskbarHostLifecycle.Connected, RetryAfter = null };
+
+    public void RecordStable() =>
         State = new TaskbarHostSupervisorState(TaskbarHostLifecycle.Connected, 0, null);
+
+    public void RecordStopped() =>
+        State = new TaskbarHostSupervisorState(TaskbarHostLifecycle.Stopped, 0, null);
 
     public void RecordUnexpectedExit(DateTimeOffset now)
     {

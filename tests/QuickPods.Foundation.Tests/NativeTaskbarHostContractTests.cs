@@ -47,6 +47,15 @@ public sealed class NativeTaskbarHostContractTests
             PointMessage(midpoint, layout.CenterY),
             out NativeSliderInteractionResult completed));
         Assert.True(session.TryWheel(WheelMessage(-120), out NativeSliderInteractionResult wheel));
+        Assert.True(session.TryInvokePrimary(
+            layout,
+            PointMessage(layout.IconLeft, layout.CenterY),
+            out NativeSliderInteractionResult mute));
+        Assert.True(session.TryInvokePrimary(
+            layout,
+            PointMessage(0, 0),
+            out NativeSliderInteractionResult flyout));
+        Assert.True(session.TryOpenContextMenu(out NativeSliderInteractionResult contextMenu));
 
         Assert.Equal(TaskbarSurfaceMode.Floating, session.State.SurfaceMode);
         Assert.Equal((0L, HostInteractionKind.SetVolumePreview, 0),
@@ -57,6 +66,13 @@ public sealed class NativeTaskbarHostContractTests
             (completed.Envelope.Sequence, completed.Envelope.Kind, completed.Envelope.VolumePercent));
         Assert.Equal((3L, HostInteractionKind.SetVolumeCommit, 48),
             (wheel.Envelope.Sequence, wheel.Envelope.Kind, wheel.Envelope.VolumePercent));
+        Assert.Equal((4L, HostInteractionKind.ToggleMute, null),
+            (mute.Envelope.Sequence, mute.Envelope.Kind, mute.Envelope.VolumePercent));
+        Assert.True(session.State.IsMuted);
+        Assert.Equal((5L, HostInteractionKind.OpenAudioFlyout, null),
+            (flyout.Envelope.Sequence, flyout.Envelope.Kind, flyout.Envelope.VolumePercent));
+        Assert.Equal((6L, HostInteractionKind.OpenContextMenu, null),
+            (contextMenu.Envelope.Sequence, contextMenu.Envelope.Kind, contextMenu.Envelope.VolumePercent));
         Assert.False(session.IsDragging);
     }
 

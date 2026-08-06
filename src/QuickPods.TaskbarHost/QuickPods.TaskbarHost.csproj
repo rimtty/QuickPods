@@ -10,6 +10,19 @@
 
   <ItemGroup>
     <ProjectReference Include="..\QuickPods.Contracts\QuickPods.Contracts.csproj" />
+    <ProjectReference Include="..\QuickPods.TaskbarObserver\QuickPods.TaskbarObserver.csproj"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
+
+  <Target Name="CopyTaskbarObserverManagedAssembly" AfterTargets="Build">
+    <MSBuild Projects="..\QuickPods.TaskbarObserver\QuickPods.TaskbarObserver.csproj"
+             Targets="GetTargetPath"
+             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)">
+      <Output TaskParameter="TargetOutputs" ItemName="_TaskbarObserverTargetPath" />
+    </MSBuild>
+    <Copy SourceFiles="@(_TaskbarObserverTargetPath)"
+          DestinationFolder="$(TargetDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

@@ -41,6 +41,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuickPods.TaskbarHost", "sr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuickPods.Foundation.Tests", "tests\QuickPods.Foundation.Tests\QuickPods.Foundation.Tests.csproj", "{5EDC480E-DA9E-40C6-AA2C-8D474151AE07}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuickPods.TaskbarObserver", "src\QuickPods.TaskbarObserver\QuickPods.TaskbarObserver.csproj", "{96545109-0E73-464D-A4A8-47C59F469467}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -227,6 +229,18 @@ Global
 		{5EDC480E-DA9E-40C6-AA2C-8D474151AE07}.Release|x64.Build.0 = Release|Any CPU
 		{5EDC480E-DA9E-40C6-AA2C-8D474151AE07}.Release|x86.ActiveCfg = Release|Any CPU
 		{5EDC480E-DA9E-40C6-AA2C-8D474151AE07}.Release|x86.Build.0 = Release|Any CPU
+		{96545109-0E73-464D-A4A8-47C59F469467}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{96545109-0E73-464D-A4A8-47C59F469467}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{96545109-0E73-464D-A4A8-47C59F469467}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{96545109-0E73-464D-A4A8-47C59F469467}.Debug|x64.Build.0 = Debug|Any CPU
+		{96545109-0E73-464D-A4A8-47C59F469467}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{96545109-0E73-464D-A4A8-47C59F469467}.Debug|x86.Build.0 = Debug|Any CPU
+		{96545109-0E73-464D-A4A8-47C59F469467}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{96545109-0E73-464D-A4A8-47C59F469467}.Release|Any CPU.Build.0 = Release|Any CPU
+		{96545109-0E73-464D-A4A8-47C59F469467}.Release|x64.ActiveCfg = Release|Any CPU
+		{96545109-0E73-464D-A4A8-47C59F469467}.Release|x64.Build.0 = Release|Any CPU
+		{96545109-0E73-464D-A4A8-47C59F469467}.Release|x86.ActiveCfg = Release|Any CPU
+		{96545109-0E73-464D-A4A8-47C59F469467}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -248,5 +262,6 @@ Global
 		{947D5E88-6510-4C8E-976C-384F08F40079} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{80D7CC1B-51EB-4664-9A3C-9B3151C8FBB5} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{5EDC480E-DA9E-40C6-AA2C-8D474151AE07} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{96545109-0E73-464D-A4A8-47C59F469467} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

@@ -80,7 +80,7 @@ internal sealed class NativeFloatingHost : IDisposable
             }
 
             ValidateWindow();
-            _ = HostNativeMethods.ShowWindow(windowHandle, HostNativeMethods.ShowWindowNoActivate);
+            PromoteWithoutActivation();
             ValidateWindow();
             if (!TaskbarNativeMethods.IsWindowVisible(windowHandle))
             {
@@ -365,6 +365,13 @@ internal sealed class NativeFloatingHost : IDisposable
                 return HostNativeMethods.MouseActivateNoActivate;
             case HostNativeMethods.WmLeftButtonDown:
                 return OnLeftButtonDown(window, lParam);
+            case HostNativeMethods.WmRightButtonUp:
+                if (sliderSession.TryOpenContextMenu(out NativeSliderInteractionResult contextMenu))
+                {
+                    EnqueueInteraction(contextMenu);
+                }
+
+                return nint.Zero;
             case HostNativeMethods.WmMouseMove when sliderSession.IsDragging:
                 HandlePointerMove(lParam);
                 return nint.Zero;
@@ -389,9 +396,21 @@ internal sealed class NativeFloatingHost : IDisposable
 
     private nint OnLeftButtonDown(nint window, nint lParam)
     {
-        if (!NativeWindowVerifier.TryReadSliderLayout(window, out SliderLayout layout) ||
-            !NativeSliderInteractionSession.CanBegin(layout, lParam))
+        if (!NativeWindowVerifier.TryReadSliderLayout(window, out SliderLayout layout))
         {
+            return nint.Zero;
+        }
+
+        if (!NativeSliderInteractionSession.CanBegin(layout, lParam))
+        {
+            if (sliderSession.TryInvokePrimary(
+                    layout,
+                    lParam,
+                    out NativeSliderInteractionResult primary))
+            {
+                EnqueueInteraction(primary);
+            }
+
             return nint.Zero;
         }
 
@@ -442,6 +461,25 @@ internal sealed class NativeFloatingHost : IDisposable
         }
 
         pendingInteractions.Enqueue(interaction.Envelope);
+    }
+
+    private void PromoteWithoutActivation()
+    {
+        if (!HostNativeMethods.SetWindowPosition(
+                windowHandle,
+                HostNativeMethods.WindowInsertAfterTop,
+                0,
+                0,
+                0,
+                0,
+                HostNativeMethods.SetWindowPositionNoSize |
+                HostNativeMethods.SetWindowPositionNoMove |
+                HostNativeMethods.SetWindowPositionNoOwnerZOrder |
+                HostNativeMethods.SetWindowPositionNoActivate |
+                HostNativeMethods.SetWindowPositionShowWindow))
+        {
+            throw new Win32Exception();
+        }
     }
 
     private void ValidateWindow()

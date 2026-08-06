@@ -73,4 +73,18 @@ internal static class SliderGeometry
             pointerY >= hitTop &&
             pointerY < hitBottom;
     }
+
+    internal static bool ContainsSpeakerPointer(SliderLayout layout, int pointerX, int pointerY)
+    {
+        if (layout.IconSize <= 0)
+        {
+            return false;
+        }
+
+        int iconTop = layout.CenterY - (layout.IconSize / 2);
+        return pointerX >= layout.IconLeft &&
+            pointerX < layout.IconLeft + layout.IconSize &&
+            pointerY >= iconTop &&
+            pointerY < iconTop + layout.IconSize;
+    }
 }

@@ -1,3 +1,4 @@
+using System.IO;
 using QuickPods.Contracts;
 using Xunit;
 
@@ -42,5 +43,70 @@ public sealed class ProtocolContractTests
         Assert.False(gate.TryAccept(4));
         Assert.False(gate.TryAccept(3));
         Assert.True(gate.TryAccept(5));
+    }
+
+    [Fact]
+    public void JsonLineProtocolRoundTripsBothDirections()
+    {
+        var snapshot = new TaskbarStateSnapshot(TaskbarSurfaceMode.Native, 64, true, null);
+        var state = new HostStateEnvelope(QuickPodsProtocol.Version, 7, snapshot);
+        var interaction = new HostInteractionEnvelope(
+            QuickPodsProtocol.Version,
+            8,
+            HostInteractionKind.SetVolumeCommit,
+            42);
+
+        HostStateEnvelope restoredState =
+            QuickPodsProtocolJson.DeserializeState(QuickPodsProtocolJson.Serialize(state));
+        HostInteractionEnvelope restoredInteraction =
+            QuickPodsProtocolJson.DeserializeInteraction(QuickPodsProtocolJson.Serialize(interaction));
+
+        Assert.Equal(state, restoredState);
+        Assert.Equal(interaction, restoredInteraction);
+    }
+
+    [Fact]
+    public void JsonLineProtocolRejectsOversizedInput()
+    {
+        string oversized = new('x', QuickPodsProtocol.MaximumMessageCharacters + 1);
+
+        Assert.Throws<InvalidDataException>(() => QuickPodsProtocolJson.DeserializeState(oversized));
+    }
+
+    [Fact]
+    public void ObserverProtocolRoundTripsSanitizedEpochAndInvalidation()
+    {
+        var request = new ObserverSessionRequest(QuickPodsProtocol.Version, 3, 7);
+        var batch = new ObserverInvalidationBatch(
+            QuickPodsProtocol.Version,
+            5,
+            3,
+            7,
+            ObserverInvalidationKind.StructureChanged |
+                ObserverInvalidationKind.BoundingRectangleChanged,
+            ObserverSourceClassification.External);
+
+        Assert.Equal(
+            request,
+            QuickPodsProtocolJson.DeserializeObserverSession(
+                QuickPodsProtocolJson.Serialize(request)));
+        Assert.Equal(
+            batch,
+            QuickPodsProtocolJson.DeserializeObserverInvalidation(
+                QuickPodsProtocolJson.Serialize(batch)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ObserverInvalidationBatch(
+            QuickPodsProtocol.Version,
+            0,
+            0,
+            0,
+            ObserverInvalidationKind.Ready | ObserverInvalidationKind.StructureChanged,
+            ObserverSourceClassification.Unknown));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ObserverInvalidationBatch(
+            QuickPodsProtocol.Version,
+            0,
+            0,
+            0,
+            ObserverInvalidationKind.StructureChanged,
+            (ObserverSourceClassification)99));
     }
 }

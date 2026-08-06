@@ -26,6 +26,7 @@ internal static class HostNativeMethods
     internal const uint WmMouseMove = 0x0200;
     internal const uint WmLeftButtonDown = 0x0201;
     internal const uint WmLeftButtonUp = 0x0202;
+    internal const uint WmRightButtonUp = 0x0205;
     internal const uint WmMouseWheel = 0x020A;
     internal const uint WmCaptureChanged = 0x0215;
     internal const uint WmDpiChanged = 0x02E0;
@@ -38,10 +39,14 @@ internal static class HostNativeMethods
     internal const int ShowWindowNoActivate = 8;
     internal const uint LayeredWindowAttributeColorKey = 0x00000001;
     internal const byte FullOpacity = 255;
+    internal const uint SetWindowPositionNoSize = 0x0001;
+    internal const uint SetWindowPositionNoMove = 0x0002;
     internal const uint SetWindowPositionNoZOrder = 0x0004;
     internal const uint SetWindowPositionNoActivate = 0x0010;
     internal const uint SetWindowPositionFrameChanged = 0x0020;
+    internal const uint SetWindowPositionShowWindow = 0x0040;
     internal const uint SetWindowPositionNoOwnerZOrder = 0x0200;
+    internal const nint WindowInsertAfterTop = 0;
     internal const uint PeekMessageRemove = 0x0001;
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
@@ -77,6 +82,9 @@ internal static class HostNativeMethods
         nint menu,
         nint instance,
         nint parameter);
+
+    [DllImport("user32.dll", EntryPoint = "RegisterWindowMessageW", CharSet = CharSet.Unicode, SetLastError = true)]
+    internal static extern uint RegisterWindowMessage(string messageName);
 
     [DllImport("user32.dll", EntryPoint = "DestroyWindow", ExactSpelling = true, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

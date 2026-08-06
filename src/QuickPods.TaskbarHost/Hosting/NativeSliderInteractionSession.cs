@@ -123,6 +123,23 @@ internal sealed class NativeSliderInteractionSession
                 SignedHighWord(unchecked((nint)wParam))),
             out result);
 
+    internal bool TryInvokePrimary(
+        SliderLayout layout,
+        nint messagePosition,
+        out NativeSliderInteractionResult result)
+    {
+        HostInteractionKind kind = SliderGeometry.ContainsSpeakerPointer(
+            layout,
+            SignedLowWord(messagePosition),
+            SignedHighWord(messagePosition))
+            ? HostInteractionKind.ToggleMute
+            : HostInteractionKind.OpenAudioFlyout;
+        return TryCreateCommand(kind, out result);
+    }
+
+    internal bool TryOpenContextMenu(out NativeSliderInteractionResult result) =>
+        TryCreateCommand(HostInteractionKind.OpenContextMenu, out result);
+
     internal bool CancelDrag()
     {
         bool wasDragging = IsDragging;
@@ -158,6 +175,30 @@ internal sealed class NativeSliderInteractionSession
                 nextSequence++,
                 kind,
                 normalized),
+            stateChanged);
+        return true;
+    }
+
+    private bool TryCreateCommand(
+        HostInteractionKind kind,
+        out NativeSliderInteractionResult result)
+    {
+        if (nextSequence == long.MaxValue)
+        {
+            result = default;
+            return false;
+        }
+
+        TaskbarStateSnapshot updated = kind == HostInteractionKind.ToggleMute
+            ? state with { IsMuted = !state.IsMuted }
+            : state;
+        bool stateChanged = updated != state;
+        state = updated;
+        result = new(
+            new HostInteractionEnvelope(
+                QuickPodsProtocol.Version,
+                nextSequence++,
+                kind),
             stateChanged);
         return true;
     }
