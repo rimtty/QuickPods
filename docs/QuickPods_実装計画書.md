@@ -500,6 +500,7 @@ stateDiagram-v2
 flowchart LR
     User["ユーザー"]
     Host["TaskbarHost.exe<br/>raw Win32 / GDI"]
+    Observer["TaskbarObserver.exe<br/>generation-scoped UIA watcher"]
     App["QuickPods.exe<br/>WPF / StateCoordinator"]
     Audio["Core Audio Service<br/>IMMDevice / EndpointVolume"]
     BT["Bluetooth Audio Service<br/>DeviceTopology / IKsControl"]
@@ -510,11 +511,13 @@ flowchart LR
     User --> Host
     User --> Flyout
     Host <--> |"Named Pipe + StateSnapshot"| App
+    Host <--> |"Authenticated invalidation pipe"| Observer
     App --> Audio
     App --> BT
     App <--> Flyout
     App --> Store
     Host --> |"SetParent"| Explorer
+    Observer --> |"UI Automation events"| Explorer
     Audio --> |"通知"| App
     BT --> |"状態確認"| App
 ```
@@ -548,6 +551,19 @@ flowchart LR
 
 ホストへCore AudioやBluetoothのCOMオブジェクトを持たせない。ホストがExplorer更新の影響で落ちても、音量・Bluetoothサービスと設定画面は生存する。
 
+#### タスクバーObserver helper
+
+`QuickPods.TaskbarObserver.exe`は、Explorer世代ごとのUI Automationイベント購読だけを担当する短寿命helperとする。
+
+- 1つの検証済みExplorer／タスクバー世代につき1プロセスとする。
+- UIA client、購読、callback、専用MTAをhelper内に閉じ込める。
+- 親TaskbarHostとの同一ユーザー認証済みpipeが失われた場合は終了する。
+- Explorer世代変更時は旧helperを終了し、新しい証明後に再生成する。
+- Job Objectのkill-on-closeへ所属させ、親終了後の残留を許可しない。
+- コマンドラインや永続ログへraw HWND／PIDを渡さず、pipeへはサニタイズ済み無効化分類だけを返す。
+
+Phase 0Eで確認したExplorer世代ごとのUSER object保持は、同一長寿命プロセス内の解除へ依存せず、helperプロセス終了を資源回収境界とする。詳細は`docs/architecture/adr-0001-uia-watcher-process-boundary.md`に従う。
+
 ### 10.3 ソリューション構成案
 
 ```text
@@ -557,6 +573,7 @@ QuickPods.sln
 │  ├─ QuickPods.Core/             # 状態、ユースケース、エラー分類
 │  ├─ QuickPods.Windows/          # Core Audio、DeviceTopology、KS
 │  ├─ QuickPods.TaskbarHost/      # raw Win32ホスト
+│  ├─ QuickPods.TaskbarObserver/  # Explorer世代単位のUIA watcher helper
 │  ├─ QuickPods.Contracts/        # IPC DTO、設定モデル
 │  └─ QuickPods.Infrastructure/   # 設定、ログ、自動起動
 ├─ tests/
@@ -743,8 +760,11 @@ Widgetsが無効な場合はタスクバー左端＋余白を開始位置とす�
 | 結果 | 意味 | 動作 |
 |---|---|---|
 | `Place` | 安全な位置を確定 | 標準またはコンパクト表示 |
-| `VerifiedNoFit` | レイアウト取得済みだが幅不足 | 即座に隠してフォールバック |
+| `VerifiedNoFit` | サポート対象の中央揃えで、レイアウト取得済みだが幅不足 | 即座に隠してフローティングへフォールバック |
+| `UnsupportedConfiguration` | Startが左端にある左揃えを確証 | タスクバー内／フローティングのどちらも表示せず非表示 |
 | `TransientUnknown` | UIA一時失敗などで安全性不明 | 原則一時非表示、条件付きで短い再試行 |
+
+製品初期版がサポートするタスクバー配置はWindows 11の**中央揃えのみ**とする。Startの左端配置を検出した場合は既知の非対応構成`UnsupportedConfiguration / UnsupportedAlignment`として扱い、空き幅不足の`VerifiedNoFit`へ読み替えない。したがって左揃えではFloatingへ退避せず、通知領域常駐と設定導線だけを維持して表示ストリップを隠す。中央揃えへ戻り、完全な探索結果を再取得できた場合に限りNative表示へ復帰する。この制限は曖昧な検出失敗ではなく、明示的な製品サポート境界である。
 
 Ceilingは一時的なランドマーク欠落で既存表示を保持する工夫を持つ。本アプリでは、初回探索、別taskbar、構成変更、identity／geometry不一致、一般的な`TransientUnknown`では即座に隠してフォールバックする。既に可視のhostだけは、完全観測由来anchorと同じtaskbar／hostをWin32で直接再証明できる`DirectExpected`で、UIA faultが単独`StartButtonMissing`の場合に限り、最後の完全Startとfresh／previous障害物のunionで既存矩形を再検証して表示を継続する。各scanは固定500ms以内、Direct中は500ms間隔、surface healthは100ms間隔で監視し、いずれかの証明が失われれば即fallbackする。保持結果を新しいbaselineにはしない。
 
@@ -775,7 +795,7 @@ Microsoftの一般的な説明では親子付け時に`WS_CHILD`と`WS_POPUP`を
 - 方式A：Ceiling互換の`WS_POPUP`維持
 - 方式B：Microsoftの通常形に近い`WS_CHILD`
 
-Phase 0Eの対象build実機比較では方式AだけがStart／Search表示中のnative continuityを満たしたため、製品実装は`WS_POPUP`維持に確定した。方式Bは診断用の明示指定として残す。PopupのExplorer再起動10回、DPI 100／125／150／200%、NoFit fallback、ピン留め多数、Start中tray churnを含む全条件に合格し、Gate Bは2026-08-06にGoとなった。製品版は別プロセスの`QuickPods.TaskbarHost.exe`へ隔離し、unsafe／NoFit時はfloatingまたはhiddenへfail closedする。
+Phase 0Eの対象build実機比較では方式AだけがStart／Search表示中のnative continuityを満たしたため、製品実装は`WS_POPUP`維持に確定した。方式Bは診断用の明示指定として残す。PopupのExplorer再起動10回、DPI 100／125／150／200%、NoFit fallback、ピン留め多数、Start中tray churnを含む全条件に合格し、Gate Bは2026-08-06にGoとなった。製品版は別プロセスの`QuickPods.TaskbarHost.exe`へ隔離する。Phase 0で確認した左揃えNoFitのFloatingは技術証拠として保存するが、製品方針変更により左揃えは非対応・Hiddenとする。中央揃え内のunsafe／NoFitだけをfloatingまたはhiddenへfail closedする。
 
 ### 11.8 描画と入力
 
@@ -1035,6 +1055,7 @@ Phase 0判定（2026-08-06）：Core Audio、Bluetooth Gate A、既定出力Gate
 - スライダー入力
 - IPC
 - Explorer復旧
+- Explorer世代単位のUIA Observer helper
 - フローティングフォールバック
 
 完了条件：

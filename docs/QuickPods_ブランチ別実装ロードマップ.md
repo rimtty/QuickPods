@@ -348,11 +348,13 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 業務サービスから独立した表示ホストを完成させる |
+| 状態 | **実装・Phase 3A実機Gate完了** — Issue #30／PR #32。Native/Floating/Hidden表示経路と左揃え非対応判定を実装。Foundation 45/45、全solution Release 0 warning、最新stacked CIに合格。175%中央揃えNativeではclick／drag／wheel、Start／Search中の同位置維持、自然破棄、残留0に合格し、移植時の`GetParent`誤用を`GetAncestor(GA_PARENT)`へ修正。175%左揃えは`UnsupportedAlignment → Hidden`、previewでもHWND生成なし・残留0に合格し、中央揃えへ戻した後の`Place → Native`と実描画復帰も確認。中央揃えNoFit時のFloating Z順はPhase 3B Issue #33へ分離 |
 | Gate BがGo | raw Win32 `QuickPods.TaskbarHost`、UIA探索、安全領域、描画、ヒットテスト |
 | Gate BがNo-Go | タスクバー直上のフローティングストリップを実装 |
-| 共通 | `Place`／`VerifiedNoFit`／`TransientUnknown`、DPI座標、負座標、テーマ入力 |
-| テスト | 障害物区間、最大空き、境界値、擬似親ウィンドウ、DPI変更、マウスキャプチャ |
-| 完了条件 | 不明時に推測配置せず、表示可能時だけ静的スナップショットを安全に描画・操作可能 |
+| 共通 | `Place`／`VerifiedNoFit`／`UnsupportedConfiguration`／`TransientUnknown`、DPI座標、負座標、テーマ入力 |
+| サポート境界 | Windows 11中央揃えのみ。左揃えは既知の非対応構成としてFloatingへ送らずHidden |
+| テスト | 障害物区間、最大空き、左揃え非対応、境界値、擬似親ウィンドウ、DPI変更、マウスキャプチャ |
+| 完了条件 | 左揃えと不明状態で推測配置せず、中央揃えで表示可能な場合だけ静的スナップショットを安全に描画・操作可能 |
 
 #### B9：`codex/phase-3b-ipc-recovery`
 
@@ -362,6 +364,7 @@ docs/validation/phase-0/
 | IPC | 同一ユーザーSID限定の名前付きパイプ、ProtocolVersion、Sequence、再接続時の完全スナップショット |
 | 入力 | 音量暫定値／最終値、ミュート、フライアウト要求、コンテキストメニュー要求 |
 | 復旧 | `TaskbarCreated`、Watchdog、Explorer世代、ホスト再起動、連続失敗時のセッション無効化 |
+| UIA寿命 | ADR-0001に従い、Explorer世代単位の`QuickPods.TaskbarObserver.exe`へ繰り返し購読を隔離し、Job Objectで残留を防止 |
 | フォールバック | ネイティブ、フローティング、通知領域の切替と点滅防止 |
 | テスト | IPC順序逆転、切断再接続、Explorer再起動10回、空き消失、ホスト異常終了 |
 | 完了条件 | AC-014～AC-021のうちBluetooth非依存項目を満たし、音量を選択された表示モードから操作可能 |

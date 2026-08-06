@@ -1,0 +1,68 @@
+using QuickPods.Contracts;
+using QuickPods.TaskbarHost.Hosting;
+using Xunit;
+
+namespace QuickPods.Foundation.Tests;
+
+public sealed class NativeTaskbarHostContractTests
+{
+    [Fact]
+    public void PopupPreservedStyleForbidsChildAndTopmostBits()
+    {
+        Assert.True(NativeWindowStyles.MatchesPopupPreserved(NativeWindowStyles.PopupPreservedStyle));
+        Assert.True(NativeWindowStyles.MatchesPopupPreserved(
+            NativeWindowStyles.PopupPreservedStyle | NativeWindowStyles.WindowStyleVisible));
+        Assert.False(NativeWindowStyles.MatchesPopupPreserved(
+            NativeWindowStyles.PopupPreservedStyle | NativeWindowStyles.WindowStyleChild));
+
+        Assert.True(NativeWindowStyles.MatchesRequiredExtendedStyle(
+            NativeWindowStyles.RequiredExtendedStyle));
+        Assert.False(NativeWindowStyles.MatchesRequiredExtendedStyle(
+            NativeWindowStyles.RequiredExtendedStyle | NativeWindowStyles.WindowExtendedStyleTopmost));
+    }
+
+    [Fact]
+    public void InteractionCalculatorClampsPointerAndWheelVolume()
+    {
+        Assert.True(SliderGeometry.TryCreate(300, 40, out SliderLayout layout));
+        Assert.Equal(0, HostInteractionCalculator.VolumePercentFromPointer(layout, layout.TrackLeft - 20));
+        Assert.Equal(100, HostInteractionCalculator.VolumePercentFromPointer(layout, layout.TrackRight + 20));
+        Assert.Equal(2, HostInteractionCalculator.VolumePercentFromWheel(0, 120));
+        Assert.Equal(100, HostInteractionCalculator.VolumePercentFromWheel(100, 120));
+        Assert.Equal(0, HostInteractionCalculator.VolumePercentFromWheel(0, -120));
+
+        var session = new NativeSliderInteractionSession(TaskbarSurfaceMode.Floating);
+        Assert.True(session.SetState(new(TaskbarSurfaceMode.Native, 25, false, null)));
+        Assert.True(session.TryBegin(
+            layout,
+            PointMessage(layout.TrackLeft, layout.CenterY),
+            out NativeSliderInteractionResult started));
+        Assert.True(session.TryMove(
+            layout,
+            PointMessage(layout.TrackRight, layout.CenterY),
+            out NativeSliderInteractionResult moved));
+        int midpoint = layout.TrackLeft + ((layout.TrackRight - layout.TrackLeft) / 2);
+        Assert.True(session.TryComplete(
+            layout,
+            PointMessage(midpoint, layout.CenterY),
+            out NativeSliderInteractionResult completed));
+        Assert.True(session.TryWheel(WheelMessage(-120), out NativeSliderInteractionResult wheel));
+
+        Assert.Equal(TaskbarSurfaceMode.Floating, session.State.SurfaceMode);
+        Assert.Equal((0L, HostInteractionKind.SetVolumePreview, 0),
+            (started.Envelope.Sequence, started.Envelope.Kind, started.Envelope.VolumePercent));
+        Assert.Equal((1L, HostInteractionKind.SetVolumePreview, 100),
+            (moved.Envelope.Sequence, moved.Envelope.Kind, moved.Envelope.VolumePercent));
+        Assert.Equal((2L, HostInteractionKind.SetVolumeCommit, 50),
+            (completed.Envelope.Sequence, completed.Envelope.Kind, completed.Envelope.VolumePercent));
+        Assert.Equal((3L, HostInteractionKind.SetVolumeCommit, 48),
+            (wheel.Envelope.Sequence, wheel.Envelope.Kind, wheel.Envelope.VolumePercent));
+        Assert.False(session.IsDragging);
+    }
+
+    private static nint PointMessage(int x, int y) =>
+        unchecked((nint)(((uint)(ushort)y << 16) | (ushort)x));
+
+    private static nuint WheelMessage(short delta) =>
+        unchecked((nuint)((uint)(ushort)delta << 16));
+}

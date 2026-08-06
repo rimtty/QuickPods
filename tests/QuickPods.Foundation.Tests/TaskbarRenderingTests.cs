@@ -1,0 +1,39 @@
+using QuickPods.Contracts;
+using QuickPods.TaskbarHost.Hosting;
+using Xunit;
+
+namespace QuickPods.Foundation.Tests;
+
+public sealed class TaskbarRenderingTests
+{
+    [Theory]
+    [InlineData(300, 40)]
+    [InlineData(600, 80)]
+    public void SliderGeometryDrawingAndInputShareTrack(int width, int height)
+    {
+        Assert.True(SliderGeometry.TryCreate(width, height, out SliderLayout layout));
+
+        Assert.Equal(0d, SliderGeometry.FractionFromPointerX(layout, layout.TrackLeft));
+        Assert.Equal(1d, SliderGeometry.FractionFromPointerX(layout, layout.TrackRight));
+
+        int midpoint = layout.TrackLeft + ((layout.TrackRight - layout.TrackLeft) / 2);
+        Assert.InRange(SliderGeometry.FractionFromPointerX(layout, midpoint), 0.49d, 0.51d);
+        Assert.True(SliderGeometry.ContainsPointer(layout, midpoint, layout.CenterY));
+        Assert.False(SliderGeometry.ContainsPointer(layout, layout.TrackLeft - 1, layout.CenterY));
+    }
+
+    [Fact]
+    public void RenderingBoundaryRejectsInvalidSurfaceAndNormalizesContractVolume()
+    {
+        Assert.False(SliderGeometry.TryCreate(1, 1, out _));
+
+        TaskbarRenderState low = TaskbarRenderState.FromSnapshot(
+            new(TaskbarSurfaceMode.Native, -1, false, null));
+        TaskbarRenderState highMuted = TaskbarRenderState.FromSnapshot(
+            new(TaskbarSurfaceMode.Native, 101, true, null));
+
+        Assert.Equal(0d, low.VolumeFraction);
+        Assert.Equal(1d, highMuted.VolumeFraction);
+        Assert.True(highMuted.IsMuted);
+    }
+}
