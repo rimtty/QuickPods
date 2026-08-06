@@ -1,7 +1,9 @@
+using System.ComponentModel;
 using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using QuickPods.Contracts;
 using QuickPods.Core;
@@ -17,6 +19,7 @@ using QuickPods.Windows.Settings;
 using QuickPods.Windows.Startup;
 using MediaColor = System.Windows.Media.Color;
 using WpfApplication = System.Windows.Application;
+using WpfSystemColors = System.Windows.SystemColors;
 
 namespace QuickPods.App;
 
@@ -40,7 +43,11 @@ public partial class App : WpfApplication, IDisposable
     private JsonLineLogger? logger;
     private string logsDirectory = string.Empty;
     private readonly ProductLifetimePolicy lifetimePolicy = new();
+    private readonly HashSet<string> pendingLifecycleReasons = new(StringComparer.Ordinal);
     private QuickPodsSettings productSettings = QuickPodsSettings.Default;
+    private DispatcherTimer? lifecycleRecoveryTimer;
+    private bool lifecycleRecoveryRunning;
+    private bool lifecycleEventsSubscribed;
     private bool productSettingsInitialized;
     private bool disposed;
 
@@ -129,7 +136,9 @@ public partial class App : WpfApplication, IDisposable
         taskbarHost = new TaskbarHostProcessManager(hostExecutable);
         controller.StateChanged += OnAudioStateChanged;
         taskbarHost.InteractionReceived += OnHostInteractionReceived;
+        taskbarHost.StateChanged += OnTaskbarHostStateChanged;
         taskbarHost.Start(CreateTaskbarSnapshot(controller.State));
+        InitializeSystemLifecycle();
 
         if (bluetoothCatalog is not null && bluetoothLifetime is not null)
         {
@@ -159,6 +168,7 @@ public partial class App : WpfApplication, IDisposable
         disposed = true;
         lifetimePolicy.RequestExit();
         Log(QuickPodsLogLevel.Information, "ApplicationStopping", "QuickPods is stopping.");
+        UnsubscribeSystemLifecycle();
         bluetoothLifetime?.Cancel();
         trayIcon?.Dispose();
         trayIcon = null;
@@ -175,6 +185,7 @@ public partial class App : WpfApplication, IDisposable
         if (taskbarHost is not null)
         {
             taskbarHost.InteractionReceived -= OnHostInteractionReceived;
+            taskbarHost.StateChanged -= OnTaskbarHostStateChanged;
             taskbarHost.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
 
@@ -261,6 +272,36 @@ public partial class App : WpfApplication, IDisposable
             operation: operation));
     }
 
+    private void OnTaskbarHostStateChanged(
+        object? sender,
+        TaskbarHostSupervisorState state)
+    {
+        Log(
+            state.Lifecycle == TaskbarHostLifecycle.DisabledForSession
+                ? QuickPodsLogLevel.Warning
+                : QuickPodsLogLevel.Information,
+            "TaskbarHostStateChanged",
+            "Taskbar host lifecycle changed.",
+            new Dictionary<string, object?>
+            {
+                ["Lifecycle"] = state.Lifecycle.ToString(),
+                ["ConsecutiveFailures"] = state.ConsecutiveFailures,
+                ["HasScheduledRetry"] = state.RetryAfter is not null,
+            });
+
+        if (state.Lifecycle == TaskbarHostLifecycle.DisabledForSession)
+        {
+            _ = Dispatcher.InvokeAsync(() =>
+            {
+                if (MainWindow is MainWindow window)
+                {
+                    window.ReportSettingsFailure(
+                        "タスクバー表示をこのセッションでは停止しました。通知領域から操作できます。");
+                }
+            });
+        }
+    }
+
     private void OnProductSettingsChanged(QuickPodsSettings settings)
     {
         QuickPodsSettings normalized = settings.Normalize();
@@ -335,9 +376,23 @@ public partial class App : WpfApplication, IDisposable
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "QuickPods",
             "settings.json");
-        bluetoothSelectionStore = new JsonBluetoothSelectionStore(
-            new JsonSettingsStore<QuickPodsSettings>(settingsPath));
+        var jsonSettings = new JsonSettingsStore<QuickPodsSettings>(settingsPath);
+        jsonSettings.CorruptSettingsQuarantined += OnCorruptSettingsQuarantined;
+        bluetoothSelectionStore = new JsonBluetoothSelectionStore(jsonSettings);
     }
+
+    private void OnCorruptSettingsQuarantined(
+        object? sender,
+        SettingsRecoveryInfo recovery) =>
+        Log(
+            QuickPodsLogLevel.Warning,
+            "CorruptSettingsQuarantined",
+            "Corrupt settings were quarantined and safe defaults were loaded.",
+            new Dictionary<string, object?>
+            {
+                ["FailureType"] = recovery.FailureType,
+                ["QuarantineFile"] = Path.GetFileName(recovery.QuarantinedPath),
+            });
 
     private void InitializeLogging()
     {
@@ -417,10 +472,8 @@ public partial class App : WpfApplication, IDisposable
         }
     }
 
-    private void OnHostInteractionReceived(object? sender, HostInteractionEnvelope interaction)
-    {
-        _ = Dispatcher.InvokeAsync(() => HandleHostInteractionAsync(interaction)).Task.Unwrap();
-    }
+    private void OnHostInteractionReceived(object? sender, HostInteractionEnvelope interaction) =>
+        _ = Dispatcher.InvokeAsync(() => HandleHostInteractionSafelyAsync(interaction)).Task.Unwrap();
 
     private void OnActivationRequested(object? sender, EventArgs eventArgs) =>
         _ = Dispatcher.InvokeAsync(ShowMainWindow);
@@ -447,6 +500,204 @@ public partial class App : WpfApplication, IDisposable
             case HostInteractionKind.OpenContextMenu:
                 ShowMainWindow();
                 break;
+        }
+    }
+
+    private async Task HandleHostInteractionSafelyAsync(HostInteractionEnvelope interaction)
+    {
+        try
+        {
+            await HandleHostInteractionAsync(interaction);
+        }
+        catch (Exception exception)
+        {
+            Log(
+                QuickPodsLogLevel.Warning,
+                "TaskbarInteractionFailed",
+                "A taskbar interaction failed without terminating QuickPods.",
+                new Dictionary<string, object?>
+                {
+                    ["InteractionKind"] = interaction.Kind.ToString(),
+                    ["FailureType"] = exception.GetType().Name,
+                });
+            if (MainWindow is MainWindow window)
+            {
+                window.ReportSettingsFailure(
+                    "タスクバーからの操作に失敗しました。通知領域または製品画面から再試行してください。");
+            }
+        }
+    }
+
+    private void InitializeSystemLifecycle()
+    {
+        lifecycleRecoveryTimer = new DispatcherTimer(
+            TimeSpan.FromMilliseconds(750),
+            DispatcherPriority.Background,
+            OnLifecycleRecoveryTick,
+            Dispatcher)
+        {
+            IsEnabled = false,
+        };
+
+        try
+        {
+            lifecycleEventsSubscribed = true;
+            SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+            SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
+            SystemEvents.PowerModeChanged += OnPowerModeChanged;
+            SystemEvents.SessionSwitch += OnSessionSwitch;
+            SystemParameters.StaticPropertyChanged += OnSystemParametersChanged;
+        }
+        catch (Exception exception)
+        {
+            Log(
+                QuickPodsLogLevel.Warning,
+                "LifecycleMonitorUnavailable",
+                "Windows lifecycle notifications could not be registered.",
+                new Dictionary<string, object?>
+                {
+                    ["FailureType"] = exception.GetType().Name,
+                });
+            UnsubscribeSystemLifecycle();
+        }
+    }
+
+    private void UnsubscribeSystemLifecycle()
+    {
+        lifecycleRecoveryTimer?.Stop();
+        if (lifecycleRecoveryTimer is not null)
+        {
+            lifecycleRecoveryTimer.Tick -= OnLifecycleRecoveryTick;
+            lifecycleRecoveryTimer = null;
+        }
+
+        if (!lifecycleEventsSubscribed)
+        {
+            return;
+        }
+
+        SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        SystemEvents.SessionSwitch -= OnSessionSwitch;
+        SystemParameters.StaticPropertyChanged -= OnSystemParametersChanged;
+        lifecycleEventsSubscribed = false;
+    }
+
+    private void OnDisplaySettingsChanged(object? sender, EventArgs eventArgs) =>
+        QueueLifecycleRecovery("DisplaySettingsChanged");
+
+    private void OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs eventArgs) =>
+        QueueLifecycleRecovery($"UserPreference:{eventArgs.Category}");
+
+    private void OnSystemParametersChanged(object? sender, PropertyChangedEventArgs eventArgs)
+    {
+        if (eventArgs.PropertyName is nameof(SystemParameters.HighContrast) or
+            nameof(SystemParameters.WorkArea))
+        {
+            QueueLifecycleRecovery($"SystemParameter:{eventArgs.PropertyName}");
+        }
+    }
+
+    private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs eventArgs)
+    {
+        if (eventArgs.Mode == PowerModes.Suspend)
+        {
+            Log(
+                QuickPodsLogLevel.Information,
+                "SystemSuspending",
+                "Windows is suspending; the visible product window was hidden.");
+            _ = Dispatcher.InvokeAsync(() => MainWindow?.Hide());
+            return;
+        }
+
+        QueueLifecycleRecovery($"Power:{eventArgs.Mode}");
+    }
+
+    private void OnSessionSwitch(object sender, SessionSwitchEventArgs eventArgs)
+    {
+        if (eventArgs.Reason is SessionSwitchReason.SessionLock or
+            SessionSwitchReason.ConsoleDisconnect or
+            SessionSwitchReason.RemoteConnect)
+        {
+            _ = Dispatcher.InvokeAsync(() => MainWindow?.Hide());
+        }
+
+        QueueLifecycleRecovery($"Session:{eventArgs.Reason}");
+    }
+
+    private void QueueLifecycleRecovery(string reason)
+    {
+        if (disposed)
+        {
+            return;
+        }
+
+        _ = Dispatcher.InvokeAsync(() =>
+        {
+            if (disposed || lifecycleRecoveryTimer is null)
+            {
+                return;
+            }
+
+            _ = pendingLifecycleReasons.Add(reason);
+            lifecycleRecoveryTimer.Stop();
+            lifecycleRecoveryTimer.Start();
+        });
+    }
+
+    private async void OnLifecycleRecoveryTick(object? sender, EventArgs eventArgs)
+    {
+        lifecycleRecoveryTimer?.Stop();
+        if (lifecycleRecoveryRunning || disposed)
+        {
+            lifecycleRecoveryTimer?.Start();
+            return;
+        }
+
+        lifecycleRecoveryRunning = true;
+        string[] reasons = [.. pendingLifecycleReasons];
+        pendingLifecycleReasons.Clear();
+        try
+        {
+            taskbarHost?.RequestEnvironmentRecovery();
+            ApplyTheme(productSettings.Theme);
+            if (MainWindow is MainWindow window)
+            {
+                await window.RecoverAfterSystemChangeAsync();
+            }
+
+            taskbarHost?.Publish(CreateTaskbarSnapshot(
+                controller?.State ?? AudioState.Unavailable));
+            Log(
+                QuickPodsLogLevel.Information,
+                "SystemLifecycleRecovered",
+                "QuickPods re-evaluated Windows audio, Bluetooth, theme, and placement state.",
+                new Dictionary<string, object?>
+                {
+                    ["Reasons"] = string.Join(",", reasons),
+                    ["HighContrast"] = SystemParameters.HighContrast,
+                });
+        }
+        catch (Exception exception)
+        {
+            Log(
+                QuickPodsLogLevel.Warning,
+                "SystemLifecycleRecoveryFailed",
+                "QuickPods contained a lifecycle recovery failure.",
+                new Dictionary<string, object?>
+                {
+                    ["FailureType"] = exception.GetType().Name,
+                });
+            if (MainWindow is MainWindow window)
+            {
+                window.ReportSettingsFailure(
+                    "Windows環境の変更後に状態を更新できませんでした。更新ボタンで再試行できます。");
+            }
+        }
+        finally
+        {
+            lifecycleRecoveryRunning = false;
         }
     }
 
@@ -514,6 +765,25 @@ public partial class App : WpfApplication, IDisposable
 
     private void ApplyTheme(QuickPodsThemeMode theme)
     {
+        if (SystemParameters.HighContrast)
+        {
+            SetBrushColor("WindowBrush", WpfSystemColors.WindowColor);
+            SetBrushColor("PanelBrush", WpfSystemColors.WindowColor);
+            SetBrushColor("PanelBorderBrush", WpfSystemColors.WindowTextColor);
+            SetBrushColor("ControlSurfaceBrush", WpfSystemColors.ControlColor);
+            SetBrushColor("TrackBrush", WpfSystemColors.GrayTextColor);
+            SetBrushColor("PrimaryTextBrush", WpfSystemColors.WindowTextColor);
+            SetBrushColor("SecondaryTextBrush", WpfSystemColors.WindowTextColor);
+            SetBrushColor("AccentBrush", WpfSystemColors.HighlightColor);
+            SetBrushColor("HoverBrush", WpfSystemColors.ControlColor);
+            SetBrushColor("SelectedBrush", WpfSystemColors.ControlColor);
+            SetBrushColor("PressedBrush", WpfSystemColors.HotTrackColor);
+            SetBrushColor("FocusBrush", WpfSystemColors.HighlightColor);
+            SetBrushColor("ErrorBrush", WpfSystemColors.WindowTextColor);
+            SetBrushColor("PrimaryButtonTextBrush", WpfSystemColors.HighlightTextColor);
+            return;
+        }
+
         bool useLightTheme = theme == QuickPodsThemeMode.Light ||
             (theme == QuickPodsThemeMode.System && IsWindowsAppsLightTheme());
         if (useLightTheme)
@@ -526,6 +796,12 @@ public partial class App : WpfApplication, IDisposable
             SetBrushColor("PrimaryTextBrush", MediaColor.FromRgb(0x15, 0x18, 0x1C));
             SetBrushColor("SecondaryTextBrush", MediaColor.FromRgb(0x5A, 0x62, 0x6C));
             SetBrushColor("AccentBrush", MediaColor.FromRgb(0x32, 0xB9, 0xD0));
+            SetBrushColor("HoverBrush", MediaColor.FromRgb(0xE1, 0xE6, 0xEC));
+            SetBrushColor("SelectedBrush", MediaColor.FromRgb(0xD9, 0xF4, 0xF8));
+            SetBrushColor("PressedBrush", MediaColor.FromRgb(0xCB, 0xD2, 0xDA));
+            SetBrushColor("FocusBrush", MediaColor.FromRgb(0x00, 0x6C, 0x80));
+            SetBrushColor("ErrorBrush", MediaColor.FromRgb(0xA4, 0x26, 0x2C));
+            SetBrushColor("PrimaryButtonTextBrush", MediaColor.FromRgb(0x10, 0x21, 0x26));
             return;
         }
 
@@ -537,6 +813,12 @@ public partial class App : WpfApplication, IDisposable
         SetBrushColor("PrimaryTextBrush", MediaColor.FromRgb(0xF5, 0xF7, 0xFA));
         SetBrushColor("SecondaryTextBrush", MediaColor.FromRgb(0xAE, 0xB5, 0xBF));
         SetBrushColor("AccentBrush", MediaColor.FromRgb(0x67, 0xD7, 0xEA));
+        SetBrushColor("HoverBrush", MediaColor.FromRgb(0x36, 0x3A, 0x41));
+        SetBrushColor("SelectedBrush", MediaColor.FromRgb(0x1E, 0x30, 0x35));
+        SetBrushColor("PressedBrush", MediaColor.FromRgb(0x40, 0x45, 0x4D));
+        SetBrushColor("FocusBrush", MediaColor.FromRgb(0xB9, 0xF4, 0xFF));
+        SetBrushColor("ErrorBrush", MediaColor.FromRgb(0xFF, 0xB4, 0xA9));
+        SetBrushColor("PrimaryButtonTextBrush", MediaColor.FromRgb(0x10, 0x21, 0x26));
     }
 
     private void SetBrushColor(string resourceKey, MediaColor color)

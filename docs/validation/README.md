@@ -33,4 +33,8 @@ Product-phase evidence follows the implemented slice:
 phase-2/
 └─ audio-mvp/
    └─ test-results.md
+phase-5a/
+└─ test-results.md
+phase-5b/
+└─ test-results.md
 ```

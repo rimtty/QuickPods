@@ -8,6 +8,41 @@ namespace QuickPods.Foundation.Tests;
 public sealed class JsonSettingsStoreTests
 {
     [Fact]
+    public async Task CorruptSettingsAreQuarantinedAndSafeDefaultsAreReturned()
+    {
+        string directory = Path.Combine(
+            Path.GetTempPath(),
+            "QuickPods.Foundation.Tests",
+            Guid.NewGuid().ToString("N"));
+        string path = Path.Combine(directory, "settings.json");
+
+        try
+        {
+            Directory.CreateDirectory(directory);
+            await File.WriteAllTextAsync(path, "{ not-valid-json");
+            var json = new JsonSettingsStore<QuickPodsSettings>(path);
+            using var settings = new JsonBluetoothSelectionStore(json);
+
+            QuickPodsSettings loaded = await settings.LoadSettingsAsync();
+
+            Assert.Equal(QuickPodsSettings.Default, loaded);
+            SettingsRecoveryInfo recovery = Assert.IsType<SettingsRecoveryInfo>(json.LastRecovery);
+            Assert.Equal(Path.GetFullPath(path), recovery.OriginalPath);
+            Assert.True(File.Exists(recovery.QuarantinedPath));
+            Assert.Equal("{ not-valid-json", await File.ReadAllTextAsync(recovery.QuarantinedPath));
+            Assert.True(File.Exists(path));
+            Assert.Equal(QuickPodsSettings.Default, await json.LoadAsync());
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task SettingsRoundTripPreservesSelectionAndOptions()
     {
         string directory = Path.Combine(

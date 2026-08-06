@@ -37,14 +37,14 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="RowBorder" Property="Background" Value="#252C31" />
+                                <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource HoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="RowBorder" Property="Background" Value="#1E3035" />
+                                <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource SelectedBrush}" />
                                 <Setter TargetName="RowBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                                <Setter TargetName="RowBorder" Property="BorderBrush" Value="#B9F4FF" />
+                                <Setter TargetName="RowBorder" Property="BorderBrush" Value="{StaticResource FocusBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.62" />
@@ -116,16 +116,19 @@
                     BorderThickness="1"
                     CornerRadius="14">
                 <Grid>
-                    <ListBox x:Name="BluetoothDeviceList"
-                             MinHeight="74"
+                     <ListBox x:Name="BluetoothDeviceList"
+                              AutomationProperties.Name="ペアリング済みBluetoothオーディオ一覧"
+                              AutomationProperties.HelpText="上下矢印でデバイスを選択します"
+                              MinHeight="74"
                              MaxHeight="240"
                              Padding="0"
                              Background="Transparent"
                              BorderThickness="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
-                             SelectionChanged="OnBluetoothSelectionChanged"
-                             SelectedValuePath="DeviceKey">
+                              SelectionChanged="OnBluetoothSelectionChanged"
+                              SelectionMode="Single"
+                              SelectedValuePath="DeviceKey">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Grid>
@@ -155,10 +158,11 @@
                                                    Text="{Binding IconGlyph}" />
                                     </Border>
                                     <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                        <TextBlock FontSize="15"
-                                                   FontWeight="SemiBold"
-                                                   Text="{Binding DisplayName}"
-                                                   TextTrimming="CharacterEllipsis" />
+                                         <TextBlock FontSize="15"
+                                                    FontWeight="SemiBold"
+                                                    Text="{Binding DisplayName}"
+                                                    ToolTip="{Binding DisplayName}"
+                                                    TextTrimming="CharacterEllipsis" />
                                         <TextBlock Margin="0,3,0,0"
                                                    FontSize="12"
                                                    Foreground="{StaticResource SecondaryTextBrush}"
@@ -214,6 +218,8 @@
                                Text="--%" />
 
                     <Slider x:Name="VolumeSlider"
+                            AutomationProperties.Name="既定の出力デバイスの音量"
+                            AutomationProperties.HelpText="左右矢印で音量を変更します"
                             Grid.Row="2"
                             Grid.Column="0"
                             Minimum="0"
@@ -221,6 +227,7 @@
                             SmallChange="1"
                             LargeChange="5"
                             IsSnapToTickEnabled="True"
+                            PreviewKeyUp="OnVolumeKeyUp"
                             PreviewMouseWheel="OnVolumeMouseWheel"
                             Style="{StaticResource QuickPodsSliderStyle}"
                             ValueChanged="OnVolumeChanged"
@@ -239,6 +246,7 @@
                     </Button>
 
                     <TextBlock x:Name="AudioStatusText"
+                               AutomationProperties.LiveSetting="Polite"
                                Grid.Row="4"
                                Grid.ColumnSpan="3"
                                HorizontalAlignment="Right"
@@ -250,7 +258,7 @@
             <Button x:Name="PrimaryActionButton"
                     Grid.Row="8"
                     MinHeight="52"
-                    AutomationProperties.Name="Bluetoothオーディオ操作"
+                    AutomationProperties.Name="Bluetoothオーディオ デバイスを選択"
                     Click="OnPrimaryAction"
                     Style="{StaticResource QuickPodsPrimaryButtonStyle}"
                     Content="デバイスを選択" />
@@ -366,15 +374,18 @@
 
             <StackPanel Grid.Row="14">
                 <TextBlock x:Name="SettingsDiagnosticText"
-                           Foreground="#FFB4A9"
+                            AutomationProperties.LiveSetting="Assertive"
+                            Foreground="{StaticResource ErrorBrush}"
                            TextWrapping="Wrap" />
                 <TextBlock x:Name="BluetoothDiagnosticText"
-                           Margin="0,4,0,0"
-                           Foreground="#FFB4A9"
+                            AutomationProperties.LiveSetting="Assertive"
+                            Margin="0,4,0,0"
+                            Foreground="{StaticResource ErrorBrush}"
                            TextWrapping="Wrap" />
                 <TextBlock x:Name="AudioDiagnosticText"
-                           Margin="0,4,0,0"
-                           Foreground="#FFB4A9"
+                            AutomationProperties.LiveSetting="Assertive"
+                            Margin="0,4,0,0"
+                            Foreground="{StaticResource ErrorBrush}"
                            TextWrapping="Wrap" />
             </StackPanel>
         </Grid>

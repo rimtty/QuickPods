@@ -154,6 +154,18 @@ public partial class MainWindow : Window
         await RunAudioOperationAsync(() => audio.CommitVolumeAsync(value).AsTask());
     }
 
+    private async void OnVolumeKeyUp(object sender, WpfKeyEventArgs eventArgs)
+    {
+        if (eventArgs.Key is not (Key.Left or Key.Right or Key.Up or Key.Down or
+            Key.Home or Key.End or Key.PageUp or Key.PageDown))
+        {
+            return;
+        }
+
+        int value = (int)Math.Round(VolumeSlider.Value, MidpointRounding.AwayFromZero);
+        await RunAudioOperationAsync(() => audio.CommitVolumeAsync(value).AsTask());
+    }
+
     private async void OnVolumeMouseWheel(object sender, MouseWheelEventArgs eventArgs)
     {
         if (!VolumeSlider.IsEnabled || eventArgs.Delta == 0)
@@ -185,6 +197,16 @@ public partial class MainWindow : Window
     }
 
     internal Task RequestRefreshAsync() => RefreshAllAsync();
+
+    internal async Task RecoverAfterSystemChangeAsync()
+    {
+        if (IsVisible)
+        {
+            PositionAbovePrimaryTaskbar();
+        }
+
+        await RefreshAllAsync();
+    }
 
     internal Task SetTaskbarSurfaceVisibleAsync(bool visible) => PersistProductSettingsAsync(
         productSettings with
@@ -423,6 +445,9 @@ public partial class MainWindow : Window
             VolumeSlider.Value = state.VolumePercent;
             VolumePercentText.Text = available ? $"{state.VolumePercent}%" : "--%";
             MuteButton.ToolTip = state.IsMuted ? "ミュート解除" : "ミュート";
+            System.Windows.Automation.AutomationProperties.SetName(
+                MuteButton,
+                state.IsMuted ? "ミュートを解除" : "ミュートにする");
             MuteGlyph.Text = state.IsMuted ? "\uE74F" : "\uE767";
             AudioStatusText.Text = state.Capability switch
             {
@@ -457,6 +482,14 @@ public partial class MainWindow : Window
                 ? "Bluetoothオーディオを確認しています…"
                 : "ペアリング済みのBluetoothオーディオが見つかりません";
             PrimaryActionButton.Content = bluetoothView.PrimaryActionText;
+            System.Windows.Automation.AutomationProperties.SetName(
+                PrimaryActionButton,
+                bluetoothView.PrimaryActionText);
+            System.Windows.Automation.AutomationProperties.SetHelpText(
+                BluetoothDeviceList,
+                bluetoothView.HasDevices
+                    ? "上下矢印でデバイスを選択します。選択だけでは接続状態を変更しません。"
+                    : BluetoothEmptyText.Text);
             PrimaryActionButton.IsEnabled = bluetoothView.IsPrimaryActionEnabled;
             SoundSettingsButton.Visibility = bluetoothView.ShowSoundRecovery
                 ? Visibility.Visible
@@ -507,6 +540,11 @@ public partial class MainWindow : Window
         try
         {
             stored = await settingsStore.LoadSettingsAsync();
+            if (settingsStore.LastRecovery is { } recovery)
+            {
+                SettingsDiagnosticText.Text =
+                    $"破損した設定を {Path.GetFileName(recovery.QuarantinedPath)} へ隔離し、安全な初期値で起動しました。";
+            }
         }
         catch (Exception exception)
         {

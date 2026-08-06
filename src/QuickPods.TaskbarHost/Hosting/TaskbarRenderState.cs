@@ -1,4 +1,5 @@
 using QuickPods.Contracts;
+using QuickPods.TaskbarHost.Interop;
 
 namespace QuickPods.TaskbarHost.Hosting;
 
@@ -39,4 +40,33 @@ internal readonly record struct TaskbarRenderTheme(
         0x00524D49,
         0x00EED95E,
         0x00F4F2F0);
+
+    internal static TaskbarRenderTheme Current
+    {
+        get
+        {
+            var highContrast = new HostNativeMethods.NativeHighContrast
+            {
+                Size = (uint)System.Runtime.InteropServices.Marshal.SizeOf<
+                    HostNativeMethods.NativeHighContrast>(),
+            };
+            if (!HostNativeMethods.SystemParametersInfo(
+                    HostNativeMethods.SpiGetHighContrast,
+                    highContrast.Size,
+                    ref highContrast,
+                    0) ||
+                (highContrast.Flags & HostNativeMethods.HighContrastOn) == 0)
+            {
+                return Dark;
+            }
+
+            return new TaskbarRenderTheme(
+                Dark.TransparentColorKey,
+                HostNativeMethods.GetSystemColor(HostNativeMethods.ColorWindow),
+                HostNativeMethods.GetSystemColor(HostNativeMethods.ColorWindowText),
+                HostNativeMethods.GetSystemColor(HostNativeMethods.ColorGrayText),
+                HostNativeMethods.GetSystemColor(HostNativeMethods.ColorHighlight),
+                HostNativeMethods.GetSystemColor(HostNativeMethods.ColorWindowText));
+        }
+    }
 }

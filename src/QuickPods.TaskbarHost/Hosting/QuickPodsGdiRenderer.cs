@@ -8,7 +8,7 @@ namespace QuickPods.TaskbarHost.Hosting;
 internal static class QuickPodsGdiRenderer
 {
     internal static void Paint(nint windowHandle, TaskbarStateSnapshot snapshot) =>
-        Paint(windowHandle, TaskbarRenderState.FromSnapshot(snapshot), TaskbarRenderTheme.Dark);
+        Paint(windowHandle, TaskbarRenderState.FromSnapshot(snapshot), TaskbarRenderTheme.Current);
 
     internal static void Paint(
         nint windowHandle,

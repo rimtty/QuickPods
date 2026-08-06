@@ -48,6 +48,12 @@ internal static class HostNativeMethods
     internal const uint SetWindowPositionNoOwnerZOrder = 0x0200;
     internal const nint WindowInsertAfterTop = 0;
     internal const uint PeekMessageRemove = 0x0001;
+    internal const uint SpiGetHighContrast = 0x0042;
+    internal const uint HighContrastOn = 0x00000001;
+    internal const int ColorWindow = 5;
+    internal const int ColorWindowText = 8;
+    internal const int ColorHighlight = 13;
+    internal const int ColorGrayText = 17;
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     internal delegate nint NativeWindowProcedure(nint window, uint message, nuint wParam, nint lParam);
@@ -181,6 +187,17 @@ internal static class HostNativeMethods
     [DllImport("user32.dll", EntryPoint = "DefWindowProcW", CharSet = CharSet.Unicode)]
     internal static extern nint DefWindowProcedure(nint window, uint message, nuint wParam, nint lParam);
 
+    [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool SystemParametersInfo(
+        uint action,
+        uint parameter,
+        ref NativeHighContrast value,
+        uint flags);
+
+    [DllImport("user32.dll", EntryPoint = "GetSysColor", ExactSpelling = true)]
+    internal static extern uint GetSystemColor(int index);
+
     [StructLayout(LayoutKind.Sequential)]
     internal struct NativePoint
     {
@@ -255,5 +272,13 @@ internal static class HostNativeMethods
         internal uint Time;
         internal NativePoint Point;
         internal uint Private;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    internal struct NativeHighContrast
+    {
+        internal uint Size;
+        internal uint Flags;
+        internal nint DefaultScheme;
     }
 }
