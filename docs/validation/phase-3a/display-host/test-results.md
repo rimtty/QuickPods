@@ -9,19 +9,19 @@
 | Architecture | x64 |
 | Build | Release, .NET 10.0.302 |
 | Issue / PR | #30 / #32 |
-| Current scope | placement, discovery, rendering, and hidden-first PopupPreserved host implementation |
+| Current scope | native/floating placement, discovery, rendering, and hidden-first PopupPreserved host implementation |
 
 ## Automated evidence
 
 | Check | Result |
 |---|---|
-| Foundation tests | Pass — 39/39 |
-| New Phase 3A executions | Pass — 16 focused executions across placement, discovery, rendering, style, input, and preview safety contracts |
+| Foundation tests | Pass — 41/41 |
+| New Phase 3A executions | Pass — 18 focused executions across native/floating placement, discovery, rendering, style, input, and preview safety contracts |
 | TaskbarHost Release build | Pass — 0 warnings, 0 errors |
 | Solution locked restore | Pass |
 | Format / diff check | Pass |
 
-The focused coverage includes standard placement, verified left-aligned NoFit, incomplete and contradictory evidence, compact fragmentation, negative coordinates, 100/125/150/200% DPI conversion, automation/native obstacle merging, duplicate Start fail-closed behavior, shared slider hit-test geometry, render-state normalization, PopupPreserved style invariants, and pointer/wheel volume conversion. The Phase 0 diagnostic suite was not copied into the product suite.
+The focused coverage includes standard placement, verified left-aligned NoFit, incomplete and contradictory evidence, compact fragmentation, negative coordinates, 100/125/150/200% DPI conversion, automation/native obstacle merging, duplicate Start fail-closed behavior, shared slider hit-test geometry, render-state normalization, PopupPreserved style invariants, pointer/wheel volume conversion, and contained floating fallback placement. The Phase 0 diagnostic suite was not copied into the product suite.
 
 ## Read-only live inspection
 
