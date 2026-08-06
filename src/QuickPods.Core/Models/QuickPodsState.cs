@@ -67,6 +67,8 @@ public sealed record AudioState(
     bool IsMuted,
     string? EndpointDisplayName)
 {
+    public long Generation { get; init; }
+
     public static AudioState Unavailable { get; } = new(
         AudioCapability.EndpointUnavailable,
         0,

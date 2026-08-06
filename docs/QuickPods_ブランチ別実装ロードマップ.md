@@ -332,6 +332,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 最初に日常利用できる音量・ミュート機能を完成させる |
+| 状態 | **実装済み・実機変更Gate待ち** — Issue #27。AC-001の初期表示一致、Release build、focused testsまで合格 |
 | Windows層 | MTA Core Audioワーカー、`IMMNotificationClient`、`IAudioEndpointVolumeCallback`、再バインド |
 | Core層 | 音量状態、世代管理、自通知抑止、最新値優先の30～60Hz間引き |
 | UI | 診断用WPF画面、音量スライダー、ミュート、既定デバイス名 |

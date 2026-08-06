@@ -2,7 +2,7 @@
 
 QuickPods is a Windows 11 desktop application for controlling the default output volume and selecting, connecting, disconnecting, and making a paired Bluetooth audio device the default output from the taskbar.
 
-Phase 0 is complete: Core Audio, per-device Bluetooth control, default-output switching, and the taskbar host are approved with explicit fail-closed fallbacks. Phase 1 product foundation is now in progress under Issue #25; product behavior is not implemented yet. See the consolidated [Phase 0 decision](docs/validation/phase-0/decision.md) and [Phase 1 architecture](docs/architecture/phase-1-foundation.md).
+Phase 0 and the Phase 1 product foundation are complete. Phase 2 Core Audio volume MVP is in progress under Issue #27 with a diagnostic WPF surface for the default output name, volume, mute, notification sync, and endpoint recovery. See the [Phase 0 decision](docs/validation/phase-0/decision.md), [Phase 1 architecture](docs/architecture/phase-1-foundation.md), and [Phase 2 architecture](docs/architecture/phase-2-audio-mvp.md).
 
 ## Requirements
 

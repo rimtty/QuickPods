@@ -1,0 +1,12 @@
+<Application x:Class="QuickPods.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ShutdownMode="OnMainWindowClose">
+    <Application.Resources>
+        <SolidColorBrush x:Key="WindowBrush" Color="#17191D" />
+        <SolidColorBrush x:Key="PanelBrush" Color="#22252A" />
+        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#F5F7FA" />
+        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#AEB5BF" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#67D7EA" />
+    </Application.Resources>
+</Application>
