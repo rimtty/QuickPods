@@ -1,6 +1,7 @@
 using QuickPods.Core;
 using QuickPods.Core.Models;
 using QuickPods.Core.Ports;
+using QuickPods.Windows.Bluetooth;
 using Xunit;
 
 namespace QuickPods.Foundation.Tests;
@@ -9,6 +10,22 @@ public sealed class BluetoothCatalogControllerTests
 {
     private static readonly BluetoothDeviceKey DeviceA = new("bt-device-a");
     private static readonly BluetoothDeviceKey DeviceB = new("bt-device-b");
+
+    [Fact]
+    public void ContainerKeyIsStableOpaqueAndContainerSpecific()
+    {
+        Guid firstContainer = new("11223344-5566-7788-99AA-BBCCDDEEFF00");
+
+        BluetoothDeviceKey first = BluetoothDeviceKeyFactory.Create(firstContainer);
+        BluetoothDeviceKey repeated = BluetoothDeviceKeyFactory.Create(firstContainer);
+        BluetoothDeviceKey other = BluetoothDeviceKeyFactory.Create(
+            new Guid("11223344-5566-7788-99AA-BBCCDDEEFF01"));
+
+        Assert.Equal(first, repeated);
+        Assert.NotEqual(first, other);
+        Assert.StartsWith("bt-", first.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain(firstContainer.ToString("D"), first.Value, StringComparison.OrdinalIgnoreCase);
+    }
 
     [Fact]
     public async Task CatalogAggregatesProfilesAndKeepsDeviceFaultsIndependent()
