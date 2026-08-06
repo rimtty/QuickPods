@@ -855,10 +855,7 @@ public partial class App : WpfApplication, IDisposable
 
     private void SetBrushColor(string resourceKey, MediaColor color)
     {
-        if (Resources[resourceKey] is SolidColorBrush brush)
-        {
-            brush.Color = color;
-        }
+        Resources[resourceKey] = new SolidColorBrush(color);
     }
 
     private static bool IsWindowsAppsLightTheme()

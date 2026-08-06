@@ -8,8 +8,8 @@
         SizeToContent="Height"
         WindowStartupLocation="Manual"
         ShowInTaskbar="False"
-        Background="{StaticResource WindowBrush}"
-        Foreground="{StaticResource PrimaryTextBrush}"
+        Background="{DynamicResource WindowBrush}"
+        Foreground="{DynamicResource PrimaryTextBrush}"
         Loaded="OnLoaded"
         ContentRendered="OnContentRendered"
         PreviewKeyDown="OnWindowPreviewKeyDown"
@@ -30,21 +30,21 @@
                         <Border x:Name="RowBorder"
                                 Padding="12"
                                 Background="{TemplateBinding Background}"
-                                BorderBrush="{StaticResource PanelBorderBrush}"
+                                BorderBrush="{DynamicResource PanelBorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="10">
                             <ContentPresenter />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource HoverBrush}" />
+                                <Setter TargetName="RowBorder" Property="Background" Value="{DynamicResource HoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource SelectedBrush}" />
-                                <Setter TargetName="RowBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                <Setter TargetName="RowBorder" Property="Background" Value="{DynamicResource SelectedBrush}" />
+                                <Setter TargetName="RowBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                                <Setter TargetName="RowBorder" Property="BorderBrush" Value="{StaticResource FocusBrush}" />
+                                <Setter TargetName="RowBorder" Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.62" />
@@ -86,7 +86,7 @@
                     <TextBlock x:Name="EndpointNameText"
                                Margin="0,7,0,0"
                                FontSize="13"
-                               Foreground="{StaticResource SecondaryTextBrush}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"
                                Text="既定の出力を確認しています…"
                                TextTrimming="CharacterEllipsis" />
                 </StackPanel>
@@ -111,8 +111,8 @@
 
             <Border Grid.Row="4"
                     Padding="8"
-                    Background="{StaticResource PanelBrush}"
-                    BorderBrush="{StaticResource PanelBorderBrush}"
+                    Background="{DynamicResource PanelBrush}"
+                    BorderBrush="{DynamicResource PanelBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="14">
                 <Grid>
@@ -149,7 +149,7 @@
                                             Height="40"
                                             Margin="0,0,12,0"
                                             VerticalAlignment="Center"
-                                            Background="{StaticResource ControlSurfaceBrush}"
+                                            Background="{DynamicResource ControlSurfaceBrush}"
                                             CornerRadius="9">
                                         <TextBlock HorizontalAlignment="Center"
                                                    VerticalAlignment="Center"
@@ -165,14 +165,14 @@
                                                     TextTrimming="CharacterEllipsis" />
                                         <TextBlock Margin="0,3,0,0"
                                                    FontSize="12"
-                                                   Foreground="{StaticResource SecondaryTextBrush}"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"
                                                    Text="ペアリング済み" />
                                     </StackPanel>
                                     <TextBlock Grid.Column="3"
                                                Margin="12,0,2,0"
                                                VerticalAlignment="Center"
                                                FontSize="12"
-                                               Foreground="{StaticResource SecondaryTextBrush}"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
                                                Text="{Binding StatusText}" />
                                 </Grid>
                             </DataTemplate>
@@ -184,7 +184,7 @@
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center"
                                FontSize="13"
-                               Foreground="{StaticResource SecondaryTextBrush}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"
                                Text="ペアリング済みのBluetoothオーディオが見つかりません"
                                TextAlignment="Center"
                                TextWrapping="Wrap" />
@@ -193,8 +193,8 @@
 
             <Border Grid.Row="6"
                     Padding="18"
-                    Background="{StaticResource PanelBrush}"
-                    BorderBrush="{StaticResource PanelBorderBrush}"
+                    Background="{DynamicResource PanelBrush}"
+                    BorderBrush="{DynamicResource PanelBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="14">
                 <Grid>
@@ -250,7 +250,7 @@
                                Grid.Row="4"
                                Grid.ColumnSpan="3"
                                HorizontalAlignment="Right"
-                               Foreground="{StaticResource SecondaryTextBrush}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"
                                Text="初期化中" />
                 </Grid>
             </Border>
@@ -285,12 +285,12 @@
             </StackPanel>
 
             <Expander Grid.Row="12"
-                      Foreground="{StaticResource PrimaryTextBrush}"
+                      Foreground="{DynamicResource PrimaryTextBrush}"
                       Header="設定">
                 <Border Margin="0,8,0,0"
                         Padding="14"
-                        Background="{StaticResource PanelBrush}"
-                        BorderBrush="{StaticResource PanelBorderBrush}"
+                        Background="{DynamicResource PanelBrush}"
+                        BorderBrush="{DynamicResource PanelBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="12">
                     <StackPanel>
@@ -367,7 +367,7 @@
                         <TextBlock x:Name="VersionText"
                                    Margin="4,8,0,0"
                                    FontSize="11"
-                                   Foreground="{StaticResource SecondaryTextBrush}" />
+                                   Foreground="{DynamicResource SecondaryTextBrush}" />
                     </StackPanel>
                 </Border>
             </Expander>
@@ -375,17 +375,17 @@
             <StackPanel Grid.Row="14">
                 <TextBlock x:Name="SettingsDiagnosticText"
                             AutomationProperties.LiveSetting="Assertive"
-                            Foreground="{StaticResource ErrorBrush}"
+                            Foreground="{DynamicResource ErrorBrush}"
                            TextWrapping="Wrap" />
                 <TextBlock x:Name="BluetoothDiagnosticText"
                             AutomationProperties.LiveSetting="Assertive"
                             Margin="0,4,0,0"
-                            Foreground="{StaticResource ErrorBrush}"
+                            Foreground="{DynamicResource ErrorBrush}"
                            TextWrapping="Wrap" />
                 <TextBlock x:Name="AudioDiagnosticText"
                             AutomationProperties.LiveSetting="Assertive"
                             Margin="0,4,0,0"
-                            Foreground="{StaticResource ErrorBrush}"
+                            Foreground="{DynamicResource ErrorBrush}"
                            TextWrapping="Wrap" />
             </StackPanel>
         </Grid>

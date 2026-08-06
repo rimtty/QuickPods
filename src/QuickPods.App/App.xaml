@@ -22,9 +22,9 @@
             <Setter Property="Width" Value="52" />
             <Setter Property="Height" Value="52" />
             <Setter Property="Padding" Value="0" />
-            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
-            <Setter Property="Background" Value="{StaticResource ControlSurfaceBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ControlSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -41,11 +41,11 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Surface" Property="Background" Value="{StaticResource HoverBrush}" />
-                                <Setter TargetName="Surface" Property="BorderBrush" Value="{StaticResource FocusBrush}" />
+                                <Setter TargetName="Surface" Property="Background" Value="{DynamicResource HoverBrush}" />
+                                <Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Surface" Property="Background" Value="{StaticResource PressedBrush}" />
+                                <Setter TargetName="Surface" Property="Background" Value="{DynamicResource PressedBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.45" />
@@ -58,7 +58,7 @@
 
         <Style x:Key="QuickPodsLinkButtonStyle" TargetType="Button">
             <Setter Property="Padding" Value="4" />
-            <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
@@ -73,7 +73,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Surface" Property="Background" Value="{StaticResource HoverBrush}" />
+                                <Setter TargetName="Surface" Property="Background" Value="{DynamicResource HoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter Property="Opacity" Value="0.75" />
@@ -88,8 +88,8 @@
             <Setter Property="Padding" Value="18,12" />
             <Setter Property="FontSize" Value="15" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="{StaticResource PrimaryButtonTextBrush}" />
-            <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -104,10 +104,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Surface" Property="Background" Value="{StaticResource FocusBrush}" />
+                                <Setter TargetName="Surface" Property="Background" Value="{DynamicResource FocusBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Surface" Property="Background" Value="{StaticResource PressedBrush}" />
+                                <Setter TargetName="Surface" Property="Background" Value="{DynamicResource PressedBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.45" />
@@ -142,10 +142,10 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Thumb">
                         <Grid>
-                            <Ellipse Fill="{StaticResource ControlSurfaceBrush}" />
+                            <Ellipse Fill="{DynamicResource ControlSurfaceBrush}" />
                             <Ellipse Margin="2"
-                                     Fill="{StaticResource AccentBrush}"
-                                     Stroke="{StaticResource FocusBrush}"
+                                     Fill="{DynamicResource AccentBrush}"
+                                     Stroke="{DynamicResource FocusBrush}"
                                      StrokeThickness="1" />
                         </Grid>
                     </ControlTemplate>
@@ -162,7 +162,7 @@
                         <Grid Background="Transparent">
                             <Track x:Name="PART_Track">
                                 <Track.DecreaseRepeatButton>
-                                    <RepeatButton Background="{StaticResource AccentBrush}"
+                                    <RepeatButton Background="{DynamicResource AccentBrush}"
                                                   Command="{x:Static Slider.DecreaseLarge}"
                                                   Style="{StaticResource QuickPodsSliderRepeatButtonStyle}" />
                                 </Track.DecreaseRepeatButton>
@@ -170,7 +170,7 @@
                                     <Thumb Style="{StaticResource QuickPodsSliderThumbStyle}" />
                                 </Track.Thumb>
                                 <Track.IncreaseRepeatButton>
-                                    <RepeatButton Background="{StaticResource TrackBrush}"
+                                    <RepeatButton Background="{DynamicResource TrackBrush}"
                                                   Command="{x:Static Slider.IncreaseLarge}"
                                                   Style="{StaticResource QuickPodsSliderRepeatButtonStyle}" />
                                 </Track.IncreaseRepeatButton>
