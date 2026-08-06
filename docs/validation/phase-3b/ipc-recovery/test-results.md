@@ -40,7 +40,7 @@
 - One `QuickPods.TaskbarObserver` remained stable beside one App and one Host during a 15-second product run; no self-feedback churn occurred.
 - Killing only the observer produced one replacement observer while preserving one Host and one display surface. A real wheel IPC round trip still restored 10.0% -> 12.0% -> 10.0%, mute off.
 - Killing the Host caused its kill-on-close Job Object to retire the old observer within 700 ms. The App created exactly one replacement Host and observer generation.
-- A synthetic registered `TaskbarCreated` message sent only to the product's hidden top-level control HWND retired observer PID 86384 and created PID 52484 in 2195 ms while preserving Host PID 980 and the same control HWND. The old observer was no longer alive.
+- A synthetic registered `TaskbarCreated` message sent only to the product's hidden top-level control HWND retired observer PID 30564 and created PID 50104 in 2224 ms while preserving Host PID 6340 and the same control HWND. Exactly one Native HWND was recreated (`0xBB07A6` -> `0xBC07A6`), Floating remained zero, and the old observer was no longer alive.
 - The synthetic gate exposed and fixed an observer teardown defect: closing the pipe before final `StreamWriter` flush had propagated `ObjectDisposedException` through the Host. Transport retirement is now idempotent and no longer restarts the Host.
 - Every normal close after observer, host, and `TaskbarCreated` recovery left App, Host, Observer, Native, and Floating counts at zero.
 - The independent Core Audio read after all runs remained exactly 10.0%, mute off.
