@@ -85,6 +85,33 @@ foreach ($requiredFile in $requiredFiles) {
     }
 }
 
+$dotnetRoot = Split-Path -Parent (Get-Command dotnet).Source
+$legalFiles = [ordered]@{
+    (Join-Path $repositoryRoot "ThirdPartyNotices.txt") = "ThirdPartyNotices.txt"
+    (Join-Path $dotnetRoot "LICENSE.txt") = "DOTNET-LICENSE.txt"
+    (Join-Path $dotnetRoot "ThirdPartyNotices.txt") = "DOTNET-THIRD-PARTY-NOTICES.txt"
+}
+foreach ($legalFile in $legalFiles.GetEnumerator()) {
+    if (-not (Test-Path -LiteralPath $legalFile.Key)) {
+        throw "Required legal file is missing: $($legalFile.Key)"
+    }
+
+    Copy-Item -LiteralPath $legalFile.Key -Destination (Join-Path $payloadDirectory $legalFile.Value)
+}
+
+$executables = foreach ($requiredFile in $requiredFiles) {
+    $versionInfo = (Get-Item -LiteralPath (Join-Path $payloadDirectory $requiredFile)).VersionInfo
+    if (-not $versionInfo.ProductVersion.StartsWith($Version, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "$requiredFile has product version '$($versionInfo.ProductVersion)', expected '$Version'."
+    }
+
+    [ordered]@{
+        path = $requiredFile
+        productVersion = $versionInfo.ProductVersion
+        fileVersion = $versionInfo.FileVersion
+    }
+}
+
 $manifestPath = Join-Path $payloadDirectory "artifact-manifest.json"
 $files = Get-ChildItem -LiteralPath $payloadDirectory -File -Recurse |
     Where-Object { $_.FullName -ne $manifestPath } |
@@ -102,6 +129,8 @@ $manifest = [ordered]@{
     version = $Version
     runtimeIdentifier = "win-x64"
     selfContained = $true
+    signed = $false
+    executables = @($executables)
     files = @($files)
 }
 $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM

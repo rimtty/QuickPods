@@ -39,4 +39,6 @@ phase-5b/
 └─ test-results.md
 phase-6a/
 └─ test-results.md
+phase-6b/
+└─ test-results.md
 ```

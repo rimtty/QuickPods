@@ -55,6 +55,15 @@ public partial class App : WpfApplication, IDisposable
     {
         base.OnStartup(e);
 
+        if (e.Args.Length == 1 && string.Equals(
+            e.Args[0],
+            "--unregister-startup",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            Shutdown(RunUnregisterStartupCommand());
+            return;
+        }
+
         singleInstance = SingleInstanceLease.TryAcquire(SingleInstanceId);
         if (!singleInstance.IsPrimary)
         {
@@ -156,6 +165,29 @@ public partial class App : WpfApplication, IDisposable
     {
         lifetimePolicy.RequestExit();
         base.OnSessionEnding(e);
+    }
+
+    private static int RunUnregisterStartupCommand()
+    {
+        try
+        {
+            string applicationExecutable = Path.Combine(AppContext.BaseDirectory, "QuickPods.exe");
+            var startupRegistration = new WindowsStartupRegistration(applicationExecutable);
+            string settingsPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "QuickPods",
+                "settings.json");
+            var cleanup = new UninstallCleanupService(
+                startupRegistration,
+                new JsonSettingsStore<QuickPodsSettings>(settingsPath));
+            cleanup.ExecuteAsync(File.Exists(settingsPath)).AsTask().GetAwaiter().GetResult();
+
+            return 0;
+        }
+        catch
+        {
+            return 1;
+        }
     }
 
     public void Dispose()

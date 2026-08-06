@@ -2,7 +2,7 @@
 
 QuickPods is a Windows 11 desktop application for controlling the default output volume and selecting, connecting, disconnecting, and making a paired Bluetooth audio device the default output from the taskbar.
 
-Phases 0–5B are integrated. Phase 6A prepares a deterministic self-contained `win-x64` Release Candidate, checksums and manifests, CI artifacts, compatibility notes, and a sanitized resource sampler. Physical Bluetooth acceptance remains deliberately deferred to Issues #38 and #41; RDP cannot close the local display gate in Issue #43 or the 24-hour Gate D in Issue #48. See the [Phase 6A architecture](docs/architecture/phase-6a-release-hardening.md), [compatibility](docs/release/compatibility.md), [known limitations](docs/release/known-limitations.md), and [Phase 6A validation](docs/validation/phase-6a/test-results.md).
+Phases 0–6A are integrated. Phase 6B distribution preparation centralizes product versions, embeds Ceiling/.NET legal notices, audits dependencies, and defines offline update and uninstall cleanup contracts. The final installer format and code-signing policy remain undecided, and Phase 6B cannot merge before Gate D. Physical Bluetooth acceptance remains deferred to Issues #38 and #41; RDP cannot close the local display gate in Issue #43 or the 24-hour Gate D in Issue #48. See the [Phase 6B architecture](docs/architecture/phase-6b-distribution.md), [update policy](docs/release/update-policy.md), [uninstall policy](docs/release/uninstall-policy.md), and [Phase 6B validation](docs/validation/phase-6b/test-results.md).
 
 ## Requirements
 

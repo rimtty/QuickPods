@@ -6,7 +6,6 @@
     <TargetPlatformMinVersion>10.0.22000.0</TargetPlatformMinVersion>
     <RootNamespace>QuickPods.App</RootNamespace>
     <AssemblyName>QuickPods</AssemblyName>
-    <Version>0.1.0</Version>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <!-- WPF owns the process DPI manifest; WinForms is used only for NotifyIcon. -->
