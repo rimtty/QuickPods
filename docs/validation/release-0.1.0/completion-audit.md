@@ -36,7 +36,7 @@
 | AC-018 | Explorer再起動後10秒以内に1面だけ復旧 | Partial / Gate pending | Phase 0 Spikeは10/10、[Phase 3B](../phase-3b/ipc-recovery/test-results.md)はsynthetic `TaskbarCreated`とHost／Observer復旧、Phase 5CはStart 10秒超でnative面維持 | 製品版Explorer restart／resource：[Issue #34](https://github.com/rimtty/QuickPods/issues/34)、[Issue #48](https://github.com/rimtty/QuickPods/issues/48) |
 | AC-019 | 終了後に残骸ウィンドウなし | Proven | [Phase 3A](../phase-3a/display-host/test-results.md)、[Phase 3B](../phase-3b/ipc-recovery/test-results.md)、[Phase 5A](../phase-5a/test-results.md)で残留0 | なし |
 | AC-020 | native失敗時も音量・Bluetoothを利用可能 | Partial / Gate pending | [Phase 3B](../phase-3b/ipc-recovery/test-results.md)のHost失敗時App生存、通知領域／Hidden policy | center-aligned NoFitのoperator-visible fallback：[Issue #33](https://github.com/rimtty/QuickPods/issues/33) |
-| AC-021 | Explorerをクラッシュ／ハングさせない | Partial / Gate pending | 別process境界、Phase 0の10 restart、Phase 3A／3Bのbounded live runs | 製品版Explorer反復と24時間観測：[Issue #34](https://github.com/rimtty/QuickPods/issues/34)、[Issue #48](https://github.com/rimtty/QuickPods/issues/48) |
+| AC-021 | Explorerをクラッシュ／ハングさせない | Partial / Gate pending | 別process境界、Phase 0の10 restart、Phase 3A／3Bのbounded live runs | 製品版Explorer反復、世代別UIA資源、24時間観測：[Issue #18](https://github.com/rimtty/QuickPods/issues/18)、[Issue #34](https://github.com/rimtty/QuickPods/issues/34)、[Issue #48](https://github.com/rimtty/QuickPods/issues/48) |
 | AC-022 | 管理者権限を要求しない | Partial / Gate pending | 通常権限のAudio／Bluetooth／policy実績、PR #51のper-user／non-elevated MSI静的検査 | clean standard-user MSI lifecycle：[Issue #50](https://github.com/rimtty/QuickPods/issues/50) |
 | AC-023 | 設定を再起動後も保持 | Proven | [Phase 5A](../phase-5a/test-results.md)の全設定JSON round-trip、破損時はPhase 5Bで隔離再生成 | なし |
 | AC-024 | 主要API失敗を分類済みログへ記録 | Proven | [Phase 5A](../phase-5a/test-results.md)のsanitized JSONL、[Phase 5B](../phase-5b/test-results.md)のlifecycle／interaction例外境界 | なし |
@@ -61,9 +61,18 @@
 | #38 | 007 | local-consoleで物理Bluetooth一覧、profile集約、単一選択 |
 | #41 | 009、010、013 | 接続→実状態→既定出力、切断、選択外影響 |
 | #33 | 016、020 | center-aligned NoFit Floatingのvisibility、z-order、input、cleanup |
-| #34／#48 | 018、021 | 製品版Explorer restart、重複0、10秒以内、resource反復 |
+| #18／#34／#48 | 018、021 | 製品版Explorer restart、重複0、10秒以内、長寿命processのUSER／GDI非増加 |
 | #43 | 017、026 | local-console DPI、focus、keyboard、High Contrast、tray settings |
 | #48 | 025 | 24時間resource Gate D |
 | #50／PR #51 | 022、027 | clean standard-user MSI lifecycle、法務payload、署名済み最終成果物 |
 
-すべての行が`Proven`になるまでRoadmap #2のcompletion auditとRelease branch B16を完了扱いにしない。
+## 追加P2証拠
+
+次はAC本体の現在判定を降格させる既知欠陥ではないが、開発計画全体を完遂するまで閉じずに追跡する。
+
+| Issue | 位置づけ | 残作業 |
+|---|---|---|
+| [#15](https://github.com/rimtty/QuickPods/issues/15) | Start continuityのfail-closed hardening | Start表示中にtaskbar／Search／Widgets layoutを変更し、古いStart geometryを再利用しないことをlocal-consoleで確認 |
+| [#19](https://github.com/rimtty/QuickPods/issues/19) | AC-005の追加hardware corroboration | 2つ以上のactive render endpointでguarded mutation中のA→B→Aを再確認。製品版の通常A→B→AはPhase 2で合格済み |
+
+すべてのAC行が`Proven`となり、追加P2証拠Issueも完了するまでRoadmap #2のcompletion auditとRelease branch B16を完了扱いにしない。

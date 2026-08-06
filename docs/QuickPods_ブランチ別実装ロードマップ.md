@@ -24,7 +24,7 @@
 | 項目 | 状態 |
 |---|---|
 | Git | `main`はPhase 6A（PR #49）まで統合済み。Phase 5C PR #54はPhase 6BへSquash統合済み。Phase 6BはPR #51で最終Gate待ち |
-| Remote | `origin/main`へPhase 0～6Aの実装PRを統合済み。全体進捗はIssue #2、残存Gateは#33／#34／#38／#41／#43／#48／#50／#53で管理 |
+| Remote | `origin/main`へPhase 0～6Aの実装PRを統合済み。全体進捗はIssue #2、残存Gateは#15／#18／#19／#33／#34／#38／#41／#43／#48／#50で管理。Phase 5C #53は完了済み |
 | 追跡対象 | 計画資料、ブランド資産、製品コード、インストーラー、検証証跡、既知の制限 |
 | ソース／テスト／CI | .NET 10製品solution、Windows CI、RC／MSI生成、focused regressionを運用中 |
 | AGENTS.md | なし |
