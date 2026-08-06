@@ -80,7 +80,7 @@ internal sealed class NativeFloatingHost : IDisposable
             }
 
             ValidateWindow();
-            _ = HostNativeMethods.ShowWindow(windowHandle, HostNativeMethods.ShowWindowNoActivate);
+            PromoteWithoutActivation();
             ValidateWindow();
             if (!TaskbarNativeMethods.IsWindowVisible(windowHandle))
             {
@@ -442,6 +442,25 @@ internal sealed class NativeFloatingHost : IDisposable
         }
 
         pendingInteractions.Enqueue(interaction.Envelope);
+    }
+
+    private void PromoteWithoutActivation()
+    {
+        if (!HostNativeMethods.SetWindowPosition(
+                windowHandle,
+                HostNativeMethods.WindowInsertAfterTop,
+                0,
+                0,
+                0,
+                0,
+                HostNativeMethods.SetWindowPositionNoSize |
+                HostNativeMethods.SetWindowPositionNoMove |
+                HostNativeMethods.SetWindowPositionNoOwnerZOrder |
+                HostNativeMethods.SetWindowPositionNoActivate |
+                HostNativeMethods.SetWindowPositionShowWindow))
+        {
+            throw new Win32Exception();
+        }
     }
 
     private void ValidateWindow()

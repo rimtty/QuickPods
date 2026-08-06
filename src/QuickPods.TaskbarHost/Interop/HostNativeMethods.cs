@@ -38,10 +38,14 @@ internal static class HostNativeMethods
     internal const int ShowWindowNoActivate = 8;
     internal const uint LayeredWindowAttributeColorKey = 0x00000001;
     internal const byte FullOpacity = 255;
+    internal const uint SetWindowPositionNoSize = 0x0001;
+    internal const uint SetWindowPositionNoMove = 0x0002;
     internal const uint SetWindowPositionNoZOrder = 0x0004;
     internal const uint SetWindowPositionNoActivate = 0x0010;
     internal const uint SetWindowPositionFrameChanged = 0x0020;
+    internal const uint SetWindowPositionShowWindow = 0x0040;
     internal const uint SetWindowPositionNoOwnerZOrder = 0x0200;
+    internal const nint WindowInsertAfterTop = 0;
     internal const uint PeekMessageRemove = 0x0001;
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
