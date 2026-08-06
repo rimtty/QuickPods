@@ -50,19 +50,7 @@ public partial class App : Application, IDisposable
         taskbarHost.InteractionReceived += OnHostInteractionReceived;
         taskbarHost.Start(CreateTaskbarSnapshot(controller.State));
 
-        string settingsPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "QuickPods",
-            "settings.json");
-        bluetoothCatalogPort = new WindowsBluetoothAudioCatalogPort();
-        bluetoothSelectionStore = new JsonBluetoothSelectionStore(
-            new JsonSettingsStore<QuickPodsSettings>(settingsPath));
-        bluetoothCatalog = new BluetoothCatalogController(
-            bluetoothCatalogPort,
-            bluetoothSelectionStore);
-        bluetoothCatalog.StateChanged += OnBluetoothCatalogStateChanged;
-        bluetoothLifetime = new CancellationTokenSource();
-        bluetoothInitialization = InitializeBluetoothCatalogAsync(bluetoothLifetime.Token);
+        StartBluetoothCatalog();
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -120,6 +108,37 @@ public partial class App : Application, IDisposable
         object? sender,
         BluetoothAudioCatalogSnapshot catalog) =>
         taskbarHost?.Publish(CreateTaskbarSnapshot(controller?.State ?? AudioState.Unavailable, catalog));
+
+    private void StartBluetoothCatalog()
+    {
+        try
+        {
+            string settingsPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "QuickPods",
+                "settings.json");
+            bluetoothCatalogPort = new WindowsBluetoothAudioCatalogPort();
+            bluetoothSelectionStore = new JsonBluetoothSelectionStore(
+                new JsonSettingsStore<QuickPodsSettings>(settingsPath));
+            bluetoothCatalog = new BluetoothCatalogController(
+                bluetoothCatalogPort,
+                bluetoothSelectionStore);
+            bluetoothCatalog.StateChanged += OnBluetoothCatalogStateChanged;
+            bluetoothLifetime = new CancellationTokenSource();
+            bluetoothInitialization = InitializeBluetoothCatalogAsync(bluetoothLifetime.Token);
+        }
+        catch
+        {
+            bluetoothCatalog?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            bluetoothSelectionStore?.Dispose();
+            bluetoothCatalogPort?.Dispose();
+            bluetoothLifetime?.Dispose();
+            bluetoothCatalog = null;
+            bluetoothSelectionStore = null;
+            bluetoothCatalogPort = null;
+            bluetoothLifetime = null;
+        }
+    }
 
     private async Task InitializeBluetoothCatalogAsync(CancellationToken cancellationToken)
     {
