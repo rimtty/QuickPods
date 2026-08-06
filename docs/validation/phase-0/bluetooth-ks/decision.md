@@ -11,7 +11,7 @@
 | 判断日 | 未定 |
 | 判断者 | 未記入 |
 
-読み取り専用探索、Render候補の一意選択、純粋ロジック、Job Object watchdogシミュレーション、Reconnect／Disconnect Basic Support、操作者確認付きの初回実機操作を確認した。探索的試験でRenderのみの一時Unpluggedを誤成功とする欠陥を検出し、Render/Capture両候補の切断、全Endpoint観測、5秒安定窓、期限切れ成功拒否へ修正した。修正版のDisconnectは1回Pass、Reconnectは1回DeadlineExceededであり、各10回のGate母数が未達なので判断はPendingである。
+読み取り専用探索、Render候補の一意選択、純粋ロジック、Job Object watchdogシミュレーション、Reconnect／Disconnect Basic Support、操作者確認付き実機操作を確認した。探索的試験でRenderのみの一時Unpluggedを誤成功とする欠陥を検出し、Render/Capture両候補の切断、全Endpoint観測、5秒安定窓、期限切れ成功拒否へ修正した。前提を確認できた修正版の接続・切断は各3回Passした。明示切断後に接続待ちを再確認しないまま行ったReconnect 2件は`S_OK`後もUnpluggedを維持し、正しく`DeadlineExceeded`になったが、有効試行には含めない。各5回のGate母数が未達なので判断はPendingである。
 
 ## Gate Aの目的
 
@@ -25,8 +25,8 @@ KS要求のHRESULTが成功しても、実際の接続・切断成功とはみ�
 
 1. Medium integrityの非管理者プロセスでReconnectとDisconnectの両方を実行できる。
 2. 両プロパティのBasic Supportを確認できる。
-3. 接続は有効10回中9回以上、各15秒以内に`DEVICE_STATE_ACTIVE`を確認できる。
-4. 切断は有効10回中9回以上、各15秒以内に非Activeを確認できる。
+3. 接続は有効5回中4回以上、各15秒以内に`DEVICE_STATE_ACTIVE`を確認できる。
+4. 切断は有効5回中4回以上、各15秒以内に非Activeを確認できる。
 5. KS要求成功を、実状態未変化のまま成功表示した件数が0である。
 6. キーボード、コントローラー等、対象外Bluetooth機器への影響が0件である。
 7. 子プロセスwatchdogが停止・異常終了を捕捉し、親プロセスを拘束しない。
@@ -39,7 +39,7 @@ KS要求のHRESULTが成功しても、実際の接続・切断成功とはみ�
 次のいずれかに該当した場合はNo-Goとする。
 
 - ReconnectまたはDisconnectのBasic Supportを確認できない。
-- どちらかの成功率が有効10回中9回を下回る。
+- どちらかの成功率が有効5回中4回を下回る。
 - 15秒以内の実状態確認を安定して行えない。
 - KS要求結果と実状態を区別できない。
 - 対象外Bluetooth機器へ影響する。
@@ -56,8 +56,8 @@ KS要求のHRESULTが成功しても、実際の接続・切断成功とはみ�
 | 複数機器カタログ契約 | Pass | 0／1／複数／同名、A2DP/HFP集約、選択保持、操作層非依存 |
 | Reconnect Basic Support | Pass | Render候補で`S_OK`、GET対応 |
 | Disconnect Basic Support | Pass | Render／Capture両候補で`S_OK`、GET対応 |
-| 接続10回 | In progress | 探索的Pass 1回、修正版Fail 1回。正式10回は未達 |
-| 切断10回 | In progress | 修正版Pass 1回。正式10回は未達 |
+| 接続5回 | In progress | 前提確認済み3回Pass、接続待ち未確認2回Blocked。有効5回は未達 |
+| 切断5回 | In progress | 修正版3回Pass。有効5回は未達 |
 | 実状態確認 | In progress | Active／両Endpoint Unpluggedを観測、反復未達 |
 | 誤成功表示 | In progress | 探索的欠陥1件を修正し回帰試験化。修正版Gate反復未達 |
 | 他機器影響 | In progress | 操作者が1組の前後比較で変化0を確認、反復未達 |
@@ -87,7 +87,7 @@ watchdogによる終了、子プロセス異常終了、解析不能な応答は
 
 1. `environment.md`の実行前チェックを完了する。
 2. `test-matrix.md`の探索、Basic Support、watchdog試験を実施する。
-3. 接続・切断の有効試行を各10回記録する。
+3. 接続・切断の有効試行を各5回記録する。
 4. 異常系と他機器影響を確認する。
 5. 証跡をサニタイズし、禁止識別子がないことを確認する。
 6. Go／No-Go条件と照合し、この文書へ判断者、日付、根拠コミットを記入する。

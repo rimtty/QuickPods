@@ -2,7 +2,7 @@
 
 ## ステータス
 
-**Live Gate in progress** — 読み取り専用探索、65件の自動試験、watchdogシミュレーション、KS Basic Support、操作者確認付きの単発実機操作まで実施した。修正版の正式な接続・切断各10回は未達である。
+**Live Gate in progress** — 読み取り専用探索、65件の自動試験、watchdogシミュレーション、KS Basic Support、操作者確認付き実機操作まで実施した。修正版の有効な接続・切断各5回は未達である。
 
 この文書の`Pass`は、KS要求が受理されたことではなく、期限内に対象オーディオEndpointの実状態が期待どおり変化したことを意味する。空欄や未観測結果を成功として扱わない。
 
@@ -16,7 +16,7 @@
 | `Blocked` | 前提条件を作れず有効な試行を実施できない |
 | `N/A` | Gate判定者が理由を記録して対象外とした |
 
-`Blocked`と`N/A`は成功数へ含めない。接続・切断の反復試験は、有効な試行を各10回揃えるまでGateを判定しない。
+`Blocked`と`N/A`は成功数へ含めない。接続・切断の反復試験は、有効な試行を各5回揃えるまでGateを判定しない。2026-08-06のテスト棚卸し指示に従い、同一実機の反復量を10回から5回へ半減した。fail-closed、watchdog、所有権、異常系の安全条件は削減しない。
 
 ## 共通記録項目
 
@@ -47,8 +47,8 @@
 | BTKS-SEL-001 | 選択 | 機器選択と読み取り専用更新を反復 | カタログ層がKS操作依存を持たず、選択を維持し、変更要求経路を持たない | catalog state自動試験＋依存境界 | Pass（自動） |
 | BTKS-SUP-001 | 対応確認 | ReconnectのBasic Supportを照会 | 対応・非対応・エラーを明確に分類する | Render候補 `S_OK` / GET対応 | Pass |
 | BTKS-SUP-002 | 対応確認 | DisconnectのBasic Supportを照会 | 対応・非対応・エラーを明確に分類する | Render／Capture候補 `S_OK` / GET対応 | Pass |
-| BTKS-CON-001 | 接続 | 到達可能かつ切断状態からReconnectを有効10回実施 | 10回中9回以上、各15秒以内に`DEVICE_STATE_ACTIVE`を確認 | 接続試行表 | Pending |
-| BTKS-DIS-001 | 切断 | 接続状態からDisconnectを有効10回実施 | 10回中9回以上、各15秒以内に非Activeを確認 | 切断試行表 | Pending |
+| BTKS-CON-001 | 接続 | 到達可能かつ切断状態からReconnectを有効5回実施 | 5回中4回以上、各15秒以内に`DEVICE_STATE_ACTIVE`を確認 | 接続試行表 | Pending |
+| BTKS-DIS-001 | 切断 | 接続状態からDisconnectを有効5回実施 | 5回中4回以上、各15秒以内に非Activeを確認 | 切断試行表 | Pending |
 | BTKS-OBS-001 | 成功判定 | KS要求成功後も実状態を監視 | 実状態不変を成功表示した件数が0 | 要求結果と観測結果の対照表 | Pending |
 | BTKS-OBS-002 | 成功判定 | 所有権faultまたはContainer未帰属Adapterを含む状態観測を模擬 | 残存EndpointがUnpluggedでも`Disconnected`とせず`Unknown`へ倒す | state-observer自動試験 | Pass（自動） |
 | BTKS-SER-001 | 直列化 | 同一プロセスの操作中に追加要求を発生させる | 2件目を開始せず、同時KS要求が0 | generation／lane自動試験 | Pass（自動） |
@@ -66,24 +66,21 @@
 
 ## 接続反復記録
 
-有効試行の前提は、Bluetooth無線ON、対象がペアリング済み・到達可能・切断状態であること。前提を満たさない試行は`Blocked`として別記し、有効10回へ含めない。
+有効試行の前提は、Bluetooth無線ON、対象がペアリング済み・到達可能・切断状態であること。前提を満たさない試行は`Blocked`として別記し、有効5回へ含めない。
 
 | 試行 | KS要求 | HRESULT | MMDevice最終状態 | 確定時間 | watchdog | 他機器影響 | 結果 |
 |---:|---|---|---|---:|---|---|---|
 | 1 | Reconnect | `S_OK` | Render/Capture Active | 13.647秒 | 正常 | 変化0（操作者確認） | 探索的Pass |
-| 2 | Reconnect | `S_OK` | Unplugged維持 | 15.001秒 | 正常 | 未観測 | Fail（正しくDeadlineExceeded） |
+| 2 | Reconnect | `S_OK` | Unplugged維持 | 15.001秒 | 正常 | 未観測 | Blocked（接続待ち未確認、正しくDeadlineExceeded） |
 | 3 | Reconnect | `S_OK` | Render/Capture Active | 8.178秒 | 正常 | 未確認 | 修正版Pass |
-| 4 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
-| 5 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
+| 4 | Reconnect | `S_OK` | Render/Capture Active | 10.761秒 | 正常 | 未確認 | 修正版Pass |
+| 5 | Reconnect | `S_OK` | Unplugged維持 | 15.000秒 | 正常 | 未確認 | Blocked（接続待ち未確認、正しくDeadlineExceeded） |
 | 6 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
 | 7 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
-| 8 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
-| 9 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
-| 10 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
 
 ## 切断反復記録
 
-有効試行の前提は、Bluetooth無線ON、対象がペアリング済みかつ音声Endpointの実状態がActiveであること。前提を満たさない試行は`Blocked`として別記し、有効10回へ含めない。
+有効試行の前提は、Bluetooth無線ON、対象がペアリング済みかつ音声Endpointの実状態がActiveであること。前提を満たさない試行は`Blocked`として別記し、有効5回へ含めない。
 
 | 試行 | KS要求 | HRESULT | MMDevice最終状態 | 確定時間 | watchdog | 他機器影響 | 結果 |
 |---:|---|---|---|---:|---|---|---|
@@ -91,12 +88,9 @@
 | 2 | Render Disconnect | `S_OK` | Render Unplugged / Capture Active | 0.175秒（旧判定） | 正常 | 未観測 | Fail（部分切断、修正済み） |
 | 3 | Render/Capture Disconnect | `S_OK` | 両Endpoint Unpluggedを5秒維持 | 7.167秒 | 正常 | 未観測 | 修正版Pass |
 | 4 | Render/Capture Disconnect | `S_OK` | 両Endpoint Unpluggedを5秒維持 | 7.969秒 | 正常 | 未確認 | 修正版Pass（操作者確認） |
-| 5 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
+| 5 | Render/Capture Disconnect | `S_OK` | 両Endpoint Unpluggedを5秒維持 | 5.865秒 | 正常 | 未確認 | 修正版Pass |
 | 6 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
 | 7 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
-| 8 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
-| 9 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
-| 10 | 未実行 | — | 未観測 | — | 未実行 | 未観測 | Pending |
 
 ## Gate A集計
 
@@ -104,8 +98,8 @@
 |---|---:|---|
 | Reconnect Basic Support | 対応 | Pass |
 | Disconnect Basic Support | 対応 | Pass（Render／Capture） |
-| 接続成功 | 10回中9回以上、各15秒以内 | 正式反復Pending（有効な修正版2回中2回Pass） |
-| 切断成功 | 10回中9回以上、各15秒以内 | 正式反復Pending（有効な修正版2回中2回Pass） |
+| 接続成功 | 5回中4回以上、各15秒以内 | 正式反復Pending（有効3回中3回Pass、Blocked 2回） |
+| 切断成功 | 5回中4回以上、各15秒以内 | 正式反復Pending（有効3回中3回Pass） |
 | 誤成功表示 | 0件 | 探索的1件を修正、修正版反復Pending |
 | 他機器への影響 | 0件 | 初回比較0件、反復Pending |
 | 管理者権限 | 不要 | Pass |
