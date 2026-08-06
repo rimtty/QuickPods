@@ -466,7 +466,9 @@ internal sealed class NativeTaskbarHost : IDisposable
 
         if (expectedParent == nint.Zero || !TaskbarNativeMethods.IsWindow(expectedParent) ||
             !TaskbarNativeMethods.IsWindowVisible(expectedParent) ||
-            HostNativeMethods.GetParent(windowHandle) != expectedParent)
+            TaskbarNativeMethods.GetAncestor(
+                windowHandle,
+                TaskbarNativeMethods.GetAncestorParent) != expectedParent)
         {
             throw new InvalidOperationException("The native host is no longer attached to its verified taskbar.");
         }
@@ -530,9 +532,12 @@ internal sealed class NativeTaskbarHost : IDisposable
             throw new Win32Exception(error);
         }
 
-        if (HostNativeMethods.GetParent(window) != taskbar ||
-            !NativeWindowStyles.MatchesPopupPreserved(
-                NativeWindowVerifier.ReadWindowLong(window, HostNativeMethods.GwlStyle)))
+        nint actualParent = TaskbarNativeMethods.GetAncestor(
+            window,
+            TaskbarNativeMethods.GetAncestorParent);
+        uint actualStyle = NativeWindowVerifier.ReadWindowLong(window, HostNativeMethods.GwlStyle);
+        if (actualParent != taskbar ||
+            !NativeWindowStyles.MatchesPopupPreserved(actualStyle))
         {
             throw new InvalidOperationException("SetParent did not preserve the verified WS_POPUP attachment.");
         }
