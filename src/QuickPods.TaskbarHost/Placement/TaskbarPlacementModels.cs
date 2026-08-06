@@ -13,6 +13,7 @@ internal enum PlacementDecision
 {
     Place,
     VerifiedNoFit,
+    UnsupportedConfiguration,
     TransientUnknown,
 }
 
@@ -27,6 +28,7 @@ internal enum PlacementReason
     None,
     IncompleteObservation,
     UnsupportedOrientation,
+    UnsupportedAlignment,
     InvalidGeometry,
     ContradictoryLandmarks,
     ConversionFailed,
@@ -74,6 +76,9 @@ internal sealed record TaskbarPlacementResult(
 
     public static TaskbarPlacementResult VerifiedNoFit(PlacementReason reason) =>
         new(PlacementDecision.VerifiedNoFit, null, null, reason);
+
+    public static TaskbarPlacementResult UnsupportedConfiguration(PlacementReason reason) =>
+        new(PlacementDecision.UnsupportedConfiguration, null, null, reason);
 
     public static TaskbarPlacementResult TransientUnknown(PlacementReason reason) =>
         new(PlacementDecision.TransientUnknown, null, null, reason);

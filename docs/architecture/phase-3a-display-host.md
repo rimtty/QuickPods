@@ -10,7 +10,7 @@ CI is configured for every pull-request base so stacked phase branches receive t
 This phase productizes the native display surface proven by Gate B without referencing a Spike assembly. It owns:
 
 - physical-pixel geometry and per-monitor DPI conversion;
-- fail-closed `Place`, `VerifiedNoFit`, and `TransientUnknown` decisions;
+- fail-closed `Place`, `VerifiedNoFit`, `UnsupportedConfiguration`, and `TransientUnknown` decisions;
 - raw Win32 primary-taskbar discovery plus UI Automation landmarks;
 - `PopupPreserved` native hosting, drawing, hit testing, and mouse capture;
 - static, versioned state rendering and interaction production;
@@ -25,12 +25,13 @@ All geometry is half-open and expressed in physical pixels. Negative virtual-des
 
 1. the primary horizontal taskbar and its DPI are known;
 2. the Start landmark is present and contained by the taskbar;
-3. an optional Widgets landmark is ordered before Start;
-4. every obstacle is valid and its expanded interval is removed from the candidate lane;
-5. the final rectangle is contained by the taskbar and selected gap;
-6. final intersection area with every standard element is zero pixels.
+3. Start is not at the verified left edge; Windows 11 left alignment is an explicitly unsupported product configuration;
+4. an optional Widgets landmark is ordered before Start;
+5. every obstacle is valid and its expanded interval is removed from the candidate lane;
+6. the final rectangle is contained by the taskbar and selected gap;
+7. final intersection area with every standard element is zero pixels.
 
-Incomplete, contradictory, or unrepresentable evidence returns `TransientUnknown`; a complete observation with insufficient height or width returns `VerifiedNoFit`. Neither decision permits a guessed native placement.
+Left-aligned Start returns `UnsupportedConfiguration / UnsupportedAlignment` and routes directly to Hidden, never Floating. Incomplete, contradictory, or unrepresentable evidence returns `TransientUnknown`; a complete **center-aligned** observation with insufficient height or width returns `VerifiedNoFit`. None of these decisions permits a guessed native placement.
 
 ## Implemented slice
 
@@ -52,14 +53,14 @@ The first product slice contains:
 - an explicit-confirmation, bounded static preview command with natural HWND teardown;
 - pure, overflow-safe floating fallback placement constrained to the verified primary work area;
 - hidden-first, unowned, non-topmost Floating HWND validation with the same renderer and interaction contracts;
-- explicit routing of `Place` to Native, `VerifiedNoFit` to verified Floating, and every `TransientUnknown` to Hidden;
+- explicit routing of `Place` to Native, center-aligned `VerifiedNoFit` to verified Floating, and both `UnsupportedConfiguration` and `TransientUnknown` to Hidden;
 - a sanitized, read-only product `inspect` command;
-- focused coverage for centered placement, left-aligned NoFit, incomplete and contradictory evidence, 100/125/150/200% DPI, negative coordinates, compact fragmentation, discovery adaptation, and render geometry.
+- focused coverage for centered placement, left-aligned unsupported/Hidden routing, incomplete and contradictory evidence, 100/125/150/200% DPI, negative coordinates, compact fragmentation, discovery adaptation, and render geometry.
 
-The suite remains intentionally focused: twenty new test executions were added to the existing Foundation suite rather than porting the Spike's diagnostic test inventory.
+The suite remains intentionally focused: twenty-two new test executions were added to the existing Foundation suite rather than porting the Spike's diagnostic test inventory.
 
 ## Remaining in Phase 3A
 
-- live validation of native preview placement, input, Start/Search continuity, and natural shutdown;
+- live validation that a supported center-aligned layout is restored from the left-aligned Hidden state;
 - complete the retained-continuity race checks from Issue #15 in Phase 3B (the Phase 3A exclusion provenance and create-time invalidation boundaries are implemented);
 - implement the accepted ADR-0001 observer helper in Phase 3B before recovery loops are enabled.

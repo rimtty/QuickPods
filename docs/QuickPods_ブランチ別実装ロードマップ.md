@@ -348,12 +348,13 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 業務サービスから独立した表示ホストを完成させる |
-| 状態 | **進行中** — Issue #30。Native/Floating/Hidden表示経路まで実装し、Foundation 43/43、TaskbarHost Release 0 warning、150%実機read-only inspectに合格。実機preview gate待ち |
+| 状態 | **進行中** — Issue #30。Native/Floating/Hidden表示経路と左揃え非対応判定を実装。Foundation 45/45、全solution Release 0 warning、150% read-only inspectに合格。175%中央揃えNativeではclick／drag／wheel、Start／Search中の同位置維持、自然破棄、残留0に合格し、移植時の`GetParent`誤用を`GetAncestor(GA_PARENT)`へ修正。175%左揃えは`UnsupportedAlignment → Hidden`、previewでもHWND生成なし・残留0に合格。中央揃え復帰gate待ち |
 | Gate BがGo | raw Win32 `QuickPods.TaskbarHost`、UIA探索、安全領域、描画、ヒットテスト |
 | Gate BがNo-Go | タスクバー直上のフローティングストリップを実装 |
-| 共通 | `Place`／`VerifiedNoFit`／`TransientUnknown`、DPI座標、負座標、テーマ入力 |
-| テスト | 障害物区間、最大空き、境界値、擬似親ウィンドウ、DPI変更、マウスキャプチャ |
-| 完了条件 | 不明時に推測配置せず、表示可能時だけ静的スナップショットを安全に描画・操作可能 |
+| 共通 | `Place`／`VerifiedNoFit`／`UnsupportedConfiguration`／`TransientUnknown`、DPI座標、負座標、テーマ入力 |
+| サポート境界 | Windows 11中央揃えのみ。左揃えは既知の非対応構成としてFloatingへ送らずHidden |
+| テスト | 障害物区間、最大空き、左揃え非対応、境界値、擬似親ウィンドウ、DPI変更、マウスキャプチャ |
+| 完了条件 | 左揃えと不明状態で推測配置せず、中央揃えで表示可能な場合だけ静的スナップショットを安全に描画・操作可能 |
 
 #### B9：`codex/phase-3b-ipc-recovery`
 

@@ -46,6 +46,19 @@ public sealed class TaskbarPresentationRouterTests
         Assert.Null(inconsistentNoFit.Bounds);
     }
 
+    [Fact]
+    public void KnownUnsupportedAlignmentAlwaysRoutesHidden()
+    {
+        TaskbarPresentationRoute route = TaskbarPresentationRouter.Select(
+            CompleteDiscovery(),
+            TaskbarPlacementResult.UnsupportedConfiguration(
+                PlacementReason.UnsupportedAlignment));
+
+        Assert.Equal(TaskbarPresentationSurface.Hidden, route.Surface);
+        Assert.Equal(TaskbarPresentationReason.UnsupportedConfigurationHidden, route.Reason);
+        Assert.Null(route.Bounds);
+    }
+
     private static TaskbarDiscoveryResult CompleteDiscovery()
     {
         var snapshot = new LiveTaskbarSnapshot(

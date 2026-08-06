@@ -15,6 +15,7 @@ internal enum TaskbarPresentationReason
 {
     NativePlacement,
     VerifiedNoFitFloating,
+    UnsupportedConfigurationHidden,
     TransientUnknownHidden,
     InconsistentEvidenceHidden,
     FloatingPlacementUnavailableHidden,
@@ -77,6 +78,11 @@ internal static class TaskbarPresentationRouter
             }
 
             return Hidden(TaskbarPresentationReason.FloatingPlacementUnavailableHidden);
+        }
+
+        if (placement.Decision == PlacementDecision.UnsupportedConfiguration)
+        {
+            return Hidden(TaskbarPresentationReason.UnsupportedConfigurationHidden);
         }
 
         return Hidden(TaskbarPresentationReason.TransientUnknownHidden);

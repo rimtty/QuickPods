@@ -760,8 +760,11 @@ Widgetsが無効な場合はタスクバー左端＋余白を開始位置とす�
 | 結果 | 意味 | 動作 |
 |---|---|---|
 | `Place` | 安全な位置を確定 | 標準またはコンパクト表示 |
-| `VerifiedNoFit` | レイアウト取得済みだが幅不足 | 即座に隠してフォールバック |
+| `VerifiedNoFit` | サポート対象の中央揃えで、レイアウト取得済みだが幅不足 | 即座に隠してフローティングへフォールバック |
+| `UnsupportedConfiguration` | Startが左端にある左揃えを確証 | タスクバー内／フローティングのどちらも表示せず非表示 |
 | `TransientUnknown` | UIA一時失敗などで安全性不明 | 原則一時非表示、条件付きで短い再試行 |
+
+製品初期版がサポートするタスクバー配置はWindows 11の**中央揃えのみ**とする。Startの左端配置を検出した場合は既知の非対応構成`UnsupportedConfiguration / UnsupportedAlignment`として扱い、空き幅不足の`VerifiedNoFit`へ読み替えない。したがって左揃えではFloatingへ退避せず、通知領域常駐と設定導線だけを維持して表示ストリップを隠す。中央揃えへ戻り、完全な探索結果を再取得できた場合に限りNative表示へ復帰する。この制限は曖昧な検出失敗ではなく、明示的な製品サポート境界である。
 
 Ceilingは一時的なランドマーク欠落で既存表示を保持する工夫を持つ。本アプリでは、初回探索、別taskbar、構成変更、identity／geometry不一致、一般的な`TransientUnknown`では即座に隠してフォールバックする。既に可視のhostだけは、完全観測由来anchorと同じtaskbar／hostをWin32で直接再証明できる`DirectExpected`で、UIA faultが単独`StartButtonMissing`の場合に限り、最後の完全Startとfresh／previous障害物のunionで既存矩形を再検証して表示を継続する。各scanは固定500ms以内、Direct中は500ms間隔、surface healthは100ms間隔で監視し、いずれかの証明が失われれば即fallbackする。保持結果を新しいbaselineにはしない。
 
@@ -792,7 +795,7 @@ Microsoftの一般的な説明では親子付け時に`WS_CHILD`と`WS_POPUP`を
 - 方式A：Ceiling互換の`WS_POPUP`維持
 - 方式B：Microsoftの通常形に近い`WS_CHILD`
 
-Phase 0Eの対象build実機比較では方式AだけがStart／Search表示中のnative continuityを満たしたため、製品実装は`WS_POPUP`維持に確定した。方式Bは診断用の明示指定として残す。PopupのExplorer再起動10回、DPI 100／125／150／200%、NoFit fallback、ピン留め多数、Start中tray churnを含む全条件に合格し、Gate Bは2026-08-06にGoとなった。製品版は別プロセスの`QuickPods.TaskbarHost.exe`へ隔離し、unsafe／NoFit時はfloatingまたはhiddenへfail closedする。
+Phase 0Eの対象build実機比較では方式AだけがStart／Search表示中のnative continuityを満たしたため、製品実装は`WS_POPUP`維持に確定した。方式Bは診断用の明示指定として残す。PopupのExplorer再起動10回、DPI 100／125／150／200%、NoFit fallback、ピン留め多数、Start中tray churnを含む全条件に合格し、Gate Bは2026-08-06にGoとなった。製品版は別プロセスの`QuickPods.TaskbarHost.exe`へ隔離する。Phase 0で確認した左揃えNoFitのFloatingは技術証拠として保存するが、製品方針変更により左揃えは非対応・Hiddenとする。中央揃え内のunsafe／NoFitだけをfloatingまたはhiddenへfail closedする。
 
 ### 11.8 描画と入力
 

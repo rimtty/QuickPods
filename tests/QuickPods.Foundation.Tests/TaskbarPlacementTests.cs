@@ -31,11 +31,32 @@ public sealed class TaskbarPlacementTests
     }
 
     [Fact]
-    public void LeftAlignedStartIsVerifiedNoFit()
+    public void LeftAlignedStartIsKnownUnsupportedConfiguration()
     {
         TaskbarLayoutObservation observation = Observation(
             taskbar: new PixelRect(0, 0, 1920, 48),
             start: new PixelRect(0, 0, 45, 48));
+
+        TaskbarPlacementResult result = SafeRegionPlanner.Calculate(
+            observation,
+            TaskbarPlacementOptions.Default);
+
+        Assert.Equal(PlacementDecision.UnsupportedConfiguration, result.Decision);
+        Assert.Equal(PlacementReason.UnsupportedAlignment, result.Reason);
+        Assert.Null(result.Bounds);
+        Assert.False(SafeRegionPlanner.IsExistingPlacementSafe(
+            observation,
+            TaskbarPlacementOptions.Default,
+            new PixelRect(100, 4, 400, 44)));
+    }
+
+    [Fact]
+    public void CenterAlignedTaskbarWithoutCompactGapIsVerifiedNoFit()
+    {
+        TaskbarLayoutObservation observation = Observation(
+            taskbar: new PixelRect(0, 0, 1920, 48),
+            start: new PixelRect(1000, 0, 1045, 48),
+            obstacles: [new PixelRect(0, 0, 850, 48)]);
 
         TaskbarPlacementResult result = SafeRegionPlanner.Calculate(
             observation,

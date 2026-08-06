@@ -27,6 +27,12 @@ internal static class SafeRegionPlanner
             return TaskbarPlacementResult.TransientUnknown(PlacementReason.InvalidGeometry);
         }
 
+        if (IsLeftAligned(observation.TaskbarBounds, startButton))
+        {
+            return TaskbarPlacementResult.UnsupportedConfiguration(
+                PlacementReason.UnsupportedAlignment);
+        }
+
         if (observation.WidgetsButtonBounds is PixelRect widgets && widgets.Right > startButton.Left)
         {
             return TaskbarPlacementResult.TransientUnknown(PlacementReason.ContradictoryLandmarks);
@@ -110,6 +116,7 @@ internal static class SafeRegionPlanner
             !options.IsValid ||
             !existingBounds.IsValid ||
             !TryValidateObservation(observation, out PixelRect startButton) ||
+            IsLeftAligned(observation.TaskbarBounds, startButton) ||
             (observation.WidgetsButtonBounds is PixelRect widgets && widgets.Right > startButton.Left) ||
             !TryConvertMetrics(observation.Dpi, options, out PlacementMetrics metrics) ||
             existingBounds.Width < metrics.CompactMinimumWidth ||
@@ -184,6 +191,12 @@ internal static class SafeRegionPlanner
 
         metrics = new PlacementMetrics(standardWidth, compactWidth, height, margin);
         return true;
+    }
+
+    private static bool IsLeftAligned(PixelRect taskbar, PixelRect startButton)
+    {
+        long leftGap = (long)startButton.Left - taskbar.Left;
+        return leftGap >= 0 && leftGap <= startButton.Width;
     }
 
     private static bool TryCreateVerticalBand(
