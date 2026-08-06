@@ -18,8 +18,12 @@ background起動後、実pointerをnative面（`left=662, top=2083, right=1187, 
 
 pointerをtaskbar面からflyout内部へ移した後800 ms待っても表示を維持し、外へ移して700 ms後には非表示となった。App／TaskbarHostはいずれも応答状態を維持した。現在はRDPセッションであるため、この結果はhover protocolと相対配置の合格証跡に使い、DPI差の最終合否には使用しない。
 
+ユーザーは2026-08-06に最終hover UIを目視し、slider、mute button、device status、全体の見た目を合格と判定した。同時に`QuickPods設定`展開時、初回位置のままWindowが下方向へ伸びてtaskbar背後へ入り、下部controlを操作できない問題を発見し、Issue [#60](https://github.com/rimtty/QuickPods/issues/60)へ記録した。
+
+修正後は`SizeToContent`による高さ変更をレイアウト確定後に同じtaskbar anchorへ再配置する。175%環境の実測で、折り畳み時は`top=1096, bottom=2076, height=980`、展開後は`top=788, bottom=2076, height=1288` physical pxとなり、増加分308 pxを上方向だけへ拡張した。taskbar上端`2083`に対する下端余白は両状態とも7 pxである。内部scrollを最下部へ移動し、settings combo、checkbox、ログ、診断情報、version表示までtaskbarより上で表示できることを確認した。変更後のRelease buildは警告0／error 0、全回帰377／377 Pass、format verificationと`git diff --check`も成功した。
+
 ## 未確認
 
-- ユーザー目視による最終的な余白・アイコンの主観確認
+- Issue #60修正版で、展開したsettings全controlをユーザーが実際に操作できること
 - 実Bluetooth 1台／複数台でのrow密度、long-name ellipsis、接続状態
 - local-consoleでの100／125／150／200%最終描画

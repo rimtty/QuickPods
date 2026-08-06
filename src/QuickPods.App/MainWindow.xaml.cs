@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using QuickPods.Contracts;
 using QuickPods.Core;
 using QuickPods.Core.Models;
@@ -38,6 +39,7 @@ public partial class MainWindow : Window
     private BluetoothProductPresentation bluetoothView;
     private QuickPodsSettings productSettings = QuickPodsSettings.Default;
     private TaskbarSurfaceAnchor? placementAnchor;
+    private bool placementRefreshPending;
     private Task? initialization;
 
     internal event Action<QuickPodsSettings>? SettingsChanged;
@@ -262,6 +264,26 @@ public partial class MainWindow : Window
 
     private void OnContentRendered(object? sender, EventArgs eventArgs) =>
         PositionAboveTaskbarCore(placementAnchor);
+
+    private void OnWindowSizeChanged(object sender, SizeChangedEventArgs eventArgs)
+    {
+        if (!eventArgs.HeightChanged || !IsVisible || placementRefreshPending)
+        {
+            return;
+        }
+
+        placementRefreshPending = true;
+        _ = Dispatcher.BeginInvoke(
+            DispatcherPriority.Loaded,
+            () =>
+            {
+                placementRefreshPending = false;
+                if (IsVisible)
+                {
+                    PositionAboveTaskbarCore(placementAnchor);
+                }
+            });
+    }
 
     private void OnWindowPreviewKeyDown(object sender, WpfKeyEventArgs eventArgs)
     {

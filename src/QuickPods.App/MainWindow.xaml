@@ -19,6 +19,7 @@
         TextOptions.TextFormattingMode="Display"
         Loaded="OnLoaded"
         ContentRendered="OnContentRendered"
+        SizeChanged="OnWindowSizeChanged"
         MouseEnter="OnFlyoutMouseEnter"
         MouseLeave="OnFlyoutMouseLeave"
         PreviewKeyDown="OnWindowPreviewKeyDown"
