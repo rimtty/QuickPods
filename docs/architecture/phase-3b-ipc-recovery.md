@@ -2,7 +2,7 @@
 
 ## Status
 
-In progress on `codex/phase-3b-ipc-recovery` under Issue #34. The app/host IPC, bounded process recovery, and ADR-0001 Explorer-generation observer boundary are implemented and live-tested. The physical Explorer-restart/resource gate and the center-aligned NoFit decision in Issue #33 remain pending.
+In progress on `codex/phase-3b-ipc-recovery` under Issue #34. The app/host IPC, bounded process recovery, ADR-0001 Explorer-generation observer boundary, and complete Phase 3B host command path are implemented and live-tested. The physical Explorer-restart/resource gate and the center-aligned NoFit decision in Issue #33 remain pending. DPI/Floating visual acceptance is deferred while the available session is Remote Desktop because its virtual display topology does not provide authoritative local-renderer evidence.
 
 ## Process boundary
 
@@ -24,7 +24,7 @@ The Watchdog does not register a repeating UI Automation handler. One short-live
 
 ## Input path
 
-The host normalizes interaction sequences across native/floating HWND recreation. Preview and final volume interactions cross the pipe and call the existing `AudioController`; optimistic coalescing and final flush behavior remain owned by Phase 2. Audio callbacks publish the resulting full state snapshot back to the host.
+The host normalizes interaction sequences across native/floating HWND recreation. Preview and final volume interactions cross the pipe and call the existing `AudioController`; optimistic coalescing and final flush behavior remain owned by Phase 2. A left click on the rendered speaker icon emits `ToggleMute`, a left click on strip whitespace emits `OpenAudioFlyout`, and `WM_RBUTTONUP` emits `OpenContextMenu`. These hit rules and sequences are shared by Native and Floating surfaces. Audio callbacks publish the resulting full state snapshot back to the host.
 
 Flyout and context-menu requests currently activate the diagnostic main window. Bluetooth-specific flyout contents remain Phase 4 and tray lifetime remains Phase 5.
 

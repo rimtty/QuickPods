@@ -11,6 +11,12 @@
 | Audio safety | Playback stopped; original and restored state 10.0%, mute off |
 | Issue | #34; #33 and the physical acceptance portion of #18 remain follow-up gates |
 
+The checkpoint values above describe the original local-console run. A later
+Remote Desktop session alternated between virtual and physical display
+topologies, so its DPI, taskbar bounds, and visual rendering observations are
+explicitly excluded from acceptance evidence. DPI/Floating visual gates are
+deferred until a stable local-console session is available.
+
 ## Automated evidence
 
 | Check | Result |
@@ -45,13 +51,27 @@
 - Every normal close after observer, host, and `TaskbarCreated` recovery left App, Host, Observer, Native, and Floating counts at zero.
 - The independent Core Audio read after all runs remained exactly 10.0%, mute off.
 
+## Command-input checkpoint
+
+- The shared Native/Floating interaction session now emits all Phase 3B host
+  commands: volume preview/commit, speaker-icon `ToggleMute`, strip-whitespace
+  `OpenAudioFlyout`, and `WM_RBUTTONUP` `OpenContextMenu`.
+- A bounded product Native preview received the three non-volume Win32 inputs
+  through its real HWND and emitted monotonic sequences 0, 1, and 2 in that
+  order. The preview was intentionally disconnected from the App/Core Audio,
+  exited naturally, and left no Host process.
+- The existing focused interaction test was extended rather than adding a new
+  diagnostic suite. Foundation remains 50/50 and the Release solution build
+  remains at zero warnings and zero errors.
+
 ## Remaining Phase 3B gates
 
 - [x] implement the ADR-0001 observer helper and sanitized epoch/invalidation protocol;
 - [x] receive `TaskbarCreated`, retire the old Explorer generation, and recover hidden-first;
 - [x] verify observer/host ownership and no residue across forced shutdown;
+- [x] route mute, flyout, and context-menu commands from both visible surfaces;
 - [ ] run the bounded Explorer restart/resource test and record USER/GDI evidence;
-- [ ] resolve or safely downgrade center-aligned NoFit Floating z-order under Issue #33;
+- [ ] resolve or safely downgrade center-aligned NoFit Floating z-order under Issue #33 (local-console visual gate deferred while the active session is RDP);
 - [ ] rerun Start/Search continuity and user-visible input after the complete runtime is assembled.
 
 Checkpoint status: **IPC/process recovery Go; Phase 3B overall remains in progress**.
