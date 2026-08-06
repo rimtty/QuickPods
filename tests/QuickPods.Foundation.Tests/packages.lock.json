@@ -112,6 +112,12 @@
           "QuickPods.Core": "[1.0.0, )"
         }
       },
+      "quickpods.taskbarhost": {
+        "type": "Project",
+        "dependencies": {
+          "QuickPods.Contracts": "[1.0.0, )"
+        }
+      },
       "quickpods.windows": {
         "type": "Project",
         "dependencies": {
