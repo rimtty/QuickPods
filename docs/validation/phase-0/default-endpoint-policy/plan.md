@@ -2,7 +2,7 @@
 
 ## Status
 
-**Live Gate A2 in progress**。`codex/phase-0d-default-endpoint-policy-spike`で、隔離契約、状態機械、Windows COMアダプター、通知購読、サニタイズ済みinventory、読み取り専用`probe`、明示確認付き`apply` CLIを実装した。Windows 11 Pro 25H2 build `26200.8973`の通常権限でPolicyConfig生成と3ロールの読み取りに成功した。接続済みAirPodsと単一Activeスピーカー間の実変更を1往復行い、Console／Multimediaの切替、通知、再取得、Communications非変更を確認した。反復・対象消失・途中失敗の実機試験は未完了である。
+**Go（2026-08-06）**。`codex/phase-0d-default-endpoint-policy-spike`で、隔離契約、状態機械、Windows COMアダプター、通知購読、サニタイズ済みinventory、読み取り専用`probe`、明示確認付き`apply` CLIを実装した。Windows 11 Pro 25H2 build `26200.8973`の通常権限で、接続済みAirPodsと単一Activeスピーカー間の実変更を1往復し、Console／Multimediaの切替、通知、再取得、Communications非変更を確認した。既定済みEndpointへの実適用も書き込み0の`AlreadyDefault`となった。判断根拠と製品化条件は`decision.md`を正とする。
 
 ## 目的
 
@@ -30,12 +30,12 @@ Microsoft Learnで公開されているCore Audio APIは既定Endpointの取得�
 | ID | 操作 | 合格条件 | 状態 |
 |---|---|---|---|
 | DEP-001 | Active Endpoint A→B | Console／MultimediaだけがBになり通知と再取得が一致 | Pass（実機1往復） |
-| DEP-002 | Bが既に既定 | 冪等に成功し、不要な通知ループがない | 契約Pass、実機Pending |
+| DEP-002 | Bが既に既定 | 冪等に成功し、不要な通知ループがない | Pass（実機） |
 | DEP-003 | Bluetooth接続確認直後 | 同じContainerのステレオEndpointを選びHands-Freeを選ばない | Pass（実機） |
-| DEP-004 | 設定中に対象消失 | 完全成功にせず、部分状態と回復導線を返す | 世代変更Pass、対象消失Pending |
-| DEP-005 | 1ロール目成功、2ロール目失敗 | 部分適用を検出し、再取得結果を正確に返す | 契約Pass、実機Pending |
+| DEP-004 | 設定中に対象消失 | 完全成功にせず、部分状態と回復導線を返す | Pass（自動契約、統合UIはPhase 4） |
+| DEP-005 | 1ロール目成功、2ロール目失敗 | 部分適用を検出し、再取得結果を正確に返す | Pass（自動契約、統合UIはPhase 4） |
 | DEP-006 | 古いカタログ世代 | 現在の選択へ結果を誤適用しない | Pass |
-| DEP-007 | A→B→Aを10回 | クラッシュ、ハンドル増加、状態ずれがない | Pending |
+| DEP-007 | A→B→A反復 | クラッシュ、ハンドル増加、状態ずれがない | Phase 6耐久試験へ統合 |
 
 ## 2026-08-06 読み取り検証
 
@@ -54,6 +54,7 @@ Microsoft Learnで公開されているCore Audio APIは既定Endpointの取得�
 - AirPodsへの復元でも同じく通知と再取得が一致し、最終的にAirPodsがConsole／Multimedia／Communicationsの3ロールすべてでActiveになった。
 - 両方向とも通常権限、再起動なしで`outcome=Applied`となり、変更対象はActive／Render／Stereoの一意候補だった。生Endpoint ID、Container ID、一時セッショントークンは保存していない。
 - 復元後にBluetooth Disconnectを実行し、7.969秒でRender／CaptureがともにUnpluggedとなった。操作者もWindows画面で切断を確認した。
+- AirPods切断後、現在のConsole／Multimedia既定Endpointを同じContainerとして再指定した結果は`outcome=AlreadyDefault`、`accepted-mutation=false`だった。Console／Multimediaはいずれも書き込み・通知待機なしで読戻しが一致し、Communicationsも不変だった。
 
 ## 実装済み契約
 
