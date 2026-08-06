@@ -4,6 +4,8 @@
 
 - `QuickPods.App` Release win-x64 `-warnaserror` build：警告0、error 0
 - focused Foundation回帰：77／77 Pass（既存test数を増やさず、protocol／rendering／native interactionの既存3 testへ必要なassertionだけ追加）
+- 変更後sourceから全solutionを再buildした回帰：377／377 Pass（Smoke 1、Foundation 77、DefaultEndpointPolicy 7、CoreAudio 44、TaskbarHost 183、BluetoothKs 65）
+- GitHub Actions PR #54 `Windows / .NET 10 / Release`：Pass
 - hover session：同一enter世代でarm／previewが各1回、leave後だけ再arm
 - protocol：taskbar anchorを含むpreview interactionのJSON往復
 - rendering：0～100%正規化、未選択`BTデバイスなし`、選択名・状態のprojection
