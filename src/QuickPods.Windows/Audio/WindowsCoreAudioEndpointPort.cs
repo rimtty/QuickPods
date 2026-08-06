@@ -108,12 +108,11 @@ public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposab
                 null,
                 Timeout.InfiniteTimeSpan,
                 Timeout.InfiniteTimeSpan);
-            deviceNotificationPointer = Marshal.GetComInterfaceForObject(
-                deviceNotificationClient,
-                typeof(IMMNotificationClient));
-
             try
             {
+                deviceNotificationPointer = Marshal.GetComInterfaceForObject(
+                    deviceNotificationClient,
+                    typeof(IMMNotificationClient));
                 TryRegisterDeviceNotifications();
                 RebindDefaultEndpointSafely();
             }

@@ -15,11 +15,12 @@
 | Check | Result |
 |---|---|
 | Release solution build | Pass — 0 warnings, 0 errors |
-| Focused foundation tests | Pass — 21/21 |
+| Focused foundation tests | Pass — 22/22 |
 | Rapid slider input | Pass — 100 previews, bounded writes, final value 73 |
 | Generation | Pass — retired generation cannot overwrite current endpoint |
 | External notification | Pass — state changes without feedback write |
 | Self notification | Pass — optimistic preview is not rolled back |
+| Faulted shutdown | Pass — write error reaches the operation once; subsequent disposal succeeds (Issue #29) |
 | Format / diff check | Pass |
 
 ## Initial live observation

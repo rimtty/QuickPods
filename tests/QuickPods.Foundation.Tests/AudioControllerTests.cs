@@ -83,6 +83,20 @@ public sealed class AudioControllerTests
         Assert.Equal(80, controller.State.VolumePercent);
     }
 
+    [Fact]
+    public async Task ObservedWriteFailureDoesNotFailShutdownAgain()
+    {
+        var port = new FakeAudioPort { FailVolumeWrites = true };
+        var controller = new AudioController(port, TimeSpan.FromMilliseconds(1));
+        await controller.InitializeAsync();
+
+        InvalidOperationException failure = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => controller.CommitVolumeAsync(25).AsTask());
+        await controller.DisposeAsync();
+
+        Assert.Equal("Simulated volume failure.", failure.Message);
+    }
+
     private sealed class FakeAudioPort : IAudioEndpointPort
     {
         private AudioState state = new(
@@ -100,6 +114,8 @@ public sealed class AudioControllerTests
 
         public int MuteWrites { get; private set; }
 
+        public bool FailVolumeWrites { get; init; }
+
         public ValueTask<AudioState> ReadAsync(CancellationToken cancellationToken) =>
             ValueTask.FromResult(state);
 
@@ -107,6 +123,11 @@ public sealed class AudioControllerTests
             int volumePercent,
             CancellationToken cancellationToken)
         {
+            if (FailVolumeWrites)
+            {
+                throw new InvalidOperationException("Simulated volume failure.");
+            }
+
             VolumeWrites.Add(volumePercent);
             state = state with { VolumePercent = volumePercent };
             return ValueTask.FromResult(state);

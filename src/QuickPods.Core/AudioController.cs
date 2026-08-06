@@ -229,6 +229,10 @@ internal sealed class LatestVolumeWriter : IAsyncDisposable
         catch (OperationCanceledException) when (shutdown.IsCancellationRequested)
         {
         }
+        catch (Exception) when (current.IsFaulted)
+        {
+            // The active operation already observed the write failure. Shutdown must remain safe.
+        }
         finally
         {
             shutdown.Dispose();

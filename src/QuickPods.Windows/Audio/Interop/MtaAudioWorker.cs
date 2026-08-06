@@ -22,7 +22,17 @@ internal sealed partial class MtaAudioWorker : IDisposable
         };
         thread.SetApartmentState(ApartmentState.MTA);
         thread.Start();
-        started.Task.GetAwaiter().GetResult();
+        try
+        {
+            started.Task.GetAwaiter().GetResult();
+        }
+        catch
+        {
+            workItems.CompleteAdding();
+            _ = thread.Join(TimeSpan.FromSeconds(5));
+            workItems.Dispose();
+            throw;
+        }
     }
 
     public event Action<Exception>? BackgroundFaulted;
