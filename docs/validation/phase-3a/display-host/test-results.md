@@ -9,19 +9,19 @@
 | Architecture | x64 |
 | Build | Release, .NET 10.0.302 |
 | Issue / PR | #30 / #32 |
-| Current scope | placement engine and one-shot read-only discovery |
+| Current scope | placement, read-only discovery, and host-independent rendering |
 
 ## Automated evidence
 
 | Check | Result |
 |---|---|
-| Foundation tests | Pass — 33/33 |
-| New Phase 3A executions | Pass — 10 focused executions across placement and discovery adaptation |
+| Foundation tests | Pass — 36/36 |
+| New Phase 3A executions | Pass — 13 focused executions across placement, discovery adaptation, and rendering geometry |
 | TaskbarHost Release build | Pass — 0 warnings, 0 errors |
 | Solution locked restore | Pass |
 | Format / diff check | Pass |
 
-The focused coverage includes standard placement, verified left-aligned NoFit, incomplete and contradictory evidence, compact fragmentation, negative coordinates, 100/125/150/200% DPI conversion, automation/native obstacle merging, and duplicate Start fail-closed behavior. The Phase 0 diagnostic suite was not copied into the product suite.
+The focused coverage includes standard placement, verified left-aligned NoFit, incomplete and contradictory evidence, compact fragmentation, negative coordinates, 100/125/150/200% DPI conversion, automation/native obstacle merging, duplicate Start fail-closed behavior, shared slider hit-test geometry, and render-state normalization. The Phase 0 diagnostic suite was not copied into the product suite.
 
 ## Read-only live inspection
 
