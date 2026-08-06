@@ -18,7 +18,8 @@ internal sealed class WindowsBluetoothCapabilityProbe
         WindowsBluetoothDeviceBinding binding,
         CancellationToken cancellationToken)
     {
-        if (binding.Endpoints.IsDefaultOrEmpty ||
+        if (binding.HasAmbiguousAdapterOwnership ||
+            binding.Endpoints.IsDefaultOrEmpty ||
             binding.Endpoints.Any(endpoint => endpoint.AdapterDeviceIds.IsDefaultOrEmpty))
         {
             return BluetoothDeviceCapability.OwnershipUnknown;

@@ -8,19 +8,23 @@ public sealed class BluetoothOperationController : IDisposable
     private readonly BluetoothCatalogController catalog;
     private readonly IBluetoothDeviceOperationPort bluetooth;
     private readonly IDefaultOutputOperationPort defaultOutput;
+    private readonly IBluetoothOperationGatePort globalOperationGate;
     private readonly SemaphoreSlim operationGate = new(1, 1);
     private readonly object stateLock = new();
     private BluetoothOperationSnapshot state = BluetoothOperationSnapshot.Idle;
-    private bool disposed;
+    private int disposed;
 
     public BluetoothOperationController(
         BluetoothCatalogController catalog,
         IBluetoothDeviceOperationPort bluetooth,
-        IDefaultOutputOperationPort defaultOutput)
+        IDefaultOutputOperationPort defaultOutput,
+        IBluetoothOperationGatePort globalOperationGate)
     {
         this.catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         this.bluetooth = bluetooth ?? throw new ArgumentNullException(nameof(bluetooth));
         this.defaultOutput = defaultOutput ?? throw new ArgumentNullException(nameof(defaultOutput));
+        this.globalOperationGate = globalOperationGate ??
+            throw new ArgumentNullException(nameof(globalOperationGate));
     }
 
     public event EventHandler<BluetoothOperationSnapshot>? StateChanged;
@@ -46,9 +50,10 @@ public sealed class BluetoothOperationController : IDisposable
 
     public void Dispose()
     {
-        if (!disposed)
+        if (Interlocked.Exchange(ref disposed, 1) == 0)
         {
-            disposed = true;
+            operationGate.Wait();
+            operationGate.Release();
             operationGate.Dispose();
         }
     }
@@ -57,10 +62,11 @@ public sealed class BluetoothOperationController : IDisposable
         BluetoothRequestedAction action,
         CancellationToken cancellationToken)
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
         await operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
             BluetoothAudioCatalogSnapshot catalogState = catalog.State;
             BluetoothAudioDeviceDescriptor? selected = catalogState.Devices.FirstOrDefault(
                 device => device.IsSelected);
@@ -89,17 +95,39 @@ public sealed class BluetoothOperationController : IDisposable
                     QuickPodsErrorCode.BluetoothDriverUnsupported);
             }
 
-            return action switch
+            BluetoothOperationAdmissionResult<BluetoothOperationSnapshot> admitted;
+            try
             {
-                BluetoothRequestedAction.Connect => await ConnectAsync(
+                admitted = await globalOperationGate.RunAsync(
+                    () => ExecuteSelectedAsync(action, target, selected, cancellationToken),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return PublishCancelled(target, action);
+            }
+            catch
+            {
+                return PublishFaulted(target, action);
+            }
+
+            return admitted.Status switch
+            {
+                BluetoothOperationAdmissionStatus.Executed => admitted.Value,
+                BluetoothOperationAdmissionStatus.Busy => PublishTerminal(
                     target,
-                    selected,
-                    cancellationToken).ConfigureAwait(false),
-                BluetoothRequestedAction.Disconnect => await DisconnectAsync(
+                    action,
+                    BluetoothOperationOutcome.Rejected,
+                    selected.ConnectionState,
+                    selected.DefaultOutputState,
+                    QuickPodsErrorCode.BluetoothOperationRejected),
+                _ => PublishTerminal(
                     target,
-                    selected,
-                    cancellationToken).ConfigureAwait(false),
-                _ => throw new ArgumentOutOfRangeException(nameof(action)),
+                    action,
+                    BluetoothOperationOutcome.ContainmentFailed,
+                    selected.ConnectionState,
+                    selected.DefaultOutputState,
+                    QuickPodsErrorCode.BluetoothContainmentFailed),
             };
         }
         finally
@@ -107,6 +135,24 @@ public sealed class BluetoothOperationController : IDisposable
             operationGate.Release();
         }
     }
+
+    private ValueTask<BluetoothOperationSnapshot> ExecuteSelectedAsync(
+        BluetoothRequestedAction action,
+        BluetoothOperationTarget target,
+        BluetoothAudioDeviceDescriptor selected,
+        CancellationToken cancellationToken) =>
+        action switch
+        {
+            BluetoothRequestedAction.Connect => ConnectAsync(
+                target,
+                selected,
+                cancellationToken),
+            BluetoothRequestedAction.Disconnect => DisconnectAsync(
+                target,
+                selected,
+                cancellationToken),
+            _ => throw new ArgumentOutOfRangeException(nameof(action)),
+        };
 
     private async ValueTask<BluetoothOperationSnapshot> ConnectAsync(
         BluetoothOperationTarget target,

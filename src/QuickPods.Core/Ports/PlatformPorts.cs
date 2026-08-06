@@ -76,6 +76,18 @@ public interface IDefaultOutputOperationPort
         CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Serializes the complete Bluetooth operation, including any subsequent default-output write,
+/// across QuickPods processes. Implementations must retain ownership until the supplied operation
+/// has fully settled and must reject an abandoned owner once before allowing a later operation.
+/// </summary>
+public interface IBluetoothOperationGatePort
+{
+    ValueTask<BluetoothOperationAdmissionResult<T>> RunAsync<T>(
+        Func<ValueTask<T>> operation,
+        CancellationToken cancellationToken);
+}
+
 public interface IBluetoothSelectionStore
 {
     ValueTask<BluetoothDeviceKey?> LoadAsync(CancellationToken cancellationToken = default);

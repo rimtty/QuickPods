@@ -1,7 +1,7 @@
 <Window x:Class="QuickPods.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="QuickPods Audio MVP"
+        Title="QuickPods"
         Width="440"
         MinWidth="400"
         SizeToContent="Height"
@@ -14,6 +14,8 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="16" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="8" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="16" />
             <RowDefinition Height="Auto" />
@@ -106,8 +108,22 @@
             </Grid>
         </Border>
 
+        <Button Grid.Row="4"
+                HorizontalAlignment="Left"
+                AutomationProperties.Name="Windowsのサウンド設定を開く"
+                Click="OnOpenSoundSettings"
+                Style="{StaticResource QuickPodsLinkButtonStyle}">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Margin="0,0,10,0"
+                           FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                           FontSize="17"
+                           Text="&#xE713;" />
+                <TextBlock FontSize="14" Text="サウンド設定を開く" />
+            </StackPanel>
+        </Button>
+
         <TextBlock x:Name="DiagnosticText"
-                   Grid.Row="4"
+                   Grid.Row="6"
                    Foreground="#FFB4A9"
                    TextWrapping="Wrap" />
     </Grid>

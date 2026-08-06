@@ -35,6 +35,17 @@ public enum BluetoothMutationFailure
     Faulted,
 }
 
+public enum BluetoothOperationAdmissionStatus
+{
+    Executed,
+    Busy,
+    Abandoned,
+}
+
+public readonly record struct BluetoothOperationAdmissionResult<T>(
+    BluetoothOperationAdmissionStatus Status,
+    T Value);
+
 public readonly record struct BluetoothOperationTarget
 {
     public BluetoothOperationTarget(

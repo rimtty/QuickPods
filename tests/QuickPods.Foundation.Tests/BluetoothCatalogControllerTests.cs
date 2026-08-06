@@ -39,13 +39,40 @@ public sealed class BluetoothCatalogControllerTests
                 BluetoothEndpointDirection.Render,
                 BluetoothAudioProfile.Stereo,
                 BluetoothEndpointAvailability.NotPresent,
-                [])]);
+                [])],
+            HasAmbiguousAdapterOwnership: false);
 
         Assert.True(registry.Publish(2, [binding]));
         Assert.False(registry.Publish(1, []));
         Assert.False(registry.TryResolve(new BluetoothOperationTarget(DeviceA, 1), out _));
         Assert.True(registry.TryResolve(new BluetoothOperationTarget(DeviceA, 2), out var resolved));
         Assert.Same(binding, resolved);
+    }
+
+    [Fact]
+    public void SharedKsCandidateMarksEveryOwningContainerAmbiguous()
+    {
+        WindowsBluetoothEndpointBinding Endpoint(params string[] adapters) => new(
+            "synthetic-endpoint",
+            BluetoothEndpointDirection.Render,
+            BluetoothAudioProfile.Stereo,
+            BluetoothEndpointAvailability.NotPresent,
+            [.. adapters]);
+        var first = new WindowsBluetoothDeviceBinding(
+            DeviceA,
+            Guid.NewGuid(),
+            [Endpoint("shared-adapter", "first-only")],
+            HasAmbiguousAdapterOwnership: false);
+        var second = new WindowsBluetoothDeviceBinding(
+            DeviceB,
+            Guid.NewGuid(),
+            [Endpoint("shared-adapter", "second-only")],
+            HasAmbiguousAdapterOwnership: false);
+
+        WindowsBluetoothDeviceBinding[] result =
+            [.. WindowsBluetoothAudioCatalogPort.MarkAmbiguousAdapterOwnership([first, second])];
+
+        Assert.All(result, binding => Assert.True(binding.HasAmbiguousAdapterOwnership));
     }
 
     [Fact]

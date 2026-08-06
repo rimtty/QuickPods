@@ -18,6 +18,8 @@ OS要求の直前と結果反映前に、選択キー、inventory generation、�
 
 `IDefaultOutputOperationPort`は接続済みの同一物理デバイスに対してだけ既定出力を変更・検証する。失敗時にBluetoothを切断せず、無関係な過去の既定Endpointへ強制復元しない。
 
+`IBluetoothOperationGatePort`はReconnect／Disconnectだけでなく、接続後の既定出力確認を含む複合操作全体をプロセス間で直列化する。Windows実装は固定名Mutexを専用スレッドで取得し、非同期操作が完全に終了するまで同じスレッドで所有する。250ms以内に取得できなければ新しい要求を送らず`Rejected`、放棄された所有者を検出した最初の要求は`ContainmentFailed`として拒否する。これにより、単一インスタンス機構が未導入の段階でも複数QuickPodsプロセスのKS要求とPolicyConfig書き込みが交差しない。
+
 ## 状態と部分成功
 
 接続確認と既定出力確認は別結果として保持する。Bluetoothが`Connected`になった後でPolicyConfigまたは検証が失敗した場合は`ConnectedNotDefault`とし、接続失敗へ読み替えない。
@@ -27,6 +29,7 @@ OS要求の直前と結果反映前に、選択キー、inventory generation、�
 ## Windows実装で必須となる条件
 
 - Phase 4Aのgeneration付き内部bindingからだけContainer所有のEndpoint／KS filterを解決する。
+- 同一KS候補が複数Containerから参照された場合は、関係する各機器を`OwnershipUnknown`として変更要求を拒否する。
 - Reconnectと全対象Disconnect候補のBasic Supportを短命workerで確認する。
 - 生のPnP／Endpoint／Container識別子はworker標準入力だけで渡し、コマンドライン、UI、通常ログへ出さない。
 - workerをJob Objectへ収容し、timeout／crash後にprocess treeが空であることを証明する。
@@ -39,3 +42,13 @@ OS要求の直前と結果反映前に、選択キー、inventory generation、�
 `QuickPods.BluetoothWorker.exe`は専用の短命プロセスであり、要求は認証token、nonce、opaque target key、操作種別へ相関する。生のadapter IDはstrict JSONの標準入力だけで渡す。workerは同一配置ディレクトリの`QuickPods.App.exe`が実親であることを確認し、Basic Supportではmutation capabilityを拒否し、Reconnect／Disconnectでは明示mutation capabilityを要求する。親はworkerをkill-on-close Job Objectへ割り当ててから要求を書き込み、4秒timeout後はprocess treeが空になった証明を必要とする。証明できない場合はそのrunnerのcircuitを閉じ、後続操作を拒否する。
 
 能力判定はStereo render候補が一意であり、全EndpointにContainer所有のDeviceTopology接続先がある場合だけ行う。Reconnectと全Disconnect候補のBasic SupportがGET対応なら`DirectControl`、明示非対応なら`SettingsOnly`、所有関係が不完全なら`OwnershipUnknown`、worker timeout／faultなら`TemporarilyUnavailable`とする。
+
+## 製品Windowsポート
+
+`WindowsBluetoothDeviceOperationPort`は、RDP拒否、generation付きbinding解決、MMDevice事前観測、Basic Support再確認、OS要求直前のbinding再検証を順に行う。ConnectはStereo renderの一意な候補へReconnectを1回だけ送り、15秒以内にRender Activeを確認する。Disconnectは対象Container所有の全Render／Capture候補を順番に1回だけ処理し、各要求の直前にもgenerationを再検証する。全EndpointがUnpluggedまたはNotPresentの状態を5秒連続で確認できた場合だけ成功とする。
+
+`WindowsDefaultOutputOperationPort`は同じgeneration付きbindingに属するActiveなStereo render Endpointが一意な場合だけ動作する。`IPolicyConfig::SetDefaultEndpoint`は隔離したCOM境界からConsole、Multimediaの順に呼び、Communicationsは変更しない。各書き込み前に通知を購読し、`OnDefaultDeviceChanged`と`GetDefaultAudioEndpoint`の両方が対象Endpointに一致した場合だけ確認済みとする。Communicationsの読み戻しが開始時と異なる場合、または途中でgenerationが変わった場合は成功を返さない。部分適用を過去のEndpointへ補償せず、Bluetooth接続も切断しない。
+
+RDPではカタログはローカルBluetooth所有権を表さないため、両mutation portはCOM／KS変更前に`RequestSubmitted=false`で拒否する。これは実機成立性の証拠ではなく、安全な縮退の証拠としてのみ扱う。物理列挙はIssue #38、物理接続・切断・既定出力はPhase 4BのローカルコンソールGateで別途確認する。
+
+`IWindowsSettingsLauncher`は`ms-settings:sound`と`ms-settings:bluetooth`の起動をWindows境界へ隔離する。現行MVP画面は既定出力の部分成功から回復できる「サウンド設定を開く」導線を公開し、Bluetooth設定導線はPhase 5の機器別主ボタンから同じ境界を使用する。

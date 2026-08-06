@@ -19,7 +19,7 @@ public sealed class BluetoothOperationControllerTests
         var bluetooth = new FakeBluetoothOperationPort();
         var defaultOutput = new FakeDefaultOutputOperationPort(
             new(DefaultOutputState.Failed, RequestSubmitted: true, BluetoothMutationFailure.Rejected));
-        using var controller = new BluetoothOperationController(catalog, bluetooth, defaultOutput);
+        using var controller = CreateController(catalog, bluetooth, defaultOutput);
 
         BluetoothOperationSnapshot result = await controller.ConnectSelectedAsync();
 
@@ -44,7 +44,7 @@ public sealed class BluetoothOperationControllerTests
         };
         var defaultOutput = new FakeDefaultOutputOperationPort(
             new(DefaultOutputState.Default, RequestSubmitted: true, BluetoothMutationFailure.None));
-        using var controller = new BluetoothOperationController(catalog, bluetooth, defaultOutput);
+        using var controller = CreateController(catalog, bluetooth, defaultOutput);
 
         ValueTask<BluetoothOperationSnapshot> pending = controller.ConnectSelectedAsync();
         await catalog.SelectAsync(DeviceB);
@@ -70,7 +70,8 @@ public sealed class BluetoothOperationControllerTests
             catalog,
             bluetooth,
             new FakeDefaultOutputOperationPort(
-                new(DefaultOutputState.Default, RequestSubmitted: true, BluetoothMutationFailure.None)));
+                new(DefaultOutputState.Default, RequestSubmitted: true, BluetoothMutationFailure.None)),
+            new PassThroughOperationGate());
         controller.StateChanged += (_, state) =>
         {
             if (state.Outcome == BluetoothOperationOutcome.InProgress)
@@ -94,7 +95,7 @@ public sealed class BluetoothOperationControllerTests
         var bluetooth = new FakeBluetoothOperationPort();
         var defaultOutput = new FakeDefaultOutputOperationPort(
             new(DefaultOutputState.Default, RequestSubmitted: true, BluetoothMutationFailure.None));
-        using var controller = new BluetoothOperationController(catalog, bluetooth, defaultOutput);
+        using var controller = CreateController(catalog, bluetooth, defaultOutput);
 
         BluetoothOperationSnapshot result = await controller.ConnectSelectedAsync();
 
@@ -127,7 +128,8 @@ public sealed class BluetoothOperationControllerTests
             catalog,
             bluetooth,
             new FakeDefaultOutputOperationPort(
-                new(DefaultOutputState.Default, RequestSubmitted: true, BluetoothMutationFailure.None)));
+                new(DefaultOutputState.Default, RequestSubmitted: true, BluetoothMutationFailure.None)),
+            new PassThroughOperationGate());
 
         ValueTask<BluetoothOperationSnapshot> first = controller.DisconnectSelectedAsync();
         await firstEntered.Task;
@@ -155,6 +157,12 @@ public sealed class BluetoothOperationControllerTests
         await controller.InitializeAsync();
         return controller;
     }
+
+    private static BluetoothOperationController CreateController(
+        BluetoothCatalogController catalog,
+        IBluetoothDeviceOperationPort bluetooth,
+        IDefaultOutputOperationPort defaultOutput) =>
+        new(catalog, bluetooth, defaultOutput, new PassThroughOperationGate());
 
     private static BluetoothAudioEndpointEvidence Endpoint(
         BluetoothDeviceKey key,
@@ -266,6 +274,19 @@ public sealed class BluetoothOperationControllerTests
         {
             Calls++;
             return ValueTask.FromResult(result);
+        }
+    }
+
+    private sealed class PassThroughOperationGate : IBluetoothOperationGatePort
+    {
+        public async ValueTask<BluetoothOperationAdmissionResult<T>> RunAsync<T>(
+            Func<ValueTask<T>> operation,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return new(
+                BluetoothOperationAdmissionStatus.Executed,
+                await operation());
         }
     }
 

@@ -13,7 +13,8 @@ internal sealed record WindowsBluetoothEndpointBinding(
 internal sealed record WindowsBluetoothDeviceBinding(
     BluetoothDeviceKey DeviceKey,
     Guid ContainerId,
-    ImmutableArray<WindowsBluetoothEndpointBinding> Endpoints);
+    ImmutableArray<WindowsBluetoothEndpointBinding> Endpoints,
+    bool HasAmbiguousAdapterOwnership);
 
 internal sealed class WindowsBluetoothBindingRegistry
 {

@@ -9,7 +9,6 @@ namespace QuickPods.Windows.Bluetooth;
 
 public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCatalogPort, IDisposable
 {
-    private const int SystemMetricRemoteSession = 0x1000;
     private const string PairedBluetoothAepSelector =
         "(System.Devices.Aep.ProtocolId:=\"{E0CBF06C-CD8B-4647-BB8A-263B43F0F974}\" OR " +
         "System.Devices.Aep.ProtocolId:=\"{BB7BB05E-5972-42B5-94FC-76EAA7084D49}\") AND " +
@@ -57,7 +56,7 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
         ArgumentOutOfRangeException.ThrowIfNegative(inventoryGeneration);
-        if (NativeMethods.GetSystemMetrics(SystemMetricRemoteSession) != 0)
+        if (WindowsSessionContext.IsRemoteSession)
         {
             // Association-endpoint discovery can remain pending for the lifetime of an RDP
             // session. A remote audio redirector is not evidence about the console user's
@@ -210,15 +209,37 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
         }
 
         ImmutableArray<WindowsBluetoothEndpointDiscovery> discovered = endpoints.ToImmutable();
-        ImmutableArray<WindowsBluetoothDeviceBinding> bindings = [.. discovered
+        ImmutableArray<WindowsBluetoothDeviceBinding> bindings = MarkAmbiguousAdapterOwnership([.. discovered
             .GroupBy(endpoint => endpoint.Evidence.DeviceKey)
             .Select(group => new WindowsBluetoothDeviceBinding(
                 group.Key,
                 group.First().ContainerId,
-                [.. group.Select(endpoint => endpoint.Binding)]))];
+                [.. group.Select(endpoint => endpoint.Binding)],
+                HasAmbiguousAdapterOwnership: false))]);
         return new(
             [.. discovered.Select(endpoint => endpoint.Evidence)],
             bindings);
+    }
+
+    internal static ImmutableArray<WindowsBluetoothDeviceBinding> MarkAmbiguousAdapterOwnership(
+        ImmutableArray<WindowsBluetoothDeviceBinding> bindings)
+    {
+        HashSet<string> sharedAdapterIds = [.. bindings
+            .SelectMany(binding => binding.Endpoints.SelectMany(endpoint =>
+                endpoint.AdapterDeviceIds.Select(adapterId => (binding.DeviceKey, AdapterId: adapterId))))
+            .GroupBy(candidate => candidate.AdapterId, StringComparer.Ordinal)
+            .Where(group => group.Select(candidate => candidate.DeviceKey).Distinct().Skip(1).Any())
+            .Select(group => group.Key)];
+        if (sharedAdapterIds.Count == 0)
+        {
+            return bindings;
+        }
+
+        return [.. bindings.Select(binding => binding with
+        {
+            HasAmbiguousAdapterOwnership = binding.Endpoints.Any(endpoint =>
+                endpoint.AdapterDeviceIds.Any(sharedAdapterIds.Contains)),
+        })];
     }
 
     private static bool TryReadEndpoint(
@@ -522,9 +543,4 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
         ImmutableArray<BluetoothAudioEndpointEvidence> Endpoints,
         ImmutableArray<WindowsBluetoothDeviceBinding> Bindings);
 
-    private static partial class NativeMethods
-    {
-        [LibraryImport("user32.dll")]
-        internal static partial int GetSystemMetrics(int index);
-    }
 }
