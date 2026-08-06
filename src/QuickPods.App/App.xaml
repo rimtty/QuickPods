@@ -17,6 +17,7 @@
         <SolidColorBrush x:Key="FocusBrush" Color="#B9F4FF" />
         <SolidColorBrush x:Key="ErrorBrush" Color="#FFB4A9" />
         <SolidColorBrush x:Key="PrimaryButtonTextBrush" Color="#102126" />
+        <SolidColorBrush x:Key="ToggleThumbBrush" Color="#F5F7FA" />
 
         <Style x:Key="QuickPodsIconButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="52" />
