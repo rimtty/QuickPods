@@ -18,6 +18,7 @@
 | Foundation tests | Pass — 43/43 |
 | New Phase 3A executions | Pass — 20 focused executions across native/floating placement, discovery, rendering, style, input, preview safety, and routing contracts |
 | TaskbarHost Release build | Pass — 0 warnings, 0 errors |
+| Isolated full solution Release build | Pass — 0 warnings, 0 errors; the running Audio MVP was not stopped |
 | Solution locked restore | Pass |
 | Format / diff check | Pass |
 

@@ -3,6 +3,7 @@
 ## Status
 
 Phase 3A is in progress on `codex/phase-3a-display-host` and is tracked by Issue #30. The branch is stacked on the Phase 2 Audio MVP until PR #28 is merged.
+CI is configured for every pull-request base so stacked phase branches receive the same Windows build/test gate as PRs targeting `main`.
 
 ## Scope boundary
 
