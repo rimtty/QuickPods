@@ -36,6 +36,22 @@ RDP中にRCの`QuickPods.exe --background`を起動し、3秒間、1秒間隔で
 
 この結果はself-contained RCが起動し、resource CSVが取得できることだけを示す。期間が短くRDPでもあるため、memory目標、leak、idle CPUの合否は出さない。
 
+## 2026-08-07 Gate D計測器のfail-closed修正
+
+24時間Gate準備監査で、指定した本体processが期間途中に終了しても、1 sample以上のCSVがあれば計測scriptが成功終了する欠陥を検出した。また、supervisor配下のchild processがCIM snapshot直後に正常終了すると、metric取得raceで全計測を中断する可能性があった。
+
+`Measure-QuickPodsResources.ps1`は本体PIDと開始時刻を固定し、早期終了またはPID再利用をGate失敗とする。本体以外のchildがsnapshotとmetric取得の間に終了した場合だけそのsampleから除外し、次sampleでreplacementを再発見する。途中CSVは診断用に保持するが、要求期間を完走していない実行を成功とは返さない。
+
+focused smokeは次のとおり。
+
+- PowerShell parse：error 0
+- 10秒生存するdummy processを2秒計測：2 samples、成功
+- 600msで終了するdummy processを5秒計測：`exited before the requested duration completed`でfail closed
+- 稼働中の自己完結rc.62を3秒計測：3 samples、process count 2、本体継続
+- `git diff --check`：成功
+
+これは計測器の正否だけを確認した短時間試験であり、24時間resource Gate、Explorer反復、Bluetooth反復の合否には使用しない。
+
 ## 未完了Gate
 
 - 物理Bluetooth列挙：[#38](https://github.com/rimtty/QuickPods/issues/38)

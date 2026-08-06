@@ -22,8 +22,15 @@ if (-not $resolvedOutput.StartsWith($repositoryPrefix, [System.StringComparison]
     throw "OutputPath must be inside the QuickPods repository."
 }
 
-if (-not (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue)) {
+$rootProcess = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+if (-not $rootProcess) {
     throw "Process $ProcessId is not running."
+}
+
+try {
+    $rootStartedAtUtc = $rootProcess.StartTime.ToUniversalTime()
+} catch {
+    throw "Process $ProcessId identity could not be captured."
 }
 
 if (-not ("QuickPodsResourceNative" -as [type])) {
@@ -48,6 +55,20 @@ if (Test-Path -LiteralPath $resolvedOutput) {
 $deadline = [System.DateTimeOffset]::UtcNow.AddSeconds($DurationSeconds)
 $sample = 0
 while ([System.DateTimeOffset]::UtcNow -lt $deadline) {
+    $currentRoot = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+    if (-not $currentRoot) {
+        throw "Primary process $ProcessId exited before the requested duration completed."
+    }
+
+    try {
+        $currentRootStartedAtUtc = $currentRoot.StartTime.ToUniversalTime()
+    } catch {
+        throw "Primary process $ProcessId exited before the requested duration completed."
+    }
+    if ($currentRootStartedAtUtc -ne $rootStartedAtUtc) {
+        throw "Primary process $ProcessId changed identity before the requested duration completed."
+    }
+
     $allProcesses = Get-CimInstance Win32_Process
     $ownedIds = [System.Collections.Generic.HashSet[int]]::new()
     [void]$ownedIds.Add($ProcessId)
@@ -61,30 +82,47 @@ while ([System.DateTimeOffset]::UtcNow -lt $deadline) {
         }
     } while ($added)
 
-    $processes = foreach ($ownedId in $ownedIds) {
-        Get-Process -Id $ownedId -ErrorAction SilentlyContinue
-    }
-    if (-not $processes) {
-        break
-    }
+    $metrics = foreach ($ownedId in $ownedIds) {
+        try {
+            $process = Get-Process -Id $ownedId -ErrorAction Stop
+            $process.Refresh()
+            if ($ownedId -eq $ProcessId -and
+                $process.StartTime.ToUniversalTime() -ne $rootStartedAtUtc) {
+                throw "Primary process identity changed."
+            }
 
-    $gdiObjects = 0L
-    $userObjects = 0L
-    foreach ($process in $processes) {
-        $gdiObjects += [QuickPodsResourceNative]::GetGuiResources($process.Handle, 0)
-        $userObjects += [QuickPodsResourceNative]::GetGuiResources($process.Handle, 1)
+            $handle = $process.Handle
+            [pscustomobject]@{
+                CpuSeconds = $process.TotalProcessorTime.TotalSeconds
+                WorkingSetBytes = $process.WorkingSet64
+                PrivateMemoryBytes = $process.PrivateMemorySize64
+                HandleCount = $process.HandleCount
+                GdiObjectCount = [QuickPodsResourceNative]::GetGuiResources($handle, 0)
+                UserObjectCount = [QuickPodsResourceNative]::GetGuiResources($handle, 1)
+            }
+        } catch {
+            if ($ownedId -eq $ProcessId) {
+                throw "Primary process $ProcessId exited or changed identity during sampling."
+            }
+
+            # A supervised child may legitimately exit between the CIM snapshot
+            # and metric capture. Its replacement is discovered on the next sample.
+        }
+    }
+    if (-not $metrics) {
+        throw "No live QuickPods processes were available during sampling."
     }
 
     $row = [pscustomobject][ordered]@{
         TimestampUtc = [System.DateTimeOffset]::UtcNow.ToString("O")
         Sample = $sample
-        ProcessCount = @($processes).Count
-        CpuSeconds = [Math]::Round((($processes | Measure-Object CPU -Sum).Sum), 3)
-        WorkingSetBytes = ($processes | Measure-Object WorkingSet64 -Sum).Sum
-        PrivateMemoryBytes = ($processes | Measure-Object PrivateMemorySize64 -Sum).Sum
-        HandleCount = ($processes | Measure-Object HandleCount -Sum).Sum
-        GdiObjectCount = $gdiObjects
-        UserObjectCount = $userObjects
+        ProcessCount = @($metrics).Count
+        CpuSeconds = [Math]::Round((($metrics | Measure-Object CpuSeconds -Sum).Sum), 3)
+        WorkingSetBytes = ($metrics | Measure-Object WorkingSetBytes -Sum).Sum
+        PrivateMemoryBytes = ($metrics | Measure-Object PrivateMemoryBytes -Sum).Sum
+        HandleCount = ($metrics | Measure-Object HandleCount -Sum).Sum
+        GdiObjectCount = ($metrics | Measure-Object GdiObjectCount -Sum).Sum
+        UserObjectCount = ($metrics | Measure-Object UserObjectCount -Sum).Sum
     }
     $row | Export-Csv -LiteralPath $resolvedOutput -NoTypeInformation -Encoding utf8 -Append
     $sample++
