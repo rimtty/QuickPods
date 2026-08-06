@@ -8,8 +8,6 @@ namespace QuickPods.Windows.Audio;
 
 public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposable
 {
-    public static readonly Guid EventContext = new("2E6E886D-8CE5-4A42-9A37-3BF981C7AA15");
-
     private readonly MtaAudioWorker worker;
     private readonly CoreAudioSession session;
     private int disposed;
@@ -19,7 +17,8 @@ public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposab
         worker = new MtaAudioWorker();
         try
         {
-            session = worker.Invoke(() => new CoreAudioSession(worker, Publish));
+            AudioEventContext eventContext = AudioEventContext.Create();
+            session = worker.Invoke(() => new CoreAudioSession(worker, Publish, eventContext));
         }
         catch
         {
@@ -83,6 +82,7 @@ public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposab
 
         private readonly MtaAudioWorker worker;
         private readonly Action<AudioState, bool> stateSink;
+        private readonly AudioEventContext eventContext;
         private readonly AudioRole role = AudioRole.Console;
         private readonly IMMDeviceEnumerator enumerator;
         private readonly DefaultDeviceNotificationClient deviceNotificationClient;
@@ -93,10 +93,14 @@ public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposab
         private long generation;
         private int disposed;
 
-        public CoreAudioSession(MtaAudioWorker worker, Action<AudioState, bool> stateSink)
+        public CoreAudioSession(
+            MtaAudioWorker worker,
+            Action<AudioState, bool> stateSink,
+            AudioEventContext eventContext)
         {
             this.worker = worker;
             this.stateSink = stateSink;
+            this.eventContext = eventContext;
             enumerator = (IMMDeviceEnumerator)(object)new MMDeviceEnumeratorComObject();
             deviceNotificationClient = new DefaultDeviceNotificationClient(
                 role,
@@ -157,7 +161,7 @@ public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposab
 
             try
             {
-                Guid context = EventContext;
+                Guid context = eventContext.Value;
                 HResult.ThrowIfFailed(
                     current.Volume.SetMasterVolumeLevelScalar(
                         VolumeMath.PercentToScalar(volumePercent),
@@ -182,7 +186,7 @@ public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposab
 
             try
             {
-                Guid context = EventContext;
+                Guid context = eventContext.Value;
                 HResult.ThrowIfFailed(
                     current.Volume.SetMute(isMuted, ref context),
                     nameof(IAudioEndpointVolume.SetMute));
@@ -366,7 +370,7 @@ public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposab
             {
                 Generation = notification.Generation,
             };
-            stateSink(snapshot, notification.EventContext == EventContext);
+            stateSink(snapshot, eventContext.IsSelfOriginated(notification.EventContext));
         }
 
         private AudioState ReadSnapshot(EndpointBinding current)

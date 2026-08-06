@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\QuickPods.Contracts\QuickPods.Contracts.csproj" />
     <ProjectReference Include="..\..\src\QuickPods.Core\QuickPods.Core.csproj" />
     <ProjectReference Include="..\..\src\QuickPods.Infrastructure\QuickPods.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\QuickPods.Windows\QuickPods.Windows.csproj" />
   </ItemGroup>
 
 </Project>
