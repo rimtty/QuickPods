@@ -884,6 +884,7 @@ public partial class App : WpfApplication, IDisposable
             SetBrushColor("FocusBrush", WpfSystemColors.HighlightColor);
             SetBrushColor("ErrorBrush", WpfSystemColors.WindowTextColor);
             SetBrushColor("PrimaryButtonTextBrush", WpfSystemColors.HighlightTextColor);
+            SetBrushColor("ToggleThumbBrush", WpfSystemColors.WindowColor);
             return;
         }
 
@@ -905,6 +906,7 @@ public partial class App : WpfApplication, IDisposable
             SetBrushColor("FocusBrush", MediaColor.FromRgb(0x00, 0x6C, 0x80));
             SetBrushColor("ErrorBrush", MediaColor.FromRgb(0xA4, 0x26, 0x2C));
             SetBrushColor("PrimaryButtonTextBrush", MediaColor.FromRgb(0x10, 0x21, 0x26));
+            SetBrushColor("ToggleThumbBrush", Colors.White);
             return;
         }
 
@@ -922,6 +924,7 @@ public partial class App : WpfApplication, IDisposable
         SetBrushColor("FocusBrush", MediaColor.FromRgb(0xB9, 0xF4, 0xFF));
         SetBrushColor("ErrorBrush", MediaColor.FromRgb(0xFF, 0xB4, 0xA9));
         SetBrushColor("PrimaryButtonTextBrush", MediaColor.FromRgb(0x10, 0x21, 0x26));
+        SetBrushColor("ToggleThumbBrush", MediaColor.FromRgb(0xF5, 0xF7, 0xFA));
     }
 
     private void SetBrushColor(string resourceKey, MediaColor color)
