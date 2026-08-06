@@ -22,7 +22,7 @@
 
 `build/Measure-QuickPodsResources.ps1`は指定した本体PIDと、その時点で所有する全descendant processを一定間隔で集計する。CSVへUTC時刻、sample番号、process数、累積CPU秒、Working Set、Private Memory、handle、GDI object、USER objectだけを保存する。command line、path、window title、Bluetooth／audio identifierは収集しない。
 
-短時間のtooling smokeは計測器の成立性しか示さない。24時間の傾向、Explorer 10回、Bluetooth 100 cycle、sleep／RDP transition、150MB Working Set目標の正式判定はIssue #48のlocal-console Gate Dで行う。
+短時間のtooling smokeは計測器の成立性しか示さない。24時間の傾向、Explorer 10回、Bluetooth 50 cycle、sleep／RDP transition、150MB Working Set目標の正式判定はIssue #48のlocal-console Gate Dで行う。Bluetooth反復はテスト棚卸し方針に従い旧100 cycleから半減するが、fail-closed、選択外影響、実状態確認は維持する。
 
 ## Gateの分離
 

@@ -446,7 +446,7 @@ docs/validation/phase-0/
 | 目的 | Release Candidateの機能・性能・リソース品質を確定する |
 | 状態 | **実装完了・Gate待ち（2026-08-06）** — Issue #47／PR #49。決定論的RC toolingとCIは統合済み。24時間Gate DはIssue #48 |
 | 自動試験 | 単体、Windows統合、擬似親、IPC、設定移行、回帰試験 |
-| 実機試験 | 全手動マトリクス、Explorer再起動反復、Bluetooth 100サイクル、24時間試験 |
+| 実機試験 | 全手動マトリクス、Explorer再起動反復、Bluetooth 50サイクル、24時間試験 |
 | 計測 | CPU、Working Set、GDI、USER、Handle、COM、IPC再接続、UIA時間 |
 | 文書 | 互換性、既知の制限、試験記録、残存リスク |
 | 完了条件 | AC-001～027、Gate Dの品質項目を満たし、継続的なリソース増加がない |
