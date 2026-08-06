@@ -1,0 +1,51 @@
+# Phase 3A — Display host validation
+
+## Environment
+
+| Item | Value |
+|---|---|
+| Date | 2026-08-06 |
+| OS | Windows 11 Pro 25H2, build 26200.8973 |
+| Architecture | x64 |
+| Build | Release, .NET 10.0.302 |
+| Issue / PR | #30 / #32 |
+| Current scope | placement engine and one-shot read-only discovery |
+
+## Automated evidence
+
+| Check | Result |
+|---|---|
+| Foundation tests | Pass — 33/33 |
+| New Phase 3A executions | Pass — 10 focused executions across placement and discovery adaptation |
+| TaskbarHost Release build | Pass — 0 warnings, 0 errors |
+| Solution locked restore | Pass |
+| Format / diff check | Pass |
+
+The focused coverage includes standard placement, verified left-aligned NoFit, incomplete and contradictory evidence, compact fragmentation, negative coordinates, 100/125/150/200% DPI conversion, automation/native obstacle merging, and duplicate Start fail-closed behavior. The Phase 0 diagnostic suite was not copied into the product suite.
+
+## Read-only live inspection
+
+The manifest-applied product `QuickPods.TaskbarHost.exe inspect` command performed one read-only scan. It did not create or attach a host window.
+
+```text
+protocol=1
+discovery_complete=true
+faults=
+decision=Place
+reason=None
+dpi=144
+taskbar_size=3840x72
+automation_buttons=32
+native_obstacles=1
+exit_code=0
+residual_count=0
+```
+
+This proves the first product discovery/placement slice on the current 150% primary taskbar. It does not yet prove drawing, input, fallback, Start/Search continuity, or Explorer recovery; those remain later Phase 3A/3B gates.
+
+## Safety notes
+
+- Raw HWND and process ID remain in ephemeral in-process models and are never emitted by `inspect`.
+- Existing-host exclusion is admitted only for the exact supplied HWND when its class is `QuickPods.Taskbar.View`, its process is the current host, and its actual parent is the discovered taskbar.
+- Any discovery fault makes the observation incomplete and therefore yields `TransientUnknown` rather than a guessed placement.
+- Phase 3A currently uses a one-shot MTA UIA scan. The repeating watcher required by Phase 3B will not be enabled until Issue #18 has an isolation/lifetime disposition.

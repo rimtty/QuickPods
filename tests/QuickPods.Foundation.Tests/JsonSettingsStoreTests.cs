@@ -1,3 +1,4 @@
+using System.IO;
 using QuickPods.Core.Models;
 using QuickPods.Infrastructure.Settings;
 using Xunit;

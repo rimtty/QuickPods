@@ -348,7 +348,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 業務サービスから独立した表示ホストを完成させる |
-| 状態 | **進行中** — Issue #30。製品用の物理px幾何、DPI変換、fail-closed配置判定を実装し、focused tests 31/31まで合格 |
+| 状態 | **進行中** — Issue #30。製品用の物理px幾何、DPI、fail-closed配置、Win32／UIA初回探索を実装し、focused tests 33/33と150%実機read-only inspectに合格 |
 | Gate BがGo | raw Win32 `QuickPods.TaskbarHost`、UIA探索、安全領域、描画、ヒットテスト |
 | Gate BがNo-Go | タスクバー直上のフローティングストリップを実装 |
 | 共通 | `Place`／`VerifiedNoFit`／`TransientUnknown`、DPI座標、負座標、テーマ入力 |
