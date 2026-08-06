@@ -315,6 +315,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | OS依存実装を差し替え可能な製品構造を作る |
+| 状態 | **進行中** — Issue #25。製品6プロジェクト、Core状態契約、IPC v1、Infrastructure骨格、focused foundation testsを実装 |
 | プロジェクト | `QuickPods.App`、`QuickPods.Core`、`QuickPods.Windows`、`QuickPods.TaskbarHost`、`QuickPods.Contracts`、`QuickPods.Infrastructure`、対応テスト |
 | Core | Bluetoothカタログ、選択／接続／既定出力の複合状態、`StateCoordinator`骨格、エラー分類、Capability、設定モデル |
 | Contracts | IPC DTO、`ProtocolVersion = 1`、Sequence、Interaction契約 |
