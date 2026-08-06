@@ -30,10 +30,19 @@ public sealed class TaskbarRenderingTests
         TaskbarRenderState low = TaskbarRenderState.FromSnapshot(
             new(TaskbarSurfaceMode.Native, -1, false, null));
         TaskbarRenderState highMuted = TaskbarRenderState.FromSnapshot(
-            new(TaskbarSurfaceMode.Native, 101, true, null));
+            new(
+                TaskbarSurfaceMode.Native,
+                101,
+                true,
+                new TaskbarDeviceView("device", "AirPods Pro", "未接続")));
 
         Assert.Equal(0d, low.VolumeFraction);
         Assert.Equal(1d, highMuted.VolumeFraction);
         Assert.True(highMuted.IsMuted);
+        Assert.Equal("BTデバイスなし", low.DeviceDisplayName);
+        Assert.False(low.HasSelectedDevice);
+        Assert.Equal("AirPods Pro", highMuted.DeviceDisplayName);
+        Assert.Equal("未接続", highMuted.DeviceStatusText);
+        Assert.True(highMuted.HasSelectedDevice);
     }
 }

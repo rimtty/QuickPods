@@ -117,7 +117,7 @@ public static class BluetoothProductPresenter
     {
         if (selected is null || !catalog.SelectedDevicePresent)
         {
-            return (ProductPrimaryActionKind.None, "デバイスを選択", false);
+            return (ProductPrimaryActionKind.None, "接続", false);
         }
 
         if (isBusy)

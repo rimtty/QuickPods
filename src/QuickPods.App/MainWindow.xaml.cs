@@ -6,6 +6,8 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using QuickPods.Contracts;
 using QuickPods.Core;
 using QuickPods.Core.Models;
 using QuickPods.Core.Ports;
@@ -35,9 +37,14 @@ public partial class MainWindow : Window
     private string? bluetoothCatalogError;
     private BluetoothProductPresentation bluetoothView;
     private QuickPodsSettings productSettings = QuickPodsSettings.Default;
+    private TaskbarSurfaceAnchor? placementAnchor;
     private Task? initialization;
 
     internal event Action<QuickPodsSettings>? SettingsChanged;
+
+    internal event EventHandler? FlyoutPointerEntered;
+
+    internal event EventHandler? FlyoutPointerExited;
 
     public MainWindow(
         AudioController audio,
@@ -202,7 +209,7 @@ public partial class MainWindow : Window
     {
         if (IsVisible)
         {
-            PositionAbovePrimaryTaskbar();
+            PositionAboveTaskbarCore(placementAnchor);
         }
 
         await RefreshAllAsync();
@@ -216,16 +223,45 @@ public partial class MainWindow : Window
 
     internal void PositionAbovePrimaryTaskbar()
     {
+        placementAnchor = null;
+        PositionAboveTaskbarCore(null);
+    }
+
+    internal void PositionAboveTaskbar(TaskbarSurfaceAnchor? anchor)
+    {
+        placementAnchor = anchor;
+        PositionAboveTaskbarCore(anchor);
+    }
+
+    private void PositionAboveTaskbarCore(TaskbarSurfaceAnchor? anchor)
+    {
         UpdateLayout();
         Rect workArea = SystemParameters.WorkArea;
         double width = ActualWidth > 0 ? ActualWidth : Width;
         double height = ActualHeight > 0 ? ActualHeight : MinHeight;
-        Left = Math.Max(workArea.Left + 8, workArea.Left + ((workArea.Width - width) / 2));
-        Top = Math.Max(workArea.Top + 8, workArea.Bottom - height - 8);
+        double preferredLeft = workArea.Left + ((workArea.Width - width) / 2);
+        double preferredTop = workArea.Bottom - height - 8;
+        if (anchor is not null)
+        {
+            DpiScale dpi = VisualTreeHelper.GetDpi(this);
+            double anchorCenter = ((anchor.Left + anchor.Right) / 2d) / dpi.DpiScaleX;
+            preferredLeft = anchorCenter - (width / 2d);
+            preferredTop = (anchor.Top / dpi.DpiScaleY) - height - 2d;
+        }
+
+        Left = Math.Clamp(
+            preferredLeft,
+            workArea.Left + 8,
+            Math.Max(workArea.Left + 8, workArea.Right - width - 8));
+        double bottomInset = anchor is null ? 8d : 0d;
+        Top = Math.Clamp(
+            preferredTop,
+            workArea.Top + 8,
+            Math.Max(workArea.Top + 8, workArea.Bottom - height - bottomInset));
     }
 
     private void OnContentRendered(object? sender, EventArgs eventArgs) =>
-        PositionAbovePrimaryTaskbar();
+        PositionAboveTaskbarCore(placementAnchor);
 
     private void OnWindowPreviewKeyDown(object sender, WpfKeyEventArgs eventArgs)
     {
@@ -235,6 +271,12 @@ public partial class MainWindow : Window
             Close();
         }
     }
+
+    private void OnFlyoutMouseEnter(object sender, System.Windows.Input.MouseEventArgs eventArgs) =>
+        FlyoutPointerEntered?.Invoke(this, EventArgs.Empty);
+
+    private void OnFlyoutMouseLeave(object sender, System.Windows.Input.MouseEventArgs eventArgs) =>
+        FlyoutPointerExited?.Invoke(this, EventArgs.Empty);
 
     private async void OnBluetoothSelectionChanged(
         object sender,
@@ -475,12 +517,22 @@ public partial class MainWindow : Window
             BluetoothDeviceList.ItemsSource = bluetoothView.Devices;
             BluetoothDeviceList.SelectedValue = bluetoothView.SelectedDeviceKey;
             BluetoothDeviceList.IsEnabled = !bluetoothView.IsRefreshing && !bluetoothView.IsBusy;
-            BluetoothEmptyText.Visibility = bluetoothView.HasDevices
+            BluetoothDeviceList.Visibility = bluetoothView.HasDevices
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            BluetoothSectionTitle.Text = bluetoothView.HasDevices
+                ? "Bluetoothオーディオを選択"
+                : "Bluetoothオーディオ";
+            BluetoothEmptyState.Visibility = bluetoothView.HasDevices
                 ? Visibility.Collapsed
                 : Visibility.Visible;
             BluetoothEmptyText.Text = bluetoothView.IsRefreshing
-                ? "Bluetoothオーディオを確認しています…"
-                : "ペアリング済みのBluetoothオーディオが見つかりません";
+                ? "デバイスを検索しています…"
+                : "デバイスが見つかりません";
+            BluetoothEmptyDescriptionText.Text = bluetoothView.IsRefreshing
+                ? "ペアリング済みのBluetoothオーディオを確認しています"
+                : "ペアリング済みのBluetoothオーディオがありません";
+            EmptyRefreshButton.IsEnabled = !bluetoothView.IsRefreshing && !bluetoothView.IsBusy;
             PrimaryActionButton.Content = bluetoothView.PrimaryActionText;
             System.Windows.Automation.AutomationProperties.SetName(
                 PrimaryActionButton,
@@ -491,9 +543,12 @@ public partial class MainWindow : Window
                     ? "上下矢印でデバイスを選択します。選択だけでは接続状態を変更しません。"
                     : BluetoothEmptyText.Text);
             PrimaryActionButton.IsEnabled = bluetoothView.IsPrimaryActionEnabled;
-            SoundSettingsButton.Visibility = bluetoothView.ShowSoundRecovery
+            SoundSettingsButton.Visibility = bluetoothView.HasDevices
                 ? Visibility.Visible
                 : Visibility.Collapsed;
+            BluetoothSettingsButton.Visibility = bluetoothView.HasDevices
+                ? Visibility.Collapsed
+                : Visibility.Visible;
             BluetoothDiagnosticText.Text = bluetoothView.ErrorMessage ?? string.Empty;
             RefreshButton.IsEnabled = !bluetoothView.IsRefreshing && !bluetoothView.IsBusy;
         }

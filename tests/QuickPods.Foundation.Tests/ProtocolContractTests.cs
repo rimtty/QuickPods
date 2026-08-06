@@ -53,8 +53,8 @@ public sealed class ProtocolContractTests
         var interaction = new HostInteractionEnvelope(
             QuickPodsProtocol.Version,
             8,
-            HostInteractionKind.SetVolumeCommit,
-            42);
+            HostInteractionKind.PreviewAudioFlyout,
+            anchor: new TaskbarSurfaceAnchor(100, 900, 400, 940));
 
         HostStateEnvelope restoredState =
             QuickPodsProtocolJson.DeserializeState(QuickPodsProtocolJson.Serialize(state));

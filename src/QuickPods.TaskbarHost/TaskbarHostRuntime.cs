@@ -329,7 +329,8 @@ internal sealed class TaskbarHostRuntime : IDisposable
             QuickPodsProtocol.Version,
             nextInteractionSequence++,
             interaction.Kind,
-            interaction.VolumePercent);
+            interaction.VolumePercent,
+            interaction.Anchor);
         writer.WriteLine(QuickPodsProtocolJson.Serialize(normalized));
     }
 

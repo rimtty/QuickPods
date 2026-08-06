@@ -23,6 +23,8 @@ public enum HostInteractionKind
     ToggleMute,
     OpenAudioFlyout,
     OpenContextMenu,
+    PreviewAudioFlyout,
+    TaskbarPointerExited,
 }
 
 [Flags]
@@ -48,6 +50,32 @@ public sealed record TaskbarDeviceView(
     string DeviceKey,
     string DisplayName,
     string StatusText);
+
+public sealed record TaskbarSurfaceAnchor
+{
+    public TaskbarSurfaceAnchor(int left, int top, int right, int bottom)
+    {
+        if (right <= left || bottom <= top)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(right),
+                "The taskbar surface anchor must have positive width and height.");
+        }
+
+        Left = left;
+        Top = top;
+        Right = right;
+        Bottom = bottom;
+    }
+
+    public int Left { get; }
+
+    public int Top { get; }
+
+    public int Right { get; }
+
+    public int Bottom { get; }
+}
 
 public sealed record TaskbarStateSnapshot(
     TaskbarSurfaceMode SurfaceMode,
@@ -89,7 +117,8 @@ public sealed record HostInteractionEnvelope
         int protocolVersion,
         long sequence,
         HostInteractionKind kind,
-        int? volumePercent = null)
+        int? volumePercent = null,
+        TaskbarSurfaceAnchor? anchor = null)
     {
         if (protocolVersion != QuickPodsProtocol.Version)
         {
@@ -113,10 +142,23 @@ public sealed record HostInteractionEnvelope
             ArgumentOutOfRangeException.ThrowIfGreaterThan(value, 100, nameof(volumePercent));
         }
 
+        bool anchorInteraction = kind is
+            HostInteractionKind.OpenAudioFlyout or
+            HostInteractionKind.OpenContextMenu or
+            HostInteractionKind.PreviewAudioFlyout or
+            HostInteractionKind.TaskbarPointerExited;
+        if (!anchorInteraction && anchor is not null)
+        {
+            throw new ArgumentException(
+                "Only flyout interactions may include a taskbar surface anchor.",
+                nameof(anchor));
+        }
+
         ProtocolVersion = protocolVersion;
         Sequence = sequence;
         Kind = kind;
         VolumePercent = volumePercent;
+        Anchor = anchor;
     }
 
     public int ProtocolVersion { get; }
@@ -126,6 +168,8 @@ public sealed record HostInteractionEnvelope
     public HostInteractionKind Kind { get; }
 
     public int? VolumePercent { get; }
+
+    public TaskbarSurfaceAnchor? Anchor { get; }
 }
 
 public sealed record ObserverSessionRequest

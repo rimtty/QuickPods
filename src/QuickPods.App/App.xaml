@@ -56,6 +56,15 @@
             </Setter>
         </Style>
 
+        <Style x:Key="QuickPodsHeaderIconButtonStyle"
+               TargetType="Button"
+               BasedOn="{StaticResource QuickPodsIconButtonStyle}">
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="40" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+
         <Style x:Key="QuickPodsLinkButtonStyle" TargetType="Button">
             <Setter Property="Padding" Value="4" />
             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
@@ -110,8 +119,79 @@
                                 <Setter TargetName="Surface" Property="Background" Value="{DynamicResource PressedBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.45" />
+                                <Setter TargetName="Surface" Property="Background" Value="{DynamicResource ControlSurfaceBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+                                <Setter Property="Opacity" Value="0.72" />
                                 <Setter Property="Cursor" Value="Arrow" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="QuickPodsSecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="18,9" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ControlSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Surface"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Surface" Property="Background" Value="{DynamicResource HoverBrush}" />
+                                <Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Surface" Property="Background" Value="{DynamicResource PressedBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="QuickPodsRadioButtonStyle" TargetType="RadioButton">
+            <Setter Property="Width" Value="22" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Grid Width="22" Height="22">
+                            <Ellipse x:Name="Ring"
+                                     Fill="Transparent"
+                                     Stroke="{DynamicResource SecondaryTextBrush}"
+                                     StrokeThickness="1.5" />
+                            <Ellipse x:Name="Dot"
+                                     Margin="5"
+                                     Fill="{DynamicResource AccentBrush}"
+                                     Opacity="0" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Ring" Property="Stroke" Value="{DynamicResource AccentBrush}" />
+                                <Setter TargetName="Ring" Property="StrokeThickness" Value="2" />
+                                <Setter TargetName="Dot" Property="Opacity" Value="1" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
