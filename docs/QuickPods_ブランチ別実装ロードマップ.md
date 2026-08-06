@@ -332,10 +332,10 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 最初に日常利用できる音量・ミュート機能を完成させる |
-| 状態 | **実装済み・実機変更Gate待ち** — Issue #27。AC-001の初期表示一致、Release build、focused tests 22/22まで合格。初期化・faulted shutdown hardeningはIssue #29 |
+| 状態 | **完了（2026-08-06）** — AC-001～AC-006、100回高速入力、既定デバイス往復、外部通知、DPIクリック位置、2%ホイール、ちらつきなし、状態復元、残留0に合格。Issue #27／#29／#31 |
 | Windows層 | MTA Core Audioワーカー、`IMMNotificationClient`、`IAudioEndpointVolumeCallback`、再バインド |
 | Core層 | 音量状態、世代管理、自通知抑止、最新値優先の30～60Hz間引き |
-| UI | 診断用WPF画面、音量スライダー、ミュート、既定デバイス名 |
+| UI | 診断用WPF画面、モック準拠の音量スライダー／ミュート／更新ボタン、既定デバイス名、Per-Monitor-V2 DPI |
 | テスト | Scalar変換、クランプ、ミュート、世代破棄、高速ドラッグ、デバイス無効化／切替 |
 | 完了条件 | AC-001～AC-006を満たし、100回高速ドラッグと既定デバイス切替から自動復旧 |
 
