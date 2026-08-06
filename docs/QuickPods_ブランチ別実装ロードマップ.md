@@ -194,6 +194,7 @@ No-Go時：該当機器の主アクションは`ms-settings:bluetooth`等のWind
 | 項目 | 内容 |
 |---|---|
 | 目的 | Bluetooth接続確認後に対象ステレオ再生EndpointをWindows既定出力へ設定できるかGate A2を判定する |
+| 状態 | **Gate A2 Go（2026-08-06）** — 通常権限の実変更1往復、通知＋再取得、Communications非変更、既定済み書き込み0に合格 |
 | Spike | `spikes/QuickPods.Spike.DefaultEndpointPolicy/` |
 | 実装 | Active Endpoint選択、Console／Multimedia設定境界、変更通知、再取得検証、失敗分類 |
 | 自動試験 | ロール指定、A2DP優先、同一Endpoint冪等性、途中失敗、古い世代、対象消失、非対象ロール不変 |
@@ -201,6 +202,8 @@ No-Go時：該当機器の主アクションは`ms-settings:bluetooth`等のWind
 | 完了成果物 | 隔離アダプター契約、Windowsビルド別結果、Gate A2判断、サウンド設定フォールバック |
 
 Go条件：Console／Multimediaを意図したEndpointへ変更し、通知と再取得で一致を確認できる。Capture、Communications、選択外Endpointは変更しない。No-Go時もBluetooth接続は維持し、`接続済み・非既定`と`ms-settings:sound`導線へ縮退する。
+
+判定（2026-08-06）：**Go**。非公開COM境界は`IDefaultAudioEndpointPolicy`へ隔離し、対象Windowsビルドで通常権限の実変更、通知、再取得、非対象ロール不変、既定済み冪等性に合格した。対象消失と途中失敗は決定論的契約試験でfail-safeを確認し、物理反復はPhase 6耐久試験へ統合する。根拠は`docs/validation/phase-0/default-endpoint-policy/decision.md`を参照する。
 
 #### B4：`codex/phase-0c-taskbar-host-spike`
 

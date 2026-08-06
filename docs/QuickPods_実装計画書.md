@@ -972,6 +972,8 @@ Go条件：
 
 No-Go時：接続・切断は維持し、接続済み・非既定を表示してWindowsサウンド設定へ縮退する。
 
+判定（2026-08-06）：**Go**。Windows 11 Pro 25H2 build `26200.8973`の通常権限で、接続済みAirPodsと単一Activeスピーカー間のConsole／Multimedia既定出力を1往復し、事前購読した通知と再取得の一致、Communications非変更、既定済み時の書き込み0を確認した。非公開COM境界は`IDefaultAudioEndpointPolicy`へ隔離し、利用不能時は`接続済み・非既定`とサウンド設定導線へ縮退する。物理反復はPhase 6耐久試験へ統合する。
+
 #### P0-C：Ceiling方式タスクバーPoC
 
 - UI AutomationでWidgets／Startを取得
