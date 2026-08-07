@@ -176,21 +176,37 @@ function Get-WindowInventory {
 function Get-ProcessEvidence {
     param([Parameter(Mandatory)][Diagnostics.Process]$Process)
 
-    $Process.Refresh()
-    [pscustomobject][ordered]@{
-        Name = $Process.ProcessName
-        Id = $Process.Id
-        StartedAtUtc = $Process.StartTime.ToUniversalTime().ToString("O")
-        Path = $Process.Path
-        Responding = $Process.Responding
-        HandleCount = $Process.HandleCount
-        PrivateMemoryBytes = $Process.PrivateMemorySize64
-        GdiObjectCount = [QuickPodsExplorerGateNative]::GetGuiResources(
-            $Process.Handle,
-            0)
-        UserObjectCount = [QuickPodsExplorerGateNative]::GetGuiResources(
-            $Process.Handle,
-            1)
+    try {
+        $Process.Refresh()
+        if ($Process.HasExited) {
+            return $null
+        }
+
+        $processHandle = $Process.Handle
+        if ($processHandle -eq [IntPtr]::Zero) {
+            return $null
+        }
+
+        [pscustomobject][ordered]@{
+            Name = $Process.ProcessName
+            Id = $Process.Id
+            StartedAtUtc = $Process.StartTime.ToUniversalTime().ToString("O")
+            Path = $Process.Path
+            Responding = $Process.Responding
+            HandleCount = $Process.HandleCount
+            PrivateMemoryBytes = $Process.PrivateMemorySize64
+            GdiObjectCount = [QuickPodsExplorerGateNative]::GetGuiResources(
+                $processHandle,
+                0)
+            UserObjectCount = [QuickPodsExplorerGateNative]::GetGuiResources(
+                $processHandle,
+                1)
+        }
+    } catch [InvalidOperationException] {
+        # Explorer recovery intentionally retires the old Observer between snapshots.
+        return $null
+    } catch [ComponentModel.Win32Exception] {
+        return $null
     }
 }
 
@@ -198,23 +214,33 @@ function Get-GateState {
     $processes = @(Get-CandidateProcesses)
     $windows = @(Get-WindowInventory -Processes $processes)
     $explorer = @(Get-ExplorerProcess)
-    [pscustomobject][ordered]@{
-        CapturedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")
-        Explorer = @(
-            $explorer | ForEach-Object {
+    $processEvidence = @(
+        $processes |
+            Sort-Object ProcessName |
+            ForEach-Object { Get-ProcessEvidence -Process $_ }
+    )
+    $explorerEvidence = @(
+        $explorer | ForEach-Object {
+            try {
                 [pscustomobject][ordered]@{
                     Id = $_.Id
                     StartedAtUtc = $_.StartTime.ToUniversalTime().ToString("O")
                 }
+            } catch [InvalidOperationException] {
+                # An Explorer process can retire while the recovery snapshot is collected.
             }
-        )
-        Processes = @($processes | Sort-Object ProcessName | ForEach-Object {
-            Get-ProcessEvidence -Process $_
-        })
+        }
+    )
+    [pscustomobject][ordered]@{
+        CapturedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")
+        Explorer = $explorerEvidence
+        Processes = $processEvidence
         Counts = [pscustomobject][ordered]@{
-            App = @($processes | Where-Object ProcessName -eq "QuickPods").Count
-            Host = @($processes | Where-Object ProcessName -eq "QuickPods.TaskbarHost").Count
-            Observer = @($processes | Where-Object ProcessName -eq "QuickPods.TaskbarObserver").Count
+            App = @($processEvidence | Where-Object Name -eq "QuickPods").Count
+            Host = @($processEvidence | Where-Object Name -eq "QuickPods.TaskbarHost").Count
+            Observer = @(
+                $processEvidence | Where-Object Name -eq "QuickPods.TaskbarObserver"
+            ).Count
             Native = @($windows | Where-Object ClassName -eq "QuickPods.Taskbar.View").Count
             Floating = @($windows | Where-Object ClassName -eq "QuickPods.Floating.View").Count
         }
