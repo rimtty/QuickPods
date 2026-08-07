@@ -24,11 +24,11 @@
 | AC-006 | デバイスなし／無効化中に非クラッシュ | Proven | [Phase 2](../phase-2/audio-mvp/test-results.md)のbinding retire／再bind、Phase 5C空状態 | なし |
 | AC-007 | Bluetoothを物理機器単位で一覧・単一選択 | Proven | [Phase 4A](../phase-4a/test-results.md)の実AirPods単一行、同一ContainerのRender／Capture集約、選択復元、外部状態追従と自動複数機器契約 | なし |
 | AC-008 | 選択・更新だけではOSを変更しない | Proven | [Phase 4A](../phase-4a/test-results.md)と[Phase 5A](../phase-5a/test-results.md)のread-only／fake mutation 0件 | なし |
-| AC-009 | 接続・切断後にMMDevice実状態を確認 | Partial / Gate pending | [Phase 4B](../phase-4b/test-results.md)のorchestration／stale拒否。製品RDP経路は要求を安全拒否 | 製品版の物理接続・切断：[Issue #41](https://github.com/rimtty/QuickPods/issues/41) |
-| AC-010 | 接続後にConsole／Multimedia既定出力を確認 | Partial / Gate pending | Phase 0 Gate A2と[Phase 4B](../phase-4b/test-results.md)のproduct orchestration／部分成功 | 製品版の物理既定出力化：[Issue #41](https://github.com/rimtty/QuickPods/issues/41) |
+| AC-009 | 接続・切断後にMMDevice実状態を確認 | Proven | [Phase 4B](../phase-4b/test-results.md)の実AirPods Connect／Disconnect反復、Render／Capture実状態、安定切断窓、idempotent／one-shot証拠 | なし |
+| AC-010 | 接続後にConsole／Multimedia既定出力を確認 | Proven | [Phase 4B](../phase-4b/test-results.md)の実AirPods既定化、通知＋read-back、Communications非変更、Hands-Free非選択 | なし |
 | AC-011 | 連打・選択変更・再列挙で古い結果を適用しない | Proven | [Phase 4B](../phase-4b/test-results.md)の固定名gate、直列化、Superseded、generation拒否 | なし |
 | AC-012 | 未対応でも停止せず部分状態と代替導線 | Proven | [Phase 4B](../phase-4b/test-results.md)の`SettingsOnly`／`ConnectedNotDefault`／設定launcherとRDP安全縮退 | なし |
-| AC-013 | 選択外Bluetooth機器へ影響しない | Partial / Gate pending | Phase 0 Spikeでは参照機器5/5と選択外影響0。製品契約はContainer所有権でfail closed | 製品版の選択外影響確認：[Issue #41](https://github.com/rimtty/QuickPods/issues/41) |
+| AC-013 | 選択外Bluetooth機器へ影響しない | Proven | [Phase 4B](../phase-4b/test-results.md)の選択Container限定実操作と、操作者による無線・入力機器・非選択機器への影響0確認 | なし |
 | AC-014 | 安全な空きへタスクバー内表示 | Proven | [Phase 3A](../phase-3a/display-host/test-results.md)のcenter-aligned Native実表示・入力 | なし |
 | AC-015 | Windows標準要素を1pxも覆わない | Proven | [Phase 3A](../phase-3a/display-host/test-results.md)のUIA＋native obstacle統合、fail-closed placement | なし |
 | AC-016 | 狭い空きでcompact／fallback | Partial / Gate pending | compact／NoFit routing自動契約は合格。左揃えは仕様どおりHidden | center-aligned NoFit Floating目視・入力：[Issue #33](https://github.com/rimtty/QuickPods/issues/33) |
@@ -48,17 +48,16 @@
 
 | 状態 | 件数 | AC |
 |---|---:|---|
-| Proven | 15 | 001～008、011、012、014、015、019、023、024 |
-| Partial / Gate pending | 11 | 009、010、013、016～018、020～022、026、027 |
+| Proven | 18 | 001～015、019、023、024 |
+| Partial / Gate pending | 8 | 016～018、020～022、026、027 |
 | Pending | 1 | 025 |
 
-`15 / 27 Proven`は現時点の完成率を表す数値ではなく、同じ範囲の証拠が揃った受入項目数である。実装済み行を自動的に`Proven`へ昇格しない。
+`18 / 27 Proven`は現時点の完成率を表す数値ではなく、同じ範囲の証拠が揃った受入項目数である。実装済み行を自動的に`Proven`へ昇格しない。
 
 ## 残作業の最小Gateセット
 
 | Gate | 閉じるAC | 実施内容 |
 |---|---|---|
-| #41 | 009、010、013 | 接続→実状態→既定出力、切断、選択外影響 |
 | #33 | 016、020 | center-aligned NoFit Floatingのvisibility、z-order、input、cleanup |
 | #18／#34／#48 | 018、021 | 製品版Explorer restart、重複0、10秒以内、長寿命processのUSER／GDI非増加 |
 | #43 | 017、026 | local-console DPI、focus、keyboard、High Contrast、tray settings |

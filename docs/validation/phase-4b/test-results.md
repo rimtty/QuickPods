@@ -43,4 +43,10 @@ Default Submitted=False Failure=OwnershipUnknown State=Failed Capability=Verific
 
 `visual.75`／`visual.76`の追加試行を含め、15秒以内に完了した接続成功は13.936秒、14.401秒、12.402秒、13.396秒、3.895秒の5回となった。切断成功は5回を超え、いずれも約5.5～5.9秒で5秒の安定windowを満たした。AirPodsがWindowsから切断された直後にペアリング済みiPhoneへ接続するmulti-host環境では、接続観測が15.122秒で2回timeoutした。試験的に接続期限だけ18秒へ延長しても18.136秒でtimeoutし、直後の手動retryが3.895秒で成功したため、固定期限延長は待ち時間だけを増やし根因を解消しないと判断して不採用とした。製品sourceは15秒、one-shot、自動retryなしを維持する。
 
-同じendpointがすでにActiveの状態で受けたConnect要求は、preflightから0.028秒で既定状態へ収束し、Bluetooth reconnect mutationを送らないidempotent経路を実機で通過した。Windows 11 Pro build 26200、MediaTek Bluetooth Adapter driver 1.1147.0.610、MediaTek Bluetooth Audio Device driver 1.6.0.48をsanitized環境証跡として記録した。multi-host timeout後の案内と遅延状態収束は[Issue #65](https://github.com/rimtty/QuickPods/issues/65)で追跡する。Issue #41は、選択外Bluetooth機器への影響0の操作者確認と、disconnected状態へのidempotent Disconnectを製品境界で確認するまでopenのまま維持する。
+同じendpointがすでにActiveの状態で受けたConnect要求は、preflightから0.028秒で既定状態へ収束し、Bluetooth reconnect mutationを送らないidempotent経路を実機で通過した。Windows 11 Pro build 26200、MediaTek Bluetooth Adapter driver 1.1147.0.610、MediaTek Bluetooth Audio Device driver 1.6.0.48をsanitized環境証跡として記録した。multi-host timeout後の案内と遅延状態収束は[Issue #65](https://github.com/rimtty/QuickPods/issues/65)で追跡する。
+
+コミット`8d997ac`の自己完結型`visual.77`を起動したまま、操作者復帰後に未接続AirPodsへ最終Connectを1回だけ実施した。`Connecting`から`Succeeded / Connected / Default`まで14.410秒で15秒期限内、Stereo Active後の既定出力確認は約32 msだった。操作者は画面の`接続済み・既定`とAirPodsからの実音声を確認し、Bluetooth無線、Bluetoothキーボード／マウス／コントローラー、非選択機器、AirPods以外の機器に意図しない変更が0件であることを確認した。自動retryは発生していない。
+
+未接続状態では製品UIがDisconnect actionを公開せずConnectへ切り替わるため、通常操作から既に切断済みのDisconnectを発行できない。Windows製品portも全所有endpointが切断済みというpreflight結果を得るとworker解決・KS送信より前に`Disconnected / RequestSubmitted=false / None`を返す。既存の隔離Coordinator試験は同じdesired-state Disconnectでinvoker 0件を確認している。実機専用の隠し診断actionを製品へ追加する方が安全境界を広げるため不採用とし、物理inventoryでRender／Captureとも`Unplugged`だった証拠、製品portの早期return、mutation invoker 0件の自動証拠を組み合わせてidempotent DisconnectをPassとする。
+
+以上により、5回以上の有効Connect／Disconnect、実状態、Console／Multimedia既定出力、Communications非変更、Hands-Free非選択、one-shot、選択Container限定、非対象影響0、部分成功／stale／未対応の自動境界が揃った。Issue #41のPhase 4B local-console GateをPassとする。
