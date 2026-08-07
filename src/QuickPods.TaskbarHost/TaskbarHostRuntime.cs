@@ -197,18 +197,21 @@ internal sealed class TaskbarHostRuntime : IDisposable
                             placement.Identity == currentPlacement,
                             continuityStable))
                     {
-                        if (TaskbarContinuityPolicy.ShouldEnsureObserverAfterRetention(
-                                placement.Route))
-                        {
-                            EnsureObserver(currentPlacement.ExplorerProcessId);
-                        }
-
                         ReportSurfaceAnchor(CreateSurfaceAnchor(currentPlacement));
                     }
                     else
                     {
                         ApplyPlacement(placement);
                     }
+                }
+
+                // A transient discovery can retain the native surface after an observer
+                // session is retired. The next complete watchdog discovery may have the
+                // same placement identity, so it must still restore the missing observer.
+                if (TaskbarContinuityPolicy.ShouldEnsureObserverAfterDiscovery(
+                        placement.Route))
+                {
+                    EnsureObserver(placement.Identity.ExplorerProcessId);
                 }
 
                 layoutInvalidated = false;
