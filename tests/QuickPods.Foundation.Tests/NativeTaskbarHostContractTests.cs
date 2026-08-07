@@ -1,4 +1,5 @@
 using QuickPods.Contracts;
+using QuickPods.TaskbarHost.Discovery;
 using QuickPods.TaskbarHost.Hosting;
 using Xunit;
 
@@ -6,6 +7,27 @@ namespace QuickPods.Foundation.Tests;
 
 public sealed class NativeTaskbarHostContractTests
 {
+    [Fact]
+    public async Task AutomationMtaReusesOneDedicatedWorkerAcrossCompletedScans()
+    {
+        var workerThreadIds = new HashSet<int>();
+
+        for (int iteration = 0; iteration < 8; iteration++)
+        {
+            int workerThreadId = await AutomationMta.RunAsync(
+                () =>
+                {
+                    Assert.Equal(ApartmentState.MTA, Thread.CurrentThread.GetApartmentState());
+                    return Environment.CurrentManagedThreadId;
+                },
+                TimeSpan.FromSeconds(2),
+                CancellationToken.None);
+            workerThreadIds.Add(workerThreadId);
+        }
+
+        Assert.Single(workerThreadIds);
+    }
+
     [Fact]
     public void PopupPreservedStyleForbidsChildAndTopmostBits()
     {
@@ -56,6 +78,16 @@ public sealed class NativeTaskbarHostContractTests
             PointMessage(0, 0),
             out NativeSliderInteractionResult flyout));
         Assert.True(session.TryOpenContextMenu(out NativeSliderInteractionResult contextMenu));
+        Assert.True(session.TryPreviewFlyout(out NativeSliderInteractionResult preview));
+        Assert.True(session.TryNotifyPointerExited(out NativeSliderInteractionResult pointerExited));
+
+        var hover = new NativeHoverInteractionSession();
+        Assert.True(hover.TryArm());
+        Assert.False(hover.TryArm());
+        Assert.True(hover.TryRequestPreview());
+        Assert.False(hover.TryRequestPreview());
+        Assert.True(hover.Reset());
+        Assert.False(hover.TryRequestPreview());
 
         Assert.Equal(TaskbarSurfaceMode.Floating, session.State.SurfaceMode);
         Assert.Equal((0L, HostInteractionKind.SetVolumePreview, 0),
@@ -73,6 +105,10 @@ public sealed class NativeTaskbarHostContractTests
             (flyout.Envelope.Sequence, flyout.Envelope.Kind, flyout.Envelope.VolumePercent));
         Assert.Equal((6L, HostInteractionKind.OpenContextMenu, null),
             (contextMenu.Envelope.Sequence, contextMenu.Envelope.Kind, contextMenu.Envelope.VolumePercent));
+        Assert.Equal((7L, HostInteractionKind.PreviewAudioFlyout),
+            (preview.Envelope.Sequence, preview.Envelope.Kind));
+        Assert.Equal((8L, HostInteractionKind.TaskbarPointerExited),
+            (pointerExited.Envelope.Sequence, pointerExited.Envelope.Kind));
         Assert.False(session.IsDragging);
     }
 

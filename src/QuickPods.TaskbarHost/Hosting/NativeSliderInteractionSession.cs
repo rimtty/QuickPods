@@ -140,6 +140,12 @@ internal sealed class NativeSliderInteractionSession
     internal bool TryOpenContextMenu(out NativeSliderInteractionResult result) =>
         TryCreateCommand(HostInteractionKind.OpenContextMenu, out result);
 
+    internal bool TryPreviewFlyout(out NativeSliderInteractionResult result) =>
+        TryCreateCommand(HostInteractionKind.PreviewAudioFlyout, out result);
+
+    internal bool TryNotifyPointerExited(out NativeSliderInteractionResult result) =>
+        TryCreateCommand(HostInteractionKind.TaskbarPointerExited, out result);
+
     internal bool CancelDrag()
     {
         bool wasDragging = IsDragging;

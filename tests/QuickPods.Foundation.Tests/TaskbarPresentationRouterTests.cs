@@ -59,6 +59,46 @@ public sealed class TaskbarPresentationRouterTests
         Assert.Null(route.Bounds);
     }
 
+    [Fact]
+    public void StableNativeSurfaceIsRetainedOnlyForSamePlacementOrTransientUnknown()
+    {
+        TaskbarDiscoveryResult complete = CompleteDiscovery();
+        TaskbarPresentationRoute sameNative = TaskbarPresentationRouter.Select(
+            complete,
+            TaskbarPlacementResult.Place(
+                new PixelRect(700, 1040, 1000, 1080),
+                TaskbarStripMode.Standard));
+        TaskbarPresentationRoute transient = TaskbarPresentationRouter.Select(
+            new TaskbarDiscoveryResult(
+                null,
+                [TaskbarDiscoveryFault.PrimaryTaskbarMissing],
+                false),
+            TaskbarPlacementResult.TransientUnknown(PlacementReason.IncompleteObservation));
+        TaskbarPresentationRoute unsupported = TaskbarPresentationRouter.Select(
+            complete,
+            TaskbarPlacementResult.UnsupportedConfiguration(
+                PlacementReason.UnsupportedAlignment));
+
+        Assert.True(TaskbarContinuityPolicy.CanRetainNativeSurface(
+            sameNative,
+            placementIdentityMatches: true,
+            continuityStable: true));
+        Assert.True(TaskbarContinuityPolicy.CanRetainNativeSurface(
+            transient,
+            placementIdentityMatches: false,
+            continuityStable: true));
+        Assert.False(TaskbarContinuityPolicy.CanRetainNativeSurface(
+            unsupported,
+            placementIdentityMatches: false,
+            continuityStable: true));
+        Assert.False(TaskbarContinuityPolicy.CanRetainNativeSurface(
+            transient,
+            placementIdentityMatches: false,
+            continuityStable: false));
+        Assert.True(TaskbarContinuityPolicy.ShouldEnsureObserverAfterRetention(sameNative));
+        Assert.False(TaskbarContinuityPolicy.ShouldEnsureObserverAfterRetention(transient));
+    }
+
     private static TaskbarDiscoveryResult CompleteDiscovery()
     {
         var snapshot = new LiveTaskbarSnapshot(

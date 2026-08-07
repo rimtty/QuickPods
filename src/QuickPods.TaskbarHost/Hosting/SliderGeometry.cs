@@ -22,12 +22,15 @@ internal static class SliderGeometry
             return false;
         }
 
-        int inset = Math.Max(2, height / 12);
-        int iconLeft = inset + Math.Max(3, height / 9);
-        int iconSize = Math.Clamp(height / 3, 10, 22);
+        double scale = height / 40d;
+        int inset = Math.Max(2, (int)Math.Round(8d * scale));
+        int iconLeft = Math.Max(inset, (int)Math.Round(9d * scale));
+        int iconSize = Math.Clamp((int)Math.Round(22d * scale), 14, 44);
         int centerY = height / 2;
-        int proposedLeft = iconLeft + iconSize + Math.Max(8, height / 6);
-        int proposedRight = width - inset - Math.Max(8, height / 7);
+        bool standard = width >= (int)Math.Round(250d * scale);
+        int proposedLeft = (int)Math.Round((standard ? 42d : 36d) * scale);
+        int proposedRight = (int)Math.Round((standard ? 130d : 80d) * scale);
+        proposedRight = Math.Min(proposedRight, width - inset);
         int trackLeft = Math.Clamp(proposedLeft, 0, width - 1);
         int trackRight = Math.Clamp(proposedRight, trackLeft + 1, width);
         int trackHeight = Math.Clamp(height / 11, 3, 7);

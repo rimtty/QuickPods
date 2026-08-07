@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using QuickPods.Contracts;
 using QuickPods.Core.Models;
 
 namespace QuickPods.Presentation;
@@ -16,11 +17,16 @@ public sealed record BluetoothDeviceRowPresentation(
     BluetoothDeviceKey DeviceKey,
     string DisplayName,
     BluetoothAudioKind Kind,
+    ImmutableArray<byte> IconPng,
     string IconGlyph,
     string StatusText,
+    bool IsProcessing,
     string AccessibleName,
     bool IsSelected,
-    bool IsEnabled);
+    bool IsEnabled)
+{
+    public bool HasDeviceIcon => !IconPng.IsDefaultOrEmpty;
+}
 
 public sealed record BluetoothProductPresentation(
     long CatalogGeneration,
@@ -61,12 +67,18 @@ public static class BluetoothProductPresenter
                 output,
                 catalog.InventoryGeneration,
                 operation);
+            bool isProcessing = isBusy && IsMatching(
+                device,
+                catalog.InventoryGeneration,
+                operation);
             return new BluetoothDeviceRowPresentation(
                 device.DeviceKey,
                 device.DisplayName,
                 device.Kind,
+                device.IconPng,
                 CreateIconGlyph(device.Kind),
                 status,
+                isProcessing,
                 $"{device.DisplayName}、ペアリング済み、{status}",
                 device.IsSelected,
                 !isRefreshing && !isBusy);
@@ -76,19 +88,16 @@ public static class BluetoothProductPresenter
             device => device.IsSelected);
         (ProductPrimaryActionKind action, string actionText, bool actionEnabled) =
             ResolvePrimaryAction(catalog, selected, operation, isRefreshing, isBusy);
-        bool matchingOperation = selected is not null && IsMatching(
-            selected,
-            catalog.InventoryGeneration,
-            operation);
         (BluetoothConnectionState selectedConnection, DefaultOutputState selectedOutput) =
             selected is null
                 ? (BluetoothConnectionState.Unknown, DefaultOutputState.NotApplicable)
                 : ResolveEffectiveState(selected, catalog.InventoryGeneration, operation);
         bool showSoundRecovery = selectedConnection == BluetoothConnectionState.Connected &&
             selectedOutput is DefaultOutputState.NotDefault or DefaultOutputState.Failed;
-        string? error = catalogError ?? (matchingOperation
-            ? CreateErrorMessage(operation.Error)
-            : null);
+        string? error = catalogError ?? (selected is not null &&
+            ShouldShowOperationError(selected, operation)
+                ? CreateErrorMessage(operation.Error)
+                : null);
 
         return new(
             catalog.InventoryGeneration,
@@ -117,7 +126,7 @@ public static class BluetoothProductPresenter
     {
         if (selected is null || !catalog.SelectedDevicePresent)
         {
-            return (ProductPrimaryActionKind.None, "デバイスを選択", false);
+            return (ProductPrimaryActionKind.None, "接続", false);
         }
 
         if (isBusy)
@@ -245,13 +254,38 @@ public static class BluetoothProductPresenter
         target.DeviceKey == device.DeviceKey &&
         target.InventoryGeneration == inventoryGeneration;
 
+    private static bool ShouldShowOperationError(
+        BluetoothAudioDeviceDescriptor selected,
+        BluetoothOperationSnapshot operation)
+    {
+        if (operation.Error is null ||
+            operation.Target is not { } target ||
+            target.DeviceKey != selected.DeviceKey)
+        {
+            return false;
+        }
+
+        bool requestedStateReached = operation.Error == QuickPodsErrorCode.DefaultOutputSwitchFailed
+            ? selected.ConnectionState == BluetoothConnectionState.Connected &&
+                selected.DefaultOutputState == DefaultOutputState.Default
+            : operation.RequestedAction switch
+            {
+                BluetoothRequestedAction.Connect =>
+                    selected.ConnectionState == BluetoothConnectionState.Connected,
+                BluetoothRequestedAction.Disconnect =>
+                    selected.ConnectionState == BluetoothConnectionState.Disconnected,
+                _ => false,
+            };
+        return !requestedStateReached;
+    }
+
     private static string? CreateErrorMessage(QuickPodsErrorCode? error) =>
         error switch
         {
             QuickPodsErrorCode.BluetoothDriverUnsupported =>
                 "このデバイスはQuickPodsから直接操作できません。",
             QuickPodsErrorCode.BluetoothTimeout =>
-                "接続状態を期限内に確認できませんでした。状態を更新してから再試行してください。",
+                "接続状態を期限内に確認できませんでした。別の端末への接続や距離を確認し、状態を更新して再試行してください。",
             QuickPodsErrorCode.BluetoothSelectionStale =>
                 "デバイス一覧が更新されました。選択状態を確認してください。",
             QuickPodsErrorCode.BluetoothDeviceUnavailable =>
@@ -268,8 +302,7 @@ public static class BluetoothProductPresenter
     private static string CreateIconGlyph(BluetoothAudioKind kind) =>
         kind switch
         {
-            BluetoothAudioKind.Speaker => "\uE7F5",
-            BluetoothAudioKind.Earbuds => "\uE95B",
-            _ => "\uE7F6",
+            BluetoothAudioKind.Speaker => "\uE767",
+            _ => FluentAudioGlyphs.Headphones,
         };
 }

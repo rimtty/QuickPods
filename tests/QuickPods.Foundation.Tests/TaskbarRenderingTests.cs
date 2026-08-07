@@ -20,6 +20,12 @@ public sealed class TaskbarRenderingTests
         Assert.InRange(SliderGeometry.FractionFromPointerX(layout, midpoint), 0.49d, 0.51d);
         Assert.True(SliderGeometry.ContainsPointer(layout, midpoint, layout.CenterY));
         Assert.False(SliderGeometry.ContainsPointer(layout, layout.TrackLeft - 1, layout.CenterY));
+        int speakerCenter = layout.IconLeft + (layout.IconSize / 2);
+        Assert.True(SliderGeometry.ContainsSpeakerPointer(layout, speakerCenter, layout.CenterY));
+        Assert.False(SliderGeometry.ContainsSpeakerPointer(
+            layout,
+            layout.IconLeft + layout.IconSize,
+            layout.CenterY));
     }
 
     [Fact]
@@ -30,10 +36,33 @@ public sealed class TaskbarRenderingTests
         TaskbarRenderState low = TaskbarRenderState.FromSnapshot(
             new(TaskbarSurfaceMode.Native, -1, false, null));
         TaskbarRenderState highMuted = TaskbarRenderState.FromSnapshot(
-            new(TaskbarSurfaceMode.Native, 101, true, null));
+            new(
+                TaskbarSurfaceMode.Native,
+                101,
+                true,
+                new TaskbarDeviceView("device", "AirPods Pro", "未接続")));
+        TaskbarRenderState connected = TaskbarRenderState.FromSnapshot(
+            new(
+                TaskbarSurfaceMode.Native,
+                42,
+                false,
+                new TaskbarDeviceView("device", "AirPods Pro", "接続済み・既定")));
 
         Assert.Equal(0d, low.VolumeFraction);
         Assert.Equal(1d, highMuted.VolumeFraction);
         Assert.True(highMuted.IsMuted);
+        Assert.Equal("BTデバイスなし", low.DeviceDisplayName);
+        Assert.False(low.HasSelectedDevice);
+        Assert.Equal("AirPods Pro", highMuted.DeviceDisplayName);
+        Assert.Equal("未接続", highMuted.DeviceStatusText);
+        Assert.Equal("未接続 · AirPods Pro", highMuted.DeviceLabel);
+        Assert.False(highMuted.HasActiveDeviceConnection);
+        Assert.True(highMuted.HasSelectedDevice);
+        Assert.Equal("AirPods Pro", connected.DeviceLabel);
+        Assert.True(connected.HasActiveDeviceConnection);
+        Assert.Equal("\uE767", FluentAudioGlyphs.ForMuteState(isMuted: false));
+        Assert.Equal("\uE74F", FluentAudioGlyphs.ForMuteState(isMuted: true));
+        Assert.Equal("\uE7F6", FluentAudioGlyphs.Headphones);
+        Assert.Equal("Segoe Fluent Icons", FluentAudioGlyphs.FontFamily);
     }
 }

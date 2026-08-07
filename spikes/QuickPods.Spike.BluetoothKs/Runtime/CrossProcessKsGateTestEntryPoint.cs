@@ -18,7 +18,7 @@ internal static class CrossProcessKsGateTestEntryPoint
                 NumberStyles.None,
                 CultureInfo.InvariantCulture,
                 out int milliseconds) ||
-            milliseconds is < 1 or > 5_000)
+            milliseconds is < 1 or > 60_000)
         {
             return false;
         }

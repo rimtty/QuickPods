@@ -61,6 +61,6 @@ The suite remains intentionally focused: twenty-two new test executions were add
 
 ## Phase 3B follow-ups
 
-- complete the retained-continuity race checks from Issue #15 in Phase 3B (the Phase 3A exclusion provenance and create-time invalidation boundaries are implemented);
+- retain the completed Issue #15 hardening from PR #59. Retained Start continuity carries a private proof minted only from a complete same-generation anchor; the verified-result factory rejects absent, mismatched, or route-inconsistent provenance; and the production Runner consumes one deterministic attempt policy that fences watcher/invalidation generations, unions retained obstacles, rejects newly intersecting obstacles, refreshes history only from complete UIA, and hides immediately on in-flight coordinate invalidation. The additional physical negative repetition was removed from the 0.1.0 gate on 2026-08-07;
 - implement the accepted ADR-0001 observer helper in Phase 3B before recovery loops are enabled.
-- reproduce and resolve center-aligned NoFit Floating z-order behavior from Issue #33; if safe visibility cannot be guaranteed, route that condition to Hidden and update the specification.
+- keep the existing fail-closed center-aligned NoFit routing and automated invariants. A dedicated physical reproduction was tracked by Issue #33, then removed from the release gate by product decision on 2026-08-07; no behavior change was requested.

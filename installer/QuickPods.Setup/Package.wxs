@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix
+  xmlns="http://wixtoolset.org/schemas/v4/wxs"
+  xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <Package
+    Name="QuickPods"
+    Manufacturer="QuickPods contributors"
+    Version="$(var.PackageVersion)"
+    ProductCode="$(var.PackageProductCode)"
+    UpgradeCode="C4CC3407-E68A-4EF0-9DB0-7CBE95768FC4"
+    Language="1041"
+    Scope="perUser"
+    InstallerVersion="500"
+    Compressed="yes">
+
+    <SummaryInformation Description="QuickPods per-user installer" Manufacturer="QuickPods contributors" />
+    <MajorUpgrade
+      Schedule="afterInstallInitialize"
+      DowngradeErrorMessage="A newer version of QuickPods is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <util:CloseApplication
+      Id="CloseQuickPods"
+      Target="QuickPods.exe"
+      Condition="Installed"
+      CloseMessage="yes"
+      Timeout="5"
+      TerminateProcess="0"
+      RebootPrompt="no" />
+
+    <StandardDirectory Id="PerUserProgramFilesFolder">
+      <Directory Id="INSTALLFOLDER" Name="QuickPods" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="QuickPodsProgramMenuFolder" Name="QuickPods" />
+    </StandardDirectory>
+
+    <DirectoryRef Id="QuickPodsProgramMenuFolder">
+      <Component Id="StartMenuShortcutComponent" Guid="D15D0474-18C3-4433-938C-0C1A64B71ACD">
+        <Shortcut
+          Id="QuickPodsStartMenuShortcut"
+          Name="QuickPods"
+          Description="Quick access to Windows audio and paired Bluetooth audio devices"
+          Target="[INSTALLFOLDER]QuickPods.exe"
+          WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="RemoveQuickPodsProgramMenuFolder" On="uninstall" />
+        <RegistryValue
+          Root="HKCU"
+          Key="Software\QuickPods\Installer"
+          Name="StartMenuShortcut"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <CustomAction
+      Id="UnregisterQuickPodsStartup"
+      Directory="INSTALLFOLDER"
+      ExeCommand="&quot;[INSTALLFOLDER]QuickPods.exe&quot; --unregister-startup"
+      Execute="immediate"
+      Impersonate="yes"
+      Return="ignore" />
+
+    <InstallExecuteSequence>
+      <Custom
+        Action="override Wix4CloseApplications_X64"
+        After="InstallInitialize"
+        Condition="VersionNT &gt; 400" />
+      <Custom
+        Action="UnregisterQuickPodsStartup"
+        Before="RemoveFiles"
+        Condition="REMOVE = &quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
+    </InstallExecuteSequence>
+
+    <Feature Id="MainFeature" Title="QuickPods" Level="1">
+      <ComponentGroupRef Id="QuickPodsPayloadComponents" />
+      <ComponentRef Id="StartMenuShortcutComponent" />
+    </Feature>
+  </Package>
+</Wix>

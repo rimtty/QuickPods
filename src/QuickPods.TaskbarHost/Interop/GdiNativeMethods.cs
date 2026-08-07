@@ -11,6 +11,14 @@ namespace QuickPods.TaskbarHost.Interop;
 internal static class GdiNativeMethods
 {
     internal const int PenStyleSolid = 0;
+    internal const int BackgroundModeTransparent = 1;
+    internal const int FontWeightNormal = 400;
+    internal const uint DrawTextCenter = 0x00000001;
+    internal const uint DrawTextRight = 0x00000002;
+    internal const uint DrawTextVerticalCenter = 0x00000004;
+    internal const uint DrawTextSingleLine = 0x00000020;
+    internal const uint DrawTextNoPrefix = 0x00000800;
+    internal const uint DrawTextEndEllipsis = 0x00008000;
     internal const uint RasterOperationSourceCopy = 0x00CC0020;
 
     [DllImport("user32.dll", EntryPoint = "BeginPaint", ExactSpelling = true)]
@@ -32,6 +40,37 @@ internal static class GdiNativeMethods
 
     [DllImport("gdi32.dll", EntryPoint = "CreatePen", ExactSpelling = true, SetLastError = true)]
     internal static extern nint CreatePen(int style, int width, uint color);
+
+    [DllImport("gdi32.dll", EntryPoint = "CreateFontW", CharSet = CharSet.Unicode, SetLastError = true)]
+    internal static extern nint CreateFont(
+        int height,
+        int width,
+        int escapement,
+        int orientation,
+        int weight,
+        uint italic,
+        uint underline,
+        uint strikeOut,
+        uint characterSet,
+        uint outputPrecision,
+        uint clipPrecision,
+        uint quality,
+        uint pitchAndFamily,
+        string faceName);
+
+    [DllImport("gdi32.dll", EntryPoint = "SetBkMode", ExactSpelling = true)]
+    internal static extern int SetBackgroundMode(nint deviceContext, int mode);
+
+    [DllImport("gdi32.dll", EntryPoint = "SetTextColor", ExactSpelling = true)]
+    internal static extern uint SetTextColor(nint deviceContext, uint color);
+
+    [DllImport("user32.dll", EntryPoint = "DrawTextW", CharSet = CharSet.Unicode)]
+    internal static extern int DrawText(
+        nint deviceContext,
+        string text,
+        int textLength,
+        ref NativeRect rectangle,
+        uint format);
 
     [DllImport("gdi32.dll", EntryPoint = "CreateCompatibleDC", ExactSpelling = true, SetLastError = true)]
     internal static extern nint CreateCompatibleDeviceContext(nint deviceContext);

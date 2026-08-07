@@ -229,6 +229,9 @@ internal static class BluetoothAudioCatalogBuilder
             .Select(endpoint => endpoint.Profile)
             .Distinct()
             .Order()];
+        ImmutableArray<byte> iconPng = endpoints
+            .Select(endpoint => endpoint.IconPng)
+            .FirstOrDefault(icon => !icon.IsDefaultOrEmpty);
         BluetoothAudioEndpointEvidence[] renderEndpoints = [.. endpoints.Where(
             endpoint => endpoint.Direction == BluetoothEndpointDirection.Render)];
         BluetoothConnectionState connection = ResolveConnection(renderEndpoints);
@@ -247,7 +250,10 @@ internal static class BluetoothAudioCatalogBuilder
                 : DefaultOutputState.NotApplicable,
             ResolveCapability(endpoints),
             profiles,
-            group.Key == selectedDevice);
+            group.Key == selectedDevice)
+        {
+            IconPng = iconPng.IsDefault ? [] : iconPng,
+        };
     }
 
     private static BluetoothConnectionState ResolveConnection(

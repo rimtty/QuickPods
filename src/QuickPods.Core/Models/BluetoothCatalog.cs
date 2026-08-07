@@ -44,6 +44,8 @@ public sealed record BluetoothAudioEndpointEvidence(
     bool IsPaired,
     bool IsBluetooth)
 {
+    public ImmutableArray<byte> IconPng { get; init; } = [];
+
     public bool IsConsoleDefault { get; init; }
 
     public bool IsMultimediaDefault { get; init; }
@@ -57,7 +59,10 @@ public sealed record BluetoothAudioDeviceDescriptor(
     DefaultOutputState DefaultOutputState,
     BluetoothDeviceCapability Capability,
     ImmutableArray<BluetoothAudioProfile> Profiles,
-    bool IsSelected);
+    bool IsSelected)
+{
+    public ImmutableArray<byte> IconPng { get; init; } = [];
+}
 
 public sealed record BluetoothAudioCatalogSnapshot(
     long InventoryGeneration,

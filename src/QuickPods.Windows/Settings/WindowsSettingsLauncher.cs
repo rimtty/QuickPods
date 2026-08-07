@@ -18,16 +18,26 @@ public sealed class WindowsSettingsLauncher : IWindowsSettingsLauncher
 
     public bool TryOpenBluetoothSettings() => TryOpen(BluetoothSettingsUri);
 
-    private static bool TryOpen(string uri)
+    private static bool TryOpen(string uri) => TryOpen(uri, Process.Start);
+
+    internal static bool TryOpen(
+        string uri,
+        Func<ProcessStartInfo, Process?> startProcess)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(uri);
+        ArgumentNullException.ThrowIfNull(startProcess);
+
         try
         {
-            using Process? process = Process.Start(new ProcessStartInfo
+            using Process? process = startProcess(new ProcessStartInfo
             {
                 FileName = uri,
                 UseShellExecute = true,
             });
-            return process is not null;
+
+            // Shell URI activation can complete successfully without returning a
+            // Process instance. The absence of an exception is the success signal.
+            return true;
         }
         catch (Exception exception) when (
             exception is InvalidOperationException or System.ComponentModel.Win32Exception)

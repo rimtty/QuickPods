@@ -29,6 +29,6 @@ WPFはHigh Contrast中にWindowsのWindow、WindowText、Control、Highlight、G
 - 200%以上／mixed DPI、高コントラスト、sleep／resume、RDP接続解除、monitor hot-plugの目視と入力：Issue #43
 - 実Bluetooth列挙：Issue #38
 - 実Bluetooth接続／切断／既定出力：Issue #41
-- 24時間resource試験（AC-025）：Phase 6
+- 承認された期間のresource試験（AC-025）：Phase 6
 
 自動試験とRDPでの安全縮退は、これらの物理成立性の代替にしない。

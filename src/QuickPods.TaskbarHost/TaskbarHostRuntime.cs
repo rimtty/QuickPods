@@ -40,6 +40,8 @@ internal sealed class TaskbarHostRuntime : IDisposable
     private long nextObserverSubscriptionEpoch;
     private long discoveryEpoch;
     private uint observerExplorerProcessId;
+    private TaskbarSurfaceAnchor? reportedSurfaceAnchor;
+    private bool hasReportedSurfaceAnchor;
     private bool layoutInvalidated;
     private Exception? pipeFailure;
     private bool disposed;
@@ -146,6 +148,8 @@ internal sealed class TaskbarHostRuntime : IDisposable
             _ = floatingHost?.PumpMessages();
             if (notificationWindow.TryConsumeTaskbarCreated() && IsSurfaceRequested)
             {
+                ReportObserverLifecycle(HostInteractionKind.TaskbarObserverTaskbarCreated);
+                ReportSurfaceAnchor(null);
                 DestroySurface();
                 DisposeObserver();
                 InvalidateLayout();
@@ -155,7 +159,6 @@ internal sealed class TaskbarHostRuntime : IDisposable
 
             if (layoutInvalidated && IsSurfaceRequested)
             {
-                DestroySurface();
                 StartDiscoveryIfNeeded();
             }
 
@@ -188,7 +191,24 @@ internal sealed class TaskbarHostRuntime : IDisposable
                 TaskbarRuntimePlacement placement = attempt.Placement;
                 if (layoutInvalidated || placement.Identity != currentPlacement)
                 {
-                    ApplyPlacement(placement);
+                    bool continuityStable = nativeHost?.IsCurrentContinuityStable() == true;
+                    if (TaskbarContinuityPolicy.CanRetainNativeSurface(
+                            placement.Route,
+                            placement.Identity == currentPlacement,
+                            continuityStable))
+                    {
+                        if (TaskbarContinuityPolicy.ShouldEnsureObserverAfterRetention(
+                                placement.Route))
+                        {
+                            EnsureObserver(currentPlacement.ExplorerProcessId);
+                        }
+
+                        ReportSurfaceAnchor(CreateSurfaceAnchor(currentPlacement));
+                    }
+                    else
+                    {
+                        ApplyPlacement(placement);
+                    }
                 }
 
                 layoutInvalidated = false;
@@ -248,6 +268,7 @@ internal sealed class TaskbarHostRuntime : IDisposable
         currentState = accepted;
         if (!IsSurfaceRequested)
         {
+            ReportSurfaceAnchor(null);
             DestroySurface();
             DisposeObserver();
             currentPlacement = RuntimePlacementIdentity.Hidden;
@@ -266,6 +287,7 @@ internal sealed class TaskbarHostRuntime : IDisposable
 
     private void ApplyPlacement(TaskbarRuntimePlacement placement)
     {
+        ReportSurfaceAnchor(null);
         DestroySurface();
         currentPlacement = placement.Identity;
         if (placement.Route.Surface == TaskbarPresentationSurface.Native &&
@@ -283,6 +305,7 @@ internal sealed class TaskbarHostRuntime : IDisposable
                 StateFor(TaskbarSurfaceMode.Native));
             nativeHost.Show();
             priorNativeBounds = nativeBounds;
+            ReportSurfaceAnchor(CreateSurfaceAnchor(currentPlacement));
             return;
         }
 
@@ -301,6 +324,7 @@ internal sealed class TaskbarHostRuntime : IDisposable
                 placement.Route.Dpi,
                 StateFor(TaskbarSurfaceMode.Floating));
             floatingHost.Show();
+            ReportSurfaceAnchor(CreateSurfaceAnchor(currentPlacement));
             return;
         }
 
@@ -329,8 +353,55 @@ internal sealed class TaskbarHostRuntime : IDisposable
             QuickPodsProtocol.Version,
             nextInteractionSequence++,
             interaction.Kind,
-            interaction.VolumePercent);
+            interaction.VolumePercent,
+            interaction.Anchor,
+            interaction.ObserverGenerationOrdinal);
         writer.WriteLine(QuickPodsProtocolJson.Serialize(normalized));
+    }
+
+    private void ReportObserverLifecycle(HostInteractionKind kind)
+    {
+        if (observer is null)
+        {
+            return;
+        }
+
+        ForwardInteraction(new HostInteractionEnvelope(
+            QuickPodsProtocol.Version,
+            0,
+            kind,
+            observerGenerationOrdinal: observer.GenerationOrdinal));
+    }
+
+    private void ReportSurfaceAnchor(TaskbarSurfaceAnchor? anchor)
+    {
+        if (hasReportedSurfaceAnchor && Equals(reportedSurfaceAnchor, anchor))
+        {
+            return;
+        }
+
+        hasReportedSurfaceAnchor = true;
+        reportedSurfaceAnchor = anchor;
+        ForwardInteraction(new HostInteractionEnvelope(
+            QuickPodsProtocol.Version,
+            0,
+            HostInteractionKind.TaskbarSurfaceAnchorChanged,
+            anchor: anchor));
+    }
+
+    private static TaskbarSurfaceAnchor? CreateSurfaceAnchor(RuntimePlacementIdentity placement)
+    {
+        if (placement.Bounds is not PixelRect bounds || !bounds.IsValid || placement.Dpi == 0)
+        {
+            return null;
+        }
+
+        return new TaskbarSurfaceAnchor(
+            bounds.Left,
+            bounds.Top,
+            bounds.Right,
+            bounds.Bottom,
+            placement.Dpi);
     }
 
     private void OnLayoutInvalidated(NativeLayoutInvalidationReason reason)
@@ -346,7 +417,10 @@ internal sealed class TaskbarHostRuntime : IDisposable
             return;
         }
 
-        bool invalidate = observer.Failure is not null || observer.IsDisconnected;
+        bool hasTransportFailure = observer.Failure is not null;
+        bool observerUnavailable = hasTransportFailure || observer.IsDisconnected;
+        ObserverInvalidationKind terminalKinds = ObserverInvalidationKind.None;
+        bool invalidate = observerUnavailable;
         while (observer.TryDequeue(out ObserverInvalidationBatch? batch))
         {
             if (batch is null || batch.Source == ObserverSourceClassification.Owned)
@@ -355,16 +429,27 @@ internal sealed class TaskbarHostRuntime : IDisposable
             }
 
             ObserverInvalidationKind actionable = batch.Kinds & ~ObserverInvalidationKind.Ready;
+            terminalKinds |= actionable &
+                (ObserverInvalidationKind.ExplorerGenerationChanged |
+                 ObserverInvalidationKind.ObserverFaulted);
             invalidate |= actionable != ObserverInvalidationKind.None;
         }
+
+        observerUnavailable |= terminalKinds != ObserverInvalidationKind.None;
 
         if (!invalidate)
         {
             return;
         }
 
-        DestroySurface();
-        DisposeObserver();
+        if (observerUnavailable)
+        {
+            ReportObserverLifecycle(ObserverLifecycleNotificationPolicy.ClassifyRetirement(
+                terminalKinds,
+                hasTransportFailure));
+            DisposeObserver();
+        }
+
         InvalidateLayout();
         StartDiscoveryIfNeeded();
     }
@@ -417,6 +502,7 @@ internal sealed class TaskbarHostRuntime : IDisposable
         }
 
         discoveryEpoch++;
+        ReportSurfaceAnchor(null);
         layoutInvalidated = true;
     }
 

@@ -130,6 +130,89 @@ internal static class QuickPodsGdiRenderer
 
         DrawSpeaker(deviceContext, layout, state.IsMuted, theme.ForegroundColor);
         DrawTrack(deviceContext, layout, state.VolumeFraction, height, theme);
+        DrawMetadata(deviceContext, width, height, state, theme);
+    }
+
+    private static void DrawMetadata(
+        nint deviceContext,
+        int width,
+        int height,
+        TaskbarRenderState state,
+        TaskbarRenderTheme theme)
+    {
+        double scale = height / 40d;
+        bool standard = width >= (int)Math.Round(250d * scale);
+        int percentLeft = (int)Math.Round((standard ? 137d : 84d) * scale);
+        int percentRight = (int)Math.Round((standard ? 174d : 116d) * scale);
+        if (percentLeft >= width - 8)
+        {
+            return;
+        }
+
+        DrawLabel(
+            deviceContext,
+            $"{state.VolumePercent}%",
+            new NativeRect
+            {
+                Left = percentLeft,
+                Top = 0,
+                Right = Math.Min(width - 4, percentRight),
+                Bottom = height,
+            },
+            Math.Max(10, (int)Math.Round(12d * scale)),
+            theme.ForegroundColor,
+            GdiNativeMethods.DrawTextCenter);
+
+        int dividerX = (int)Math.Round((standard ? 180d : 121d) * scale);
+        int deviceIconLeft = (int)Math.Round((standard ? 190d : 130d) * scale);
+        int deviceTextLeft = (int)Math.Round((standard ? 216d : 154d) * scale);
+        if (deviceTextLeft >= width - 6)
+        {
+            return;
+        }
+
+        using (SafeGdiObjectHandle dividerPen = CreatePen(
+                   Math.Max(1, (int)Math.Round(scale)),
+                   theme.SurfaceOutlineColor))
+        {
+            nint previousPen = GdiNativeMethods.SelectObject(
+                deviceContext,
+                dividerPen.DangerousGetHandle());
+            if (IsValidSelectedObject(previousPen))
+            {
+                _ = GdiNativeMethods.MoveTo(
+                    deviceContext,
+                    dividerX,
+                    (int)Math.Round(9d * scale),
+                    nint.Zero);
+                _ = GdiNativeMethods.LineTo(
+                    deviceContext,
+                    dividerX,
+                    height - (int)Math.Round(9d * scale));
+                _ = GdiNativeMethods.SelectObject(deviceContext, previousPen);
+            }
+        }
+
+        DrawHeadphones(
+            deviceContext,
+            deviceIconLeft,
+            height / 2,
+            Math.Max(13, (int)Math.Round(18d * scale)),
+            state.HasActiveDeviceConnection,
+            theme);
+        DrawLabel(
+            deviceContext,
+            state.DeviceLabel,
+            new NativeRect
+            {
+                Left = deviceTextLeft,
+                Top = 0,
+                Right = width - Math.Max(7, (int)Math.Round(8d * scale)),
+                Bottom = height,
+            },
+            Math.Max(10, (int)Math.Round(12d * scale)),
+            theme.ForegroundColor,
+            0);
     }
 
     private static void DrawTrack(
@@ -187,45 +270,106 @@ internal static class QuickPodsGdiRenderer
         bool isMuted,
         uint foregroundColor)
     {
-        int left = layout.IconLeft;
-        int centerY = layout.CenterY;
-        int size = layout.IconSize;
-        int half = Math.Max(4, size / 2);
-        GdiNativeMethods.NativeGdiPoint[] speaker =
-        [
-            new(left, centerY - (half / 2)),
-            new(left + (half / 2), centerY - (half / 2)),
-            new(left + half, centerY - half),
-            new(left + half, centerY + half),
-            new(left + (half / 2), centerY + (half / 2)),
-            new(left, centerY + (half / 2)),
-        ];
-
-        using SafeGdiObjectHandle foregroundBrush = CreateBrush(foregroundColor);
-        using SafeGdiObjectHandle foregroundPen = CreatePen(Math.Max(1, size / 8), foregroundColor);
-        WithSelectedObjects(deviceContext, foregroundBrush, foregroundPen, () =>
-        {
-            _ = GdiNativeMethods.Polygon(deviceContext, speaker, speaker.Length);
-            if (isMuted)
+        int verticalExtent = Math.Max(layout.IconSize, layout.CenterY);
+        DrawLabel(
+            deviceContext,
+            FluentAudioGlyphs.ForMuteState(isMuted),
+            new NativeRect
             {
-                int slashLeft = left + half;
-                _ = GdiNativeMethods.MoveTo(deviceContext, slashLeft, centerY - half, nint.Zero);
-                _ = GdiNativeMethods.LineTo(deviceContext, left + size + half, centerY + half);
-                return;
-            }
+                Left = layout.IconLeft,
+                Top = layout.CenterY - verticalExtent,
+                Right = layout.IconLeft + layout.IconSize,
+                Bottom = layout.CenterY + verticalExtent,
+            },
+            layout.IconSize,
+            foregroundColor,
+            GdiNativeMethods.DrawTextCenter,
+            FluentAudioGlyphs.FontFamily);
+    }
 
-            int arcLeft = left + (half / 2);
-            _ = GdiNativeMethods.Arc(
+    private static void DrawHeadphones(
+        nint deviceContext,
+        int left,
+        int centerY,
+        int size,
+        bool hasActiveConnection,
+        TaskbarRenderTheme theme)
+    {
+        int bottom = centerY + (size / 2);
+        int verticalExtent = Math.Max(size, centerY);
+        DrawLabel(
+            deviceContext,
+            FluentAudioGlyphs.Headphones,
+            new NativeRect
+            {
+                Left = left,
+                Top = centerY - verticalExtent,
+                Right = left + size,
+                Bottom = centerY + verticalExtent,
+            },
+            size,
+            theme.ForegroundColor,
+            GdiNativeMethods.DrawTextCenter,
+            FluentAudioGlyphs.FontFamily);
+
+        int dotRadius = Math.Max(2, size / 7);
+        uint dotColor = hasActiveConnection ? theme.AccentColor : theme.TrackColor;
+        using SafeGdiObjectHandle dotBrush = CreateBrush(dotColor);
+        using SafeGdiObjectHandle dotPen = CreatePen(1, dotColor);
+        WithSelectedObjects(deviceContext, dotBrush, dotPen, () =>
+        {
+            int dotX = left + size + dotRadius;
+            int dotY = bottom - dotRadius;
+            _ = GdiNativeMethods.Ellipse(
                 deviceContext,
-                arcLeft,
-                centerY - half,
-                left + size + half,
-                centerY + half,
-                left + half,
-                centerY - half,
-                left + half,
-                centerY + half);
+                dotX - dotRadius,
+                dotY - dotRadius,
+                dotX + dotRadius + 1,
+                dotY + dotRadius + 1);
         });
+    }
+
+    private static void DrawLabel(
+        nint deviceContext,
+        string text,
+        NativeRect bounds,
+        int fontPixelHeight,
+        uint color,
+        uint horizontalFormat,
+        string fontFamily = "Segoe UI")
+    {
+        using SafeGdiObjectHandle font = CreateFont(fontPixelHeight, fontFamily);
+        nint previousFont = GdiNativeMethods.SelectObject(
+            deviceContext,
+            font.DangerousGetHandle());
+        if (!IsValidSelectedObject(previousFont))
+        {
+            throw new Win32Exception("Unable to select the taskbar text font.");
+        }
+
+        int previousBackgroundMode = GdiNativeMethods.SetBackgroundMode(
+            deviceContext,
+            GdiNativeMethods.BackgroundModeTransparent);
+        uint previousTextColor = GdiNativeMethods.SetTextColor(deviceContext, color);
+        try
+        {
+            _ = GdiNativeMethods.DrawText(
+                deviceContext,
+                text,
+                text.Length,
+                ref bounds,
+                GdiNativeMethods.DrawTextSingleLine |
+                GdiNativeMethods.DrawTextVerticalCenter |
+                GdiNativeMethods.DrawTextNoPrefix |
+                GdiNativeMethods.DrawTextEndEllipsis |
+                horizontalFormat);
+        }
+        finally
+        {
+            _ = GdiNativeMethods.SetTextColor(deviceContext, previousTextColor);
+            _ = GdiNativeMethods.SetBackgroundMode(deviceContext, previousBackgroundMode);
+            _ = GdiNativeMethods.SelectObject(deviceContext, previousFont);
+        }
     }
 
     private static SafeGdiObjectHandle CreateBrush(uint color)
@@ -245,6 +389,31 @@ internal static class QuickPodsGdiRenderer
         if (handle == nint.Zero)
         {
             throw new Win32Exception();
+        }
+
+        return SafeGdiObjectHandle.FromOwnedHandle(handle);
+    }
+
+    private static SafeGdiObjectHandle CreateFont(int pixelHeight, string fontFamily)
+    {
+        nint handle = GdiNativeMethods.CreateFont(
+            -Math.Abs(pixelHeight),
+            0,
+            0,
+            0,
+            GdiNativeMethods.FontWeightNormal,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            5,
+            0,
+            fontFamily);
+        if (handle == nint.Zero)
+        {
+            throw new Win32Exception("Unable to create the taskbar text font.");
         }
 
         return SafeGdiObjectHandle.FromOwnedHandle(handle);

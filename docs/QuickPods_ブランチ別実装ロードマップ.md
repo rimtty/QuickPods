@@ -9,7 +9,7 @@
 | 作成日 | 2026-08-05 |
 | 対象環境 | Windows 11 x64 / .NET 10 / WPF + Win32 |
 | 基本文書 | `QuickPods_実装計画書.md` |
-| ステータス | Phase 0～6A実装済み。Phase 5C UI fidelity／Phase 6B配布をDraft PRで検証中、実機・署名・耐久Gateは未完了 |
+| ステータス | Phase 0～6B実装済み。Phase 5C、local-console証拠、retained Start hardeningはPhase 6Bへ統合済み。最終リリースはExplorer、local-consoleセッション、clean MSI、署名Gate待ち |
 
 ## 1. 目的
 
@@ -23,8 +23,8 @@
 
 | 項目 | 状態 |
 |---|---|
-| Git | `main`はPhase 6A（PR #49）まで統合済み。Phase 5CはPR #54、Phase 6BはPR #51で個別に検証中 |
-| Remote | `origin/main`へPhase 0～6Aの実装PRを統合済み。全体進捗はIssue #2、残存Gateは#33／#34／#38／#41／#43／#48／#50／#53で管理 |
+| Git | `main`はPhase 6A（PR #49）まで統合済み。Phase 6BはPR #51でMain統合準備中。Phase 5C PR #54、local-console証拠PR #70、retained Start hardening PR #59はPhase 6Bへ統合済み |
+| Remote | 全体進捗はIssue #2、残存Gateは#18／#34／#43／#50で管理。#15はPR #59で完了、#19は既存実機・決定論的証拠を受理して追加試験不要、物理Bluetooth #38／#41、resource観測 #48、Observer診断 #77、Phase 5C #53は完了済み。#33の専用NoFit再現は不要と判断 |
 | 追跡対象 | 計画資料、ブランド資産、製品コード、インストーラー、検証証跡、既知の制限 |
 | ソース／テスト／CI | .NET 10製品solution、Windows CI、RC／MSI生成、focused regressionを運用中 |
 | AGENTS.md | なし |
@@ -134,7 +134,7 @@ Phase 0ではCore AudioとタスクバーSpikeを並行開始できる。Bluetoo
 | 項目 | 内容 |
 |---|---|
 | 目的 | 公開Core Audio APIによる中核機能の成立性とCOMスレッドモデルを確定する |
-| 状態 | **Go（2026-08-06）** — Issue #4、PR #7。Windows UI一致、通知latency、1,000回変更と復元に合格。複数出力の物理追試はP2 Issue #19 |
+| 状態 | **Go（2026-08-06）** — Issue #4、PR #7。Windows UI一致、通知latency、1,000回変更と復元、後続Phase 2の実Endpoint A→B→Aに合格。追加guarded-mutation物理追試#19は2026-08-07に不要と判断 |
 | Spike | `spikes/QuickPods.Spike.CoreAudio/` |
 | 実装 | 既定Endpoint取得、音量・ミュート取得／変更、変更通知、既定デバイス変更、再バインド |
 | 自動試験 | Scalar変換、クランプ、自通知GUID、コールバックキュー、世代破棄 |
@@ -153,7 +153,7 @@ Go条件：
 
 No-Go時：原因を分類し、解消するまでPhase 1以降へ進まない。
 
-判定（2026-08-06）：**Go**。Windows UI一致、設定p95 0.111ms、外部通知p95 4.409ms、1,000回変更と復元が合格した。既定デバイス切替は単一出力環境のため設計証拠で受理し、複数デバイスでの実機追試をIssue #19に残す。根拠は`docs/validation/phase-0/core-audio/`を参照する。
+判定（2026-08-06）：**Go**。Windows UI一致、設定p95 0.111ms、外部通知p95 4.409ms、1,000回変更と復元が合格した。初回環境の単一出力条件は設計証拠で受理し、後続Phase 2で実EndpointのA→B→Aも確認した。追加guarded-mutation物理追試#19は2026-08-07に0.1.0 Gateから除外した。根拠は`docs/validation/phase-0/core-audio/`を参照する。
 
 #### B3：`codex/phase-0b-bluetooth-ks-spike`
 
@@ -277,7 +277,7 @@ No-Go時：フローティングを標準表示、通知領域を最終退避先
 | Start中tray churn | 通知アイコンadd／delete各45回、native継続4回（Direct 2）、Floating 0、wheel 67、drag 5組、watcher failure／fatal／helper／host残留0。ユーザー目視合格 |
 | Explorer復旧 | 採用Popupで10/10回が10秒以内（最大5.395秒）。旧View消失、新Explorer世代、View／Control各1、Popup style／実親／DWM、exit 0、終了後残留0を確認 |
 | 既知P2 | UIA event watcher再購読でUSER objectがExplorer世代ごとに1増加（10回で22→32）。GDI／HWND inventoryは不変。製品化前の隔離方式をIssue #18で追跡し、Phase 0Eの単体テストは再拡張しない |
-| 判断 | **Go** — 製品版`QuickPods.TaskbarHost.exe`へ別プロセス隔離して`PopupPreserved`を実装。Issue #15／#18はリリース前P2 |
+| 判断 | **Go** — 製品版`QuickPods.TaskbarHost.exe`へ別プロセス隔離して`PopupPreserved`を実装。retained Start hardening #15はPR #59で完了。Explorer世代別resource証拠#18は継続 |
 
 Start／Search表示中でも、identity、parent、style、bounds、DPI、monitor、DWM、fresh obstacle、watcher generationのいずれかが変化した場合はnativeを保持せず、Phase 0Dのfloating／hidden fallbackへ即時退避する。保持結果を新しいbaselineにはせず、freshでfault 0のUIA成功時だけStart anchorを更新する。
 
@@ -291,7 +291,7 @@ Start／Search表示中でも、identity、parent、style、bounds、DPI、monit
 | コード | 原則なし。必要なら機能フラグとCapabilityモデルの契約案だけを記載 |
 | 完了条件 | Phase 1で実装する構成が一意に決まり、未検証の前提が必須要件として残っていない |
 
-判定（2026-08-06）：**完了**。Core Audio、Bluetooth Gate A、既定出力Gate A2、Taskbar Gate BはすべてGo。Phase 1は`QuickPods.App`／`Core`／`Windows`／`TaskbarHost`／`Contracts`／`Infrastructure`の境界、機器別Capability、接続と既定出力の部分状態、設定導線を実装する。Issue #15／#18／#19は明示した後続Phaseへ送り、Phase 1 blockerにはしない。
+判定（2026-08-06）：**完了**。Core Audio、Bluetooth Gate A、既定出力Gate A2、Taskbar Gate BはすべてGo。Phase 1は`QuickPods.App`／`Core`／`Windows`／`TaskbarHost`／`Contracts`／`Infrastructure`の境界、機器別Capability、接続と既定出力の部分状態、設定導線を実装する。後続P2のうち#15はPR #59で完了し、#19は追加試験不要と判断した。#18だけをExplorer実回復Gateと合わせて継続する。
 
 検証記録は次の構成へ保存する。
 
@@ -349,7 +349,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 業務サービスから独立した表示ホストを完成させる |
-| 状態 | **実装・Phase 3A実機Gate完了** — Issue #30／PR #32。Native/Floating/Hidden表示経路と左揃え非対応判定を実装。Foundation 45/45、全solution Release 0 warning、最新stacked CIに合格。175%中央揃えNativeではclick／drag／wheel、Start／Search中の同位置維持、自然破棄、残留0に合格し、移植時の`GetParent`誤用を`GetAncestor(GA_PARENT)`へ修正。175%左揃えは`UnsupportedAlignment → Hidden`、previewでもHWND生成なし・残留0に合格し、中央揃えへ戻した後の`Place → Native`と実描画復帰も確認。中央揃えNoFit時のFloating Z順はPhase 3B Issue #33へ分離 |
+| 状態 | **実装・Phase 3A実機Gate完了** — Issue #30／PR #32。Native/Floating/Hidden表示経路と左揃え非対応判定を実装。Foundation 45/45、全solution Release 0 warning、最新stacked CIに合格。175%中央揃えNativeではclick／drag／wheel、Start／Search中の同位置維持、自然破棄、残留0に合格し、移植時の`GetParent`誤用を`GetAncestor(GA_PARENT)`へ修正。175%左揃えは`UnsupportedAlignment → Hidden`、previewでもHWND生成なし・残留0に合格し、中央揃えへ戻した後の`Place → Native`と実描画復帰も確認。追加の中央揃えNoFit再現は2026-08-07の製品判断で不要 |
 | Gate BがGo | raw Win32 `QuickPods.TaskbarHost`、UIA探索、安全領域、描画、ヒットテスト |
 | Gate BがNo-Go | タスクバー直上のフローティングストリップを実装 |
 | 共通 | `Place`／`VerifiedNoFit`／`UnsupportedConfiguration`／`TransientUnknown`、DPI座標、負座標、テーマ入力 |
@@ -362,7 +362,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 本体、Core Audio、表示ホストを結合し、表示の復旧とフォールバックを完成させる |
-| 状態 | **実装完了（2026-08-06）** — Issue #34／PR #35。CurrentUserOnly IPC、完全スナップショット、実音量往復、Host復旧、Explorer世代Observer、`TaskbarCreated`、Job Objectを統合。center-aligned NoFitとlocal-console復旧GateはIssue #33／#34で未完了 |
+| 状態 | **実装完了（2026-08-06）** — Issue #34／PR #35。CurrentUserOnly IPC、完全スナップショット、実音量往復、Host復旧、Explorer世代Observer、`TaskbarCreated`、Job Objectを統合。local-console製品版Explorer復旧GateはIssue #34で未完了。center-aligned NoFitの専用再現は2026-08-07に不要と判断 |
 | IPC | 同一ユーザーSID限定の名前付きパイプ、ProtocolVersion、Sequence、再接続時の完全スナップショット |
 | 入力 | 音量暫定値／最終値、ミュート、フライアウト要求、コンテキストメニュー要求 |
 | 復旧 | `TaskbarCreated`、Watchdog、Explorer世代、ホスト再起動、連続失敗時のセッション無効化 |
@@ -378,7 +378,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 複数Bluetoothオーディオの列挙、集約、選択、能力をUIから独立して完成させる |
-| 状態 | **実装完了（2026-08-06）** — Issue #36／PR #37。実Bluetooth列挙のlocal-console最終GateはIssue #38 |
+| 状態 | **実装・local-console Gate完了（2026-08-07）** — Issue #36／PR #37、物理列挙・profile集約Gate #38。現行修正はPR #64で統合待ち |
 | 実装 | Container ID集約、A2DP/HFP統合、単一選択、永続化、読み取り専用更新、カタログ世代、機器単位Capability |
 | Gate AがNo-Go | 非対応機器だけ`BluetoothDriverUnsupported`とし、一覧とWindows設定導線は維持 |
 | テスト | 0／1／複数／同名、選択復元、再ペアリング、選択・更新の無操作、古い世代、無関係Endpoint障害の非波及 |
@@ -389,7 +389,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 選択機器の接続、既定出力設定、切断を複合操作として本体と表示ホストへ統合する |
-| 状態 | **実装完了（2026-08-06）** — Issue #39／PR #40。実機接続・切断・既定出力のlocal-console最終GateはIssue #41 |
+| 状態 | **実装・local-console Gate完了（2026-08-07）** — Issue #39／PR #40、実機接続・切断・既定出力Gate #41。現行修正はPR #64で統合待ち |
 | 実装 | KS操作、実状態確認、Console／Multimedia既定出力設定、部分成功、連打防止、StateSnapshot、設定導線 |
 | Gate A2がNo-Go | 接続済み・非既定を表示し、サウンド設定ランチャーを提供 |
 | 実機試験 | 参照機器接続→既定出力、切断、A→B→A、圏外、ケース内、他端末、無線OFF、再ペアリング、選択外影響 |
@@ -432,10 +432,10 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 承認済みモックに沿ってタスクバー常設面、hover flyout、Bluetooth空／一覧状態の視覚・操作忠実度を完成させる |
-| 状態 | **Draft検証中（2026-08-06）** — Issue #53／PR #54。実pointer anchor、grace、Release build、focused regressionは合格。ユーザー目視と実Bluetooth一覧は未完了 |
+| 状態 | **実装・UI手動Gate完了（2026-08-07）** — PR #54をPhase 6BへSquash統合。実pointer anchor、hover dismiss、tray-first起動、Start 10秒超continuity、Release build、380件回帰、ユーザー目視に合格。実Bluetooth #38／#41は合格し、local-console DPI／keyboard #43へ継続 |
 | 実装 | タスクバー内volume／device表示、non-activating hover、surface anchor、borderless flyout、空一覧、device rows、主操作、設定導線 |
-| 境界 | 左揃え非対応policyを維持。実BluetoothはIssue #38／#41、local-console DPIはIssue #43で判定 |
-| 完了条件 | ユーザー目視に合格し、PR #54のCIが成功。物理機器／DPIの明示的な後続Gateを閉じずに残す |
+| 境界 | 左揃え非対応policyを維持。物理Bluetooth #38／#41は合格済み、local-console DPIはIssue #43で判定 |
+| 完了条件 | **達成** — ユーザー目視とPR #54 CIに合格し、物理機器／DPIの明示的な後続Gateを閉じずにPhase 6Bへ統合 |
 
 ### Phase 6：Release Candidateと配布
 
@@ -444,9 +444,9 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | Release Candidateの機能・性能・リソース品質を確定する |
-| 状態 | **実装完了・Gate待ち（2026-08-06）** — Issue #47／PR #49。決定論的RC toolingとCIは統合済み。24時間Gate DはIssue #48 |
+| 状態 | **実装完了・短縮Gate D承認済み（2026-08-07）** — Issue #47／PR #49。決定論的RC toolingとCIは統合済み。2.01時間のresource観測はIssue #48で完了 |
 | 自動試験 | 単体、Windows統合、擬似親、IPC、設定移行、回帰試験 |
-| 実機試験 | 全手動マトリクス、Explorer再起動反復、Bluetooth 100サイクル、24時間試験 |
+| 実機試験 | 全手動マトリクス、Explorer再起動反復、承認された期間のエージング試験。Bluetooth 50サイクルは、既存の実機接続／切断／既定化／音声／外部追従証拠を十分とする2026-08-07の判断により除外 |
 | 計測 | CPU、Working Set、GDI、USER、Handle、COM、IPC再接続、UIA時間 |
 | 文書 | 互換性、既知の制限、試験記録、残存リスク |
 | 完了条件 | AC-001～027、Gate Dの品質項目を満たし、継続的なリソース増加がない |
@@ -456,7 +456,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 再現可能で導入・削除できる配布物を作る |
-| 状態 | **Draft検証中（2026-08-06）** — Issue #50／PR #51。ユーザー単位WiX MSI、法務、決定論性、静的検証、CI生成は合格。clean standard-user lifecycle、署名、Gate Dは未完了 |
+| 状態 | **実装完了・Main統合準備（2026-08-07）** — Issue #50／PR #51。ユーザー単位WiX MSI、法務、決定論性、静的検証、CI生成、短縮Gate Dは合格。clean standard-user lifecycleと署名済み最終artifactはIssue #50で継続 |
 | 発行 | `win-x64` self-contained、Release、再現可能ビルド、SHA-256 |
 | 配布 | 決定したインストーラー形式、ポータブル診断版、更新方針 |
 | ブランド | ICO、実行ファイル情報、バージョン、アンインストール表示 |
@@ -464,14 +464,14 @@ docs/validation/phase-0/
 | テスト | クリーン環境でインストール、起動、更新、アンインストール、自動起動残骸確認 |
 | 完了条件 | 管理者権限なしで通常実行でき、配布物とチェックサムをCIから再生成可能 |
 
-B15はB13後に準備を開始できるが、最終マージはB14のGate D通過後とする。
+B15の実装はB14の短縮Gate D通過後にMainへ統合できる。Main統合は正式releaseを意味せず、clean standard-user lifecycleと署名済み最終artifactが完了するまでIssue #50とB16を閉じない。
 
 #### B16：`codex/release-0.1.0-rc1`
 
 | 項目 | 内容 |
 |---|---|
 | 目的 | RC固有のバージョン、リリースノート、最終スモーク試験だけを行う |
-| 状態 | **未着手** — Phase 5C、Phase 6B、Gate D、実機／DPI／Bluetooth最終Gateの完了後に開始 |
+| 状態 | **Gate待ち** — Phase 6B実装とGate Dは完了。#18／#34のExplorer回復、#43の非RDPセッション／テーマ、#50のclean MSI／署名後に最終RCを確定 |
 | バージョン | `0.1.0-rc.1` |
 | 完了条件 | RC配布物が再生成でき、重大な既知不具合がなく、最終承認後に`v0.1.0`タグを作成可能 |
 

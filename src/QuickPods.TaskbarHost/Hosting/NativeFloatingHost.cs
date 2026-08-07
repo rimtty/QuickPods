@@ -13,6 +13,7 @@ internal sealed class NativeFloatingHost : IDisposable
     private readonly ConcurrentQueue<NativeLayoutInvalidationReason> pendingInvalidations = new();
     private readonly NativeSliderInteractionSession sliderSession =
         new(TaskbarSurfaceMode.Floating);
+    private readonly NativeHoverInteractionSession hoverSession = new();
     private GCHandle instanceHandle;
     private Exception? pendingWindowFailure;
     private nint windowHandle;
@@ -372,8 +373,30 @@ internal sealed class NativeFloatingHost : IDisposable
                 }
 
                 return nint.Zero;
-            case HostNativeMethods.WmMouseMove when sliderSession.IsDragging:
-                HandlePointerMove(lParam);
+            case HostNativeMethods.WmMouseMove:
+                ArmHoverTracking(window);
+                if (sliderSession.IsDragging)
+                {
+                    HandlePointerMove(lParam);
+                }
+
+                return nint.Zero;
+            case HostNativeMethods.WmMouseHover:
+                if (!sliderSession.IsDragging &&
+                    hoverSession.TryRequestPreview() &&
+                    sliderSession.TryPreviewFlyout(out NativeSliderInteractionResult preview))
+                {
+                    EnqueueInteraction(preview);
+                }
+
+                return nint.Zero;
+            case HostNativeMethods.WmMouseLeave:
+                if (hoverSession.Reset() &&
+                    sliderSession.TryNotifyPointerExited(out NativeSliderInteractionResult exited))
+                {
+                    EnqueueInteraction(exited);
+                }
+
                 return nint.Zero;
             case HostNativeMethods.WmLeftButtonUp when sliderSession.IsDragging:
                 HandlePointerComplete(lParam);
@@ -453,6 +476,27 @@ internal sealed class NativeFloatingHost : IDisposable
         }
     }
 
+    private void ArmHoverTracking(nint window)
+    {
+        if (!hoverSession.TryArm())
+        {
+            return;
+        }
+
+        var tracking = new HostNativeMethods.NativeTrackMouseEvent
+        {
+            Size = (uint)Marshal.SizeOf<HostNativeMethods.NativeTrackMouseEvent>(),
+            Flags = HostNativeMethods.TrackMouseEventHover |
+                HostNativeMethods.TrackMouseEventLeave,
+            TrackWindow = window,
+            HoverTime = HostNativeMethods.FlyoutHoverTimeMilliseconds,
+        };
+        if (!HostNativeMethods.TrackMouseEvent(ref tracking))
+        {
+            _ = hoverSession.Reset();
+        }
+    }
+
     private void EnqueueInteraction(NativeSliderInteractionResult interaction)
     {
         if (interaction.StateChanged)
@@ -460,7 +504,28 @@ internal sealed class NativeFloatingHost : IDisposable
             _ = HostNativeMethods.InvalidateRect(windowHandle, nint.Zero, false);
         }
 
-        pendingInteractions.Enqueue(interaction.Envelope);
+        HostInteractionEnvelope envelope = interaction.Envelope;
+        if (envelope.Kind is
+                HostInteractionKind.OpenAudioFlyout or
+                HostInteractionKind.OpenContextMenu or
+                HostInteractionKind.PreviewAudioFlyout or
+                HostInteractionKind.TaskbarPointerExited &&
+            expectedBounds.IsValid)
+        {
+            envelope = new HostInteractionEnvelope(
+                envelope.ProtocolVersion,
+                envelope.Sequence,
+                envelope.Kind,
+                envelope.VolumePercent,
+                new TaskbarSurfaceAnchor(
+                    expectedBounds.Left,
+                    expectedBounds.Top,
+                    expectedBounds.Right,
+                    expectedBounds.Bottom,
+                    expectedDpi));
+        }
+
+        pendingInteractions.Enqueue(envelope);
     }
 
     private void PromoteWithoutActivation()
@@ -646,6 +711,7 @@ internal sealed class NativeFloatingHost : IDisposable
         expectedWorkArea = default;
         expectedDpi = 0;
         sliderSession.Reset();
+        _ = hoverSession.Reset();
         requiresRevalidation = false;
         pendingWindowFailure = null;
         while (pendingInteractions.TryDequeue(out _))

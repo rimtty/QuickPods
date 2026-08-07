@@ -4,7 +4,7 @@ namespace QuickPods.Contracts;
 
 public static class QuickPodsProtocol
 {
-    public const int Version = 1;
+    public const int Version = 4;
 
     public const int MaximumMessageCharacters = 16 * 1024;
 }
@@ -23,6 +23,13 @@ public enum HostInteractionKind
     ToggleMute,
     OpenAudioFlyout,
     OpenContextMenu,
+    PreviewAudioFlyout,
+    TaskbarPointerExited,
+    TaskbarSurfaceAnchorChanged,
+    TaskbarObserverTaskbarCreated,
+    TaskbarObserverGenerationChanged,
+    TaskbarObserverFaulted,
+    TaskbarObserverDisconnected,
 }
 
 [Flags]
@@ -48,6 +55,48 @@ public sealed record TaskbarDeviceView(
     string DeviceKey,
     string DisplayName,
     string StatusText);
+
+public sealed record TaskbarSurfaceAnchor
+{
+    private const double DefaultDpi = 96d;
+
+    public TaskbarSurfaceAnchor(int left, int top, int right, int bottom, uint dpi)
+    {
+        if (right <= left || bottom <= top)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(right),
+                "The taskbar surface anchor must have positive width and height.");
+        }
+
+        if (dpi == 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(dpi),
+                "The taskbar surface anchor DPI must be positive.");
+        }
+
+        Left = left;
+        Top = top;
+        Right = right;
+        Bottom = bottom;
+        Dpi = dpi;
+    }
+
+    public int Left { get; }
+
+    public int Top { get; }
+
+    public int Right { get; }
+
+    public int Bottom { get; }
+
+    public uint Dpi { get; }
+
+    public double CenterXDip => (((double)Left + Right) / 2d) * DefaultDpi / Dpi;
+
+    public double TopDip => Top * DefaultDpi / Dpi;
+}
 
 public sealed record TaskbarStateSnapshot(
     TaskbarSurfaceMode SurfaceMode,
@@ -89,7 +138,9 @@ public sealed record HostInteractionEnvelope
         int protocolVersion,
         long sequence,
         HostInteractionKind kind,
-        int? volumePercent = null)
+        int? volumePercent = null,
+        TaskbarSurfaceAnchor? anchor = null,
+        long? observerGenerationOrdinal = null)
     {
         if (protocolVersion != QuickPodsProtocol.Version)
         {
@@ -113,10 +164,38 @@ public sealed record HostInteractionEnvelope
             ArgumentOutOfRangeException.ThrowIfGreaterThan(value, 100, nameof(volumePercent));
         }
 
+        bool anchorInteraction = kind is
+            HostInteractionKind.OpenAudioFlyout or
+            HostInteractionKind.OpenContextMenu or
+            HostInteractionKind.PreviewAudioFlyout or
+            HostInteractionKind.TaskbarPointerExited or
+            HostInteractionKind.TaskbarSurfaceAnchorChanged;
+        if (!anchorInteraction && anchor is not null)
+        {
+            throw new ArgumentException(
+                "Only flyout and surface-anchor interactions may include a taskbar surface anchor.",
+                nameof(anchor));
+        }
+
+        bool observerLifecycleNotification = IsObserverLifecycleNotification(kind);
+        if (observerLifecycleNotification != observerGenerationOrdinal.HasValue)
+        {
+            throw new ArgumentException(
+                "Observer lifecycle notifications require a generation ordinal and other interactions forbid it.",
+                nameof(observerGenerationOrdinal));
+        }
+
+        if (observerGenerationOrdinal is { } ordinal)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(ordinal, nameof(observerGenerationOrdinal));
+        }
+
         ProtocolVersion = protocolVersion;
         Sequence = sequence;
         Kind = kind;
         VolumePercent = volumePercent;
+        Anchor = anchor;
+        ObserverGenerationOrdinal = observerGenerationOrdinal;
     }
 
     public int ProtocolVersion { get; }
@@ -126,6 +205,17 @@ public sealed record HostInteractionEnvelope
     public HostInteractionKind Kind { get; }
 
     public int? VolumePercent { get; }
+
+    public TaskbarSurfaceAnchor? Anchor { get; }
+
+    public long? ObserverGenerationOrdinal { get; }
+
+    public static bool IsObserverLifecycleNotification(HostInteractionKind kind) =>
+        kind is
+            HostInteractionKind.TaskbarObserverTaskbarCreated or
+            HostInteractionKind.TaskbarObserverGenerationChanged or
+            HostInteractionKind.TaskbarObserverFaulted or
+            HostInteractionKind.TaskbarObserverDisconnected;
 }
 
 public sealed record ObserverSessionRequest

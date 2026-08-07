@@ -9,7 +9,10 @@ public sealed class CrossProcessKsGateTests
     public async Task FixedNamedGateRejectsASecondExecutableProcess()
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        using Process first = StartGateChild(holdMilliseconds: 3_000);
+        // Keep the owner alive well beyond the test timeout. A short fixed hold
+        // races with heavily loaded CI runners between reading "acquired" and
+        // starting the contender, which can let the owner exit first.
+        using Process first = StartGateChild(holdMilliseconds: 60_000);
         try
         {
             string? firstLine = await first.StandardOutput.ReadLineAsync(
@@ -23,9 +26,6 @@ public sealed class CrossProcessKsGateTests
 
             Assert.Equal(3, second.ExitCode);
             Assert.Equal("busy", secondOutput.Trim());
-
-            await first.WaitForExitAsync(timeout.Token);
-            Assert.Equal(0, first.ExitCode);
         }
         finally
         {

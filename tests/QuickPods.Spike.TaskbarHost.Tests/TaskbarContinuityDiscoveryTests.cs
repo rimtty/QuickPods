@@ -195,7 +195,13 @@ public sealed class TaskbarContinuityDiscoveryTests
             (TaskbarContinuityFailureReason.ExistingHostNotAttached,
                 verified with { IgnoredHostMatched = false }),
             (TaskbarContinuityFailureReason.AutomationIncomplete,
-                verified with { AutomationComplete = false }),
+                verified with
+                {
+                    AutomationComplete = false,
+                    AutomationOrigin = TaskbarAutomationContinuityOrigin.None,
+                }),
+            (TaskbarContinuityFailureReason.AutomationProvenanceInvalid,
+                verified with { AutomationOrigin = TaskbarAutomationContinuityOrigin.None }),
         };
 
         Assert.True(verified.IsVerified);
@@ -271,10 +277,8 @@ public sealed class TaskbarContinuityDiscoveryTests
             "PinnedApp",
             new PixelRect(1000, 1040, 1040, 1080),
             false);
-        var retainedStart = new AutomationButtonSnapshot(
-            "StartButton",
-            new PixelRect(900, 1040, 940, 1080),
-            false);
+        TaskbarContinuityAnchor anchor =
+            TaskbarContinuityAnchor.FromCompleteDiscovery(CreateCompleteDiscovery());
         var automation = new AutomationTaskbarProbe(
             [freshButton],
             [new TaskbarDiscoveryFault(TaskbarDiscoveryFaultCode.StartButtonMissing)]);
@@ -283,20 +287,21 @@ public sealed class TaskbarContinuityDiscoveryTests
             TaskbarContinuityRoute.DirectExpected,
             TaskbarBounds,
             automation,
-            retainedStart,
-            out IReadOnlyList<AutomationButtonSnapshot> buttons);
+            anchor,
+            out RetainedStartButtonContinuityProof? proof);
 
         Assert.True(retained);
-        Assert.Equal([freshButton, retainedStart], buttons);
+        Assert.NotNull(proof);
+        Assert.Equal([freshButton, anchor.RetainedStartButton], proof.Buttons);
+        Assert.Equal(nameof(RetainedStartButtonContinuityProof), proof.ToString());
+        Assert.DoesNotContain("42", proof.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
     public void Start_retention_rejects_non_direct_extra_or_contradictory_evidence()
     {
-        var retainedStart = new AutomationButtonSnapshot(
-            "StartButton",
-            new PixelRect(900, 1040, 940, 1080),
-            false);
+        TaskbarContinuityAnchor anchor =
+            TaskbarContinuityAnchor.FromCompleteDiscovery(CreateCompleteDiscovery());
         var exactMissing = new AutomationTaskbarProbe(
             [],
             [new TaskbarDiscoveryFault(TaskbarDiscoveryFaultCode.StartButtonMissing)]);
@@ -307,7 +312,7 @@ public sealed class TaskbarContinuityDiscoveryTests
                 new TaskbarDiscoveryFault(TaskbarDiscoveryFaultCode.AutomationPropertyUnavailable),
             ]);
         var contradictoryStart = new AutomationTaskbarProbe(
-            [retainedStart],
+            [anchor.RetainedStartButton],
             [new TaskbarDiscoveryFault(TaskbarDiscoveryFaultCode.StartButtonMissing)]);
         var outsideFreshButton = new AutomationTaskbarProbe(
             [new AutomationButtonSnapshot(
@@ -316,54 +321,88 @@ public sealed class TaskbarContinuityDiscoveryTests
                 false)],
             [new TaskbarDiscoveryFault(TaskbarDiscoveryFaultCode.StartButtonMissing)]);
 
-        Assert.False(TryRetain(TaskbarContinuityRoute.EnumeratedExpected, exactMissing, retainedStart));
-        Assert.False(TryRetain(TaskbarContinuityRoute.DirectExpected, extraFault, retainedStart));
-        Assert.False(TryRetain(TaskbarContinuityRoute.DirectExpected, contradictoryStart, retainedStart));
-        Assert.False(TryRetain(TaskbarContinuityRoute.DirectExpected, outsideFreshButton, retainedStart));
-        Assert.False(TryRetain(
-            TaskbarContinuityRoute.DirectExpected,
-            exactMissing,
-            retainedStart with { Bounds = new PixelRect(100, 100, 140, 140) }));
+        Assert.False(TryRetain(TaskbarContinuityRoute.EnumeratedExpected, exactMissing, anchor));
+        Assert.False(TryRetain(TaskbarContinuityRoute.DirectExpected, extraFault, anchor));
+        Assert.False(TryRetain(TaskbarContinuityRoute.DirectExpected, contradictoryStart, anchor));
+        Assert.False(TryRetain(TaskbarContinuityRoute.DirectExpected, outsideFreshButton, anchor));
 
         static bool TryRetain(
             TaskbarContinuityRoute route,
             AutomationTaskbarProbe automation,
-            AutomationButtonSnapshot start) =>
+            TaskbarContinuityAnchor continuityAnchor) =>
             TaskbarDiscoveryService.TryRetainStartButtonContinuity(
                 route,
                 TaskbarBounds,
                 automation,
-                start,
+                continuityAnchor,
                 out _);
     }
 
     [Fact]
-    public void Retained_start_button_evidence_is_valid_only_on_direct_incomplete_automation()
+    public void Retained_start_button_evidence_requires_matching_anchor_proof()
     {
+        var freshButton = new AutomationButtonSnapshot(
+            "PinnedApp",
+            new PixelRect(1000, 1040, 1040, 1080),
+            false);
+        TaskbarContinuityAnchor anchor =
+            TaskbarContinuityAnchor.FromCompleteDiscovery(CreateCompleteDiscovery());
+        var automation = new AutomationTaskbarProbe(
+            [freshButton],
+            [new TaskbarDiscoveryFault(TaskbarDiscoveryFaultCode.StartButtonMissing)]);
+        Assert.True(TaskbarDiscoveryService.TryRetainStartButtonContinuity(
+            TaskbarContinuityRoute.DirectExpected,
+            TaskbarBounds,
+            automation,
+            anchor,
+            out RetainedStartButtonContinuityProof? proof));
+        Assert.NotNull(proof);
         TaskbarContinuityEvidence evidence = CreateVerifiedEvidence() with
         {
             AutomationComplete = false,
-            RetainedStartButtonContinuity = true,
+            AutomationOrigin =
+                TaskbarAutomationContinuityOrigin.RetainedStartFromCompleteAnchor,
         };
-        TaskbarDiscoveryResult discovery = CreateCompleteDiscovery();
+        var discovery = new TaskbarDiscoveryResult(
+            CreateSnapshot(automationButtons: proof.Buttons),
+            faults: []);
 
         Assert.True(evidence.IsVerified);
+        _ = Assert.Throws<ArgumentException>(() =>
+            TaskbarContinuityDiscoveryResult.Verified(
+                discovery,
+                evidence,
+                TaskbarContinuityRoute.DirectExpected));
+        var changedGeneration = new TaskbarDiscoveryResult(
+            CreateSnapshot(
+                explorerProcessId: 85,
+                automationButtons: proof.Buttons),
+            faults: []);
+        _ = Assert.Throws<ArgumentException>(() =>
+            TaskbarContinuityDiscoveryResult.Verified(
+                changedGeneration,
+                evidence,
+                TaskbarContinuityRoute.DirectExpected,
+                proof));
         var direct = TaskbarContinuityDiscoveryResult.Verified(
             discovery,
             evidence,
-            TaskbarContinuityRoute.DirectExpected);
+            TaskbarContinuityRoute.DirectExpected,
+            proof);
 
         Assert.True(direct.IsVerified);
         _ = Assert.Throws<ArgumentException>(() =>
             TaskbarContinuityDiscoveryResult.Verified(
                 discovery,
                 evidence,
-                TaskbarContinuityRoute.EnumeratedExpected));
+                TaskbarContinuityRoute.EnumeratedExpected,
+                proof));
         _ = Assert.Throws<ArgumentException>(() =>
             TaskbarContinuityDiscoveryResult.Verified(
                 discovery,
                 evidence with { AutomationComplete = true },
-                TaskbarContinuityRoute.DirectExpected));
+                TaskbarContinuityRoute.DirectExpected,
+                proof));
     }
 
     [Fact]
@@ -501,6 +540,7 @@ public sealed class TaskbarContinuityDiscoveryTests
             WorkAreaMatched = true,
             NativeChildrenComplete = true,
             AutomationComplete = true,
+            AutomationOrigin = TaskbarAutomationContinuityOrigin.FreshComplete,
             IgnoredHostMatched = true,
         };
 

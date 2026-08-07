@@ -46,14 +46,28 @@ public partial class App : WpfApplication, IDisposable
     private readonly HashSet<string> pendingLifecycleReasons = new(StringComparer.Ordinal);
     private QuickPodsSettings productSettings = QuickPodsSettings.Default;
     private DispatcherTimer? lifecycleRecoveryTimer;
+    private DispatcherTimer? flyoutDismissTimer;
+    private DispatcherTimer? bluetoothTopologyRefreshTimer;
+    private TaskbarSurfaceAnchor? lastTaskbarAnchor;
     private bool lifecycleRecoveryRunning;
+    private bool lifecycleRecoverySuspended;
     private bool lifecycleEventsSubscribed;
     private bool productSettingsInitialized;
+    private bool flyoutAutoDismissActive;
     private bool disposed;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        if (e.Args.Length == 1 && string.Equals(
+            e.Args[0],
+            "--unregister-startup",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            Shutdown(RunUnregisterStartupCommand());
+            return;
+        }
 
         singleInstance = SingleInstanceLease.TryAcquire(SingleInstanceId);
         if (!singleInstance.IsPrimary)
@@ -100,36 +114,53 @@ public partial class App : WpfApplication, IDisposable
             logsDirectory,
             startupDiagnostic);
         window.SettingsChanged += OnProductSettingsChanged;
+        window.FlyoutPointerEntered += OnFlyoutPointerEntered;
+        window.FlyoutPointerExited += OnFlyoutPointerExited;
         MainWindow = window;
+        flyoutDismissTimer = new DispatcherTimer(
+            TimeSpan.FromMilliseconds(420),
+            DispatcherPriority.Background,
+            OnFlyoutDismissTick,
+            Dispatcher)
+        {
+            IsEnabled = false,
+        };
+        bluetoothTopologyRefreshTimer = new DispatcherTimer(
+            TimeSpan.FromMilliseconds(450),
+            DispatcherPriority.Background,
+            OnBluetoothTopologyRefreshTick,
+            Dispatcher)
+        {
+            IsEnabled = false,
+        };
+        if (windowsAudio is not null)
+        {
+            windowsAudio.TopologyChanged += OnAudioTopologyChanged;
+        }
 
-        bool startInBackground = e.Args.Any(argument => string.Equals(
-            argument,
-            "--background",
-            StringComparison.OrdinalIgnoreCase));
+        bool trayIconAvailable = false;
         try
         {
             trayIcon = new TrayIconController(
                 ShowMainWindow,
                 () => _ = window.RequestRefreshAsync(),
+                window.ShowSettingsWindow,
                 visible => _ = window.SetTaskbarSurfaceVisibleAsync(visible),
                 () => settingsLauncher.TryOpenSoundSettings(),
                 () => settingsLauncher.TryOpenBluetoothSettings(),
                 ExitApplication);
+            trayIconAvailable = true;
         }
         catch (Exception exception)
         {
-            startInBackground = false;
             window.ReportSettingsFailure(
                 $"通知領域アイコンを初期化できませんでした: {exception.Message}");
         }
 
-        if (startInBackground)
+        _ = window.InitializeAsync();
+        if (StartupPresentationPolicy.ShouldShowInitialFlyout(trayIconAvailable))
         {
-            _ = window.InitializeAsync();
-        }
-        else
-        {
-            window.Show();
+            ShowMainWindow();
         }
 
         string hostExecutable = Path.Combine(AppContext.BaseDirectory, "QuickPods.TaskbarHost.exe");
@@ -158,6 +189,29 @@ public partial class App : WpfApplication, IDisposable
         base.OnSessionEnding(e);
     }
 
+    private static int RunUnregisterStartupCommand()
+    {
+        try
+        {
+            string applicationExecutable = Path.Combine(AppContext.BaseDirectory, "QuickPods.exe");
+            var startupRegistration = new WindowsStartupRegistration(applicationExecutable);
+            string settingsPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "QuickPods",
+                "settings.json");
+            var cleanup = new UninstallCleanupService(
+                startupRegistration,
+                new JsonSettingsStore<QuickPodsSettings>(settingsPath));
+            cleanup.ExecuteAsync(File.Exists(settingsPath)).AsTask().GetAwaiter().GetResult();
+
+            return 0;
+        }
+        catch
+        {
+            return 1;
+        }
+    }
+
     public void Dispose()
     {
         if (disposed)
@@ -180,6 +234,17 @@ public partial class App : WpfApplication, IDisposable
         if (MainWindow is MainWindow window)
         {
             window.SettingsChanged -= OnProductSettingsChanged;
+            window.FlyoutPointerEntered -= OnFlyoutPointerEntered;
+            window.FlyoutPointerExited -= OnFlyoutPointerExited;
+        }
+
+        flyoutDismissTimer?.Stop();
+        flyoutDismissTimer = null;
+        bluetoothTopologyRefreshTimer?.Stop();
+        bluetoothTopologyRefreshTimer = null;
+        if (windowsAudio is not null)
+        {
+            windowsAudio.TopologyChanged -= OnAudioTopologyChanged;
         }
 
         if (taskbarHost is not null)
@@ -276,6 +341,11 @@ public partial class App : WpfApplication, IDisposable
         object? sender,
         TaskbarHostSupervisorState state)
     {
+        if (state.Lifecycle != TaskbarHostLifecycle.Connected)
+        {
+            _ = Dispatcher.InvokeAsync(() => UpdateTaskbarSurfaceAnchor(null));
+        }
+
         Log(
             state.Lifecycle == TaskbarHostLifecycle.DisabledForSession
                 ? QuickPodsLogLevel.Warning
@@ -480,6 +550,18 @@ public partial class App : WpfApplication, IDisposable
 
     private async Task HandleHostInteractionAsync(HostInteractionEnvelope interaction)
     {
+        if (HostInteractionEnvelope.IsObserverLifecycleNotification(interaction.Kind))
+        {
+            LogObserverLifecycle(interaction);
+            return;
+        }
+
+        if (interaction.Kind == HostInteractionKind.TaskbarSurfaceAnchorChanged)
+        {
+            UpdateTaskbarSurfaceAnchor(interaction.Anchor);
+            return;
+        }
+
         if (controller is null)
         {
             return;
@@ -498,9 +580,48 @@ public partial class App : WpfApplication, IDisposable
                 break;
             case HostInteractionKind.OpenAudioFlyout:
             case HostInteractionKind.OpenContextMenu:
-                ShowMainWindow();
+                ShowMainWindow(interaction.Anchor, activate: true, autoDismiss: true);
+                break;
+            case HostInteractionKind.PreviewAudioFlyout:
+                ShowMainWindow(interaction.Anchor, activate: false, autoDismiss: true);
+                break;
+            case HostInteractionKind.TaskbarPointerExited:
+                ScheduleFlyoutDismiss();
                 break;
         }
+    }
+
+    private void UpdateTaskbarSurfaceAnchor(TaskbarSurfaceAnchor? anchor)
+    {
+        lastTaskbarAnchor = anchor;
+        if (anchor is null || MainWindow is not MainWindow window || !window.IsVisible)
+        {
+            return;
+        }
+
+        window.PositionAboveTaskbar(anchor);
+    }
+
+    private void LogObserverLifecycle(HostInteractionEnvelope interaction)
+    {
+        bool fault = interaction.Kind is
+            HostInteractionKind.TaskbarObserverFaulted or
+            HostInteractionKind.TaskbarObserverDisconnected;
+        Log(
+            fault ? QuickPodsLogLevel.Warning : QuickPodsLogLevel.Information,
+            "TaskbarObserverRetired",
+            "A supervised taskbar observer generation was retired.",
+            new Dictionary<string, object?>
+            {
+                ["Reason"] = interaction.Kind switch
+                {
+                    HostInteractionKind.TaskbarObserverTaskbarCreated => "TaskbarCreated",
+                    HostInteractionKind.TaskbarObserverGenerationChanged => "ExplorerGenerationChanged",
+                    HostInteractionKind.TaskbarObserverFaulted => "ObserverFaulted",
+                    _ => "Disconnected",
+                },
+                ["GenerationOrdinal"] = interaction.ObserverGenerationOrdinal,
+            });
     }
 
     private async Task HandleHostInteractionSafelyAsync(HostInteractionEnvelope interaction)
@@ -607,24 +728,71 @@ public partial class App : WpfApplication, IDisposable
                 QuickPodsLogLevel.Information,
                 "SystemSuspending",
                 "Windows is suspending; the visible product window was hidden.");
-            _ = Dispatcher.InvokeAsync(() => MainWindow?.Hide());
+            PrepareForSystemTransition(clearPlacementAnchor: true, suspendRecovery: true);
             return;
         }
 
+        PrepareForSystemTransition(clearPlacementAnchor: true, suspendRecovery: false);
         QueueLifecycleRecovery($"Power:{eventArgs.Mode}");
     }
 
     private void OnSessionSwitch(object sender, SessionSwitchEventArgs eventArgs)
     {
-        if (eventArgs.Reason is SessionSwitchReason.SessionLock or
-            SessionSwitchReason.ConsoleDisconnect or
-            SessionSwitchReason.RemoteConnect)
+        SystemSessionTransition transition = eventArgs.Reason switch
         {
-            _ = Dispatcher.InvokeAsync(() => MainWindow?.Hide());
+            SessionSwitchReason.SessionLock or
+            SessionSwitchReason.SessionLogoff or
+            SessionSwitchReason.ConsoleDisconnect or
+            SessionSwitchReason.RemoteConnect => SystemSessionTransition.BecameUnavailable,
+            SessionSwitchReason.SessionUnlock or
+            SessionSwitchReason.SessionLogon or
+            SessionSwitchReason.ConsoleConnect or
+            SessionSwitchReason.RemoteDisconnect => SystemSessionTransition.BecameAvailable,
+            _ => SystemSessionTransition.Other,
+        };
+        SystemSessionRecoveryDecision decision = SystemSessionRecoveryPolicy.Decide(transition);
+        if (decision.HideFlyout || decision.ClearPlacementAnchor)
+        {
+            PrepareForSystemTransition(
+                decision.ClearPlacementAnchor,
+                decision.SuspendRecovery);
         }
 
-        QueueLifecycleRecovery($"Session:{eventArgs.Reason}");
+        if (decision.QueueRecovery)
+        {
+            QueueLifecycleRecovery($"Session:{eventArgs.Reason}");
+        }
     }
+
+    private void PrepareForSystemTransition(
+        bool clearPlacementAnchor,
+        bool suspendRecovery) =>
+        _ = Dispatcher.InvokeAsync(() =>
+        {
+            lifecycleRecoverySuspended = suspendRecovery;
+            if (suspendRecovery)
+            {
+                lifecycleRecoveryTimer?.Stop();
+                pendingLifecycleReasons.Clear();
+            }
+
+            flyoutAutoDismissActive = false;
+            flyoutDismissTimer?.Stop();
+            if (clearPlacementAnchor)
+            {
+                lastTaskbarAnchor = null;
+            }
+
+            if (MainWindow is MainWindow window)
+            {
+                if (clearPlacementAnchor)
+                {
+                    window.ClearPlacementAnchor();
+                }
+
+                window.Hide();
+            }
+        });
 
     private void QueueLifecycleRecovery(string reason)
     {
@@ -635,7 +803,7 @@ public partial class App : WpfApplication, IDisposable
 
         _ = Dispatcher.InvokeAsync(() =>
         {
-            if (disposed || lifecycleRecoveryTimer is null)
+            if (disposed || lifecycleRecoverySuspended || lifecycleRecoveryTimer is null)
             {
                 return;
             }
@@ -649,7 +817,12 @@ public partial class App : WpfApplication, IDisposable
     private async void OnLifecycleRecoveryTick(object? sender, EventArgs eventArgs)
     {
         lifecycleRecoveryTimer?.Stop();
-        if (lifecycleRecoveryRunning || disposed)
+        if (lifecycleRecoverySuspended || disposed)
+        {
+            return;
+        }
+
+        if (lifecycleRecoveryRunning)
         {
             lifecycleRecoveryTimer?.Start();
             return;
@@ -701,11 +874,22 @@ public partial class App : WpfApplication, IDisposable
         }
     }
 
-    private void ShowMainWindow()
+    private void ShowMainWindow() =>
+        ShowMainWindow(lastTaskbarAnchor, activate: true, autoDismiss: false);
+
+    private void ShowMainWindow(
+        TaskbarSurfaceAnchor? anchor,
+        bool activate,
+        bool autoDismiss)
     {
-        if (MainWindow is not { } window)
+        if (MainWindow is not MainWindow window)
         {
             return;
+        }
+
+        if (anchor is not null)
+        {
+            lastTaskbarAnchor = anchor;
         }
 
         window.Show();
@@ -714,12 +898,122 @@ public partial class App : WpfApplication, IDisposable
             window.WindowState = WindowState.Normal;
         }
 
-        if (window is MainWindow productWindow)
+        window.PositionAboveTaskbar(lastTaskbarAnchor);
+        RequestBluetoothStateRefresh(window);
+        flyoutAutoDismissActive = autoDismiss;
+        flyoutDismissTimer?.Stop();
+
+        if (activate)
         {
-            productWindow.PositionAbovePrimaryTaskbar();
+            _ = window.Activate();
+        }
+    }
+
+    private void OnAudioTopologyChanged(object? sender, EventArgs eventArgs)
+    {
+        if (disposed || Dispatcher.HasShutdownStarted)
+        {
+            return;
         }
 
-        _ = window.Activate();
+        _ = Dispatcher.InvokeAsync(() =>
+        {
+            if (disposed || bluetoothTopologyRefreshTimer is null)
+            {
+                return;
+            }
+
+            bluetoothTopologyRefreshTimer.Stop();
+            bluetoothTopologyRefreshTimer.Start();
+        }, DispatcherPriority.Background);
+    }
+
+    private void OnBluetoothTopologyRefreshTick(object? sender, EventArgs eventArgs)
+    {
+        bluetoothTopologyRefreshTimer?.Stop();
+        Log(
+            QuickPodsLogLevel.Information,
+            "BluetoothTopologyRefreshRequested",
+            "Windows reported an audio topology change; QuickPods requested a Bluetooth state refresh.");
+        if (MainWindow is MainWindow window)
+        {
+            RequestBluetoothStateRefresh(window);
+        }
+    }
+
+    private void RequestBluetoothStateRefresh(MainWindow window) =>
+        _ = RefreshBluetoothStateSafelyAsync(window);
+
+    private async Task RefreshBluetoothStateSafelyAsync(MainWindow window)
+    {
+        Task? initialization = bluetoothInitialization;
+        if (initialization is null || disposed)
+        {
+            return;
+        }
+
+        try
+        {
+            await initialization;
+            if (!disposed)
+            {
+                await window.RequestBluetoothRefreshAsync();
+            }
+        }
+        catch (OperationCanceledException) when (
+            disposed || bluetoothLifetime?.IsCancellationRequested == true)
+        {
+        }
+        catch (Exception exception)
+        {
+            Log(
+                QuickPodsLogLevel.Warning,
+                "BluetoothStateRefreshFailed",
+                "QuickPods could not refresh Bluetooth state after a Windows topology change.",
+                new Dictionary<string, object?>
+                {
+                    ["FailureType"] = exception.GetType().Name,
+                });
+        }
+    }
+
+    private void OnFlyoutPointerEntered(object? sender, EventArgs eventArgs) =>
+        ScheduleFlyoutDismiss();
+
+    private void OnFlyoutPointerExited(object? sender, EventArgs eventArgs) =>
+        ScheduleFlyoutDismiss();
+
+    private void ScheduleFlyoutDismiss()
+    {
+        if (!flyoutAutoDismissActive || flyoutDismissTimer is null)
+        {
+            return;
+        }
+
+        flyoutDismissTimer.Stop();
+        flyoutDismissTimer.Start();
+    }
+
+    private void OnFlyoutDismissTick(object? sender, EventArgs eventArgs)
+    {
+        flyoutDismissTimer?.Stop();
+        if (MainWindow is not MainWindow window)
+        {
+            return;
+        }
+
+        switch (FlyoutDismissPolicy.Decide(
+            flyoutAutoDismissActive,
+            window.IsPointerWithinFlyoutBounds()))
+        {
+            case FlyoutDismissAction.Rearm:
+                ScheduleFlyoutDismiss();
+                break;
+            case FlyoutDismissAction.Hide:
+                flyoutAutoDismissActive = false;
+                window.Hide();
+                break;
+        }
     }
 
     private void ExitApplication()
@@ -781,6 +1075,7 @@ public partial class App : WpfApplication, IDisposable
             SetBrushColor("FocusBrush", WpfSystemColors.HighlightColor);
             SetBrushColor("ErrorBrush", WpfSystemColors.WindowTextColor);
             SetBrushColor("PrimaryButtonTextBrush", WpfSystemColors.HighlightTextColor);
+            SetBrushColor("ToggleThumbBrush", WpfSystemColors.WindowColor);
             return;
         }
 
@@ -802,6 +1097,7 @@ public partial class App : WpfApplication, IDisposable
             SetBrushColor("FocusBrush", MediaColor.FromRgb(0x00, 0x6C, 0x80));
             SetBrushColor("ErrorBrush", MediaColor.FromRgb(0xA4, 0x26, 0x2C));
             SetBrushColor("PrimaryButtonTextBrush", MediaColor.FromRgb(0x10, 0x21, 0x26));
+            SetBrushColor("ToggleThumbBrush", Colors.White);
             return;
         }
 
@@ -819,14 +1115,12 @@ public partial class App : WpfApplication, IDisposable
         SetBrushColor("FocusBrush", MediaColor.FromRgb(0xB9, 0xF4, 0xFF));
         SetBrushColor("ErrorBrush", MediaColor.FromRgb(0xFF, 0xB4, 0xA9));
         SetBrushColor("PrimaryButtonTextBrush", MediaColor.FromRgb(0x10, 0x21, 0x26));
+        SetBrushColor("ToggleThumbBrush", MediaColor.FromRgb(0xF5, 0xF7, 0xFA));
     }
 
     private void SetBrushColor(string resourceKey, MediaColor color)
     {
-        if (Resources[resourceKey] is SolidColorBrush brush)
-        {
-            brush.Color = color;
-        }
+        Resources[resourceKey] = new SolidColorBrush(color);
     }
 
     private static bool IsWindowsAppsLightTheme()

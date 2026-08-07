@@ -98,6 +98,16 @@ internal static class TaskbarLayoutAdapter
         };
     }
 
+    internal static TaskbarLayoutObservation? CreateContinuitySafetyObservation(
+        TaskbarContinuityEvidence evidence,
+        TaskbarLayoutObservation? fresh,
+        TaskbarLayoutObservation? previous) =>
+        evidence.RetainedNotificationAreaContinuity ||
+        evidence.AutomationOrigin ==
+            TaskbarAutomationContinuityOrigin.RetainedStartFromCompleteAnchor
+            ? CreateConservativeContinuityObservation(fresh, previous)
+            : fresh;
+
     private static PixelRect? FindUniqueButton(
         IReadOnlyList<AutomationButtonSnapshot> buttons,
         string automationId)

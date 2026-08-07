@@ -5,23 +5,73 @@ namespace QuickPods.TaskbarHost.Hosting;
 
 internal readonly record struct TaskbarRenderState
 {
-    private TaskbarRenderState(double volumeFraction, bool isMuted)
+    private TaskbarRenderState(
+        int volumePercent,
+        bool isMuted,
+        string deviceDisplayName,
+        string deviceStatusText,
+        bool hasSelectedDevice)
     {
-        VolumeFraction = volumeFraction;
+        VolumePercent = volumePercent;
         IsMuted = isMuted;
+        DeviceDisplayName = deviceDisplayName;
+        DeviceStatusText = deviceStatusText;
+        HasSelectedDevice = hasSelectedDevice;
     }
 
-    internal double VolumeFraction { get; }
+    internal int VolumePercent { get; }
+
+    internal double VolumeFraction => VolumePercent / 100d;
 
     internal bool IsMuted { get; }
+
+    internal string DeviceDisplayName { get; }
+
+    internal string DeviceStatusText { get; }
+
+    internal bool HasSelectedDevice { get; }
+
+    internal bool HasActiveDeviceConnection => HasSelectedDevice &&
+        !IsInactiveStatus(DeviceStatusText);
+
+    internal string DeviceLabel => CreateDeviceLabel(
+        DeviceDisplayName,
+        DeviceStatusText,
+        HasSelectedDevice);
 
     internal static TaskbarRenderState FromSnapshot(TaskbarStateSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 
-        double volumeFraction = Math.Clamp(snapshot.VolumePercent, 0, 100) / 100d;
-        return new(volumeFraction, snapshot.IsMuted);
+        int volumePercent = Math.Clamp(snapshot.VolumePercent, 0, 100);
+        TaskbarDeviceView? selected = snapshot.SelectedDevice;
+        return new(
+            volumePercent,
+            snapshot.IsMuted,
+            selected?.DisplayName ?? "BTデバイスなし",
+            selected?.StatusText ?? string.Empty,
+            selected is not null);
     }
+
+    private static string CreateDeviceLabel(
+        string displayName,
+        string statusText,
+        bool hasSelectedDevice)
+    {
+        if (!hasSelectedDevice || string.IsNullOrWhiteSpace(statusText))
+        {
+            return displayName;
+        }
+
+        // Connected is the normal taskbar state, so keep the selected device name prominent.
+        // Other states lead the label so they survive end-ellipsis in the narrow taskbar surface.
+        return statusText.StartsWith("接続済み", StringComparison.Ordinal)
+            ? displayName
+            : $"{statusText} · {displayName}";
+    }
+
+    private static bool IsInactiveStatus(string statusText) =>
+        statusText is "未接続" or "利用不可" or "確認中" or "直接操作は未対応";
 }
 
 internal readonly record struct TaskbarRenderTheme(

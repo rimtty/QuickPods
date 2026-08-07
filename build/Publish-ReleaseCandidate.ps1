@@ -23,6 +23,7 @@ if ($outputRoot -eq $repositoryRoot) {
 }
 
 $payloadDirectory = Join-Path $outputRoot "QuickPods"
+$buildArtifactsDirectory = Join-Path $outputRoot ".build-artifacts"
 if (Test-Path -LiteralPath $outputRoot) {
     Remove-Item -LiteralPath $outputRoot -Recurse -Force
 }
@@ -44,6 +45,7 @@ try {
         # locks under ignored obj directories and never rewrite the committed locks.
         & dotnet restore $projects[0] `
             --runtime win-x64 `
+            --artifacts-path $buildArtifactsDirectory `
             -p:NuGetLockFilePath=obj/project.rc.packages.lock.json `
             -p:RestoreLockedMode=false `
             -p:RestoreForceEvaluate=true
@@ -58,6 +60,7 @@ try {
             --runtime win-x64 `
             --self-contained true `
             --no-restore `
+            --artifacts-path $buildArtifactsDirectory `
             --output $payloadDirectory `
             -p:Version=$Version `
             -p:ContinuousIntegrationBuild=true `
@@ -71,17 +74,39 @@ try {
     }
 } finally {
     Pop-Location
+    if (Test-Path -LiteralPath $buildArtifactsDirectory -PathType Container) {
+        Remove-Item -LiteralPath $buildArtifactsDirectory -Recurse -Force
+    }
 }
 
-$requiredFiles = @(
-    "QuickPods.exe",
-    "QuickPods.TaskbarHost.exe",
-    "QuickPods.TaskbarObserver.exe",
-    "QuickPods.BluetoothWorker.exe"
-)
-foreach ($requiredFile in $requiredFiles) {
-    if (-not (Test-Path -LiteralPath (Join-Path $payloadDirectory $requiredFile))) {
-        throw "Release candidate is missing $requiredFile."
+$selfContainedProof = & (Join-Path $PSScriptRoot "Test-SelfContainedPayload.ps1") `
+    -PayloadDirectory $payloadDirectory
+$requiredExecutables = @($selfContainedProof.Executables)
+
+$dotnetRoot = Split-Path -Parent (Get-Command dotnet).Source
+$legalFiles = [ordered]@{
+    (Join-Path $repositoryRoot "ThirdPartyNotices.txt") = "ThirdPartyNotices.txt"
+    (Join-Path $dotnetRoot "LICENSE.txt") = "DOTNET-LICENSE.txt"
+    (Join-Path $dotnetRoot "ThirdPartyNotices.txt") = "DOTNET-THIRD-PARTY-NOTICES.txt"
+}
+foreach ($legalFile in $legalFiles.GetEnumerator()) {
+    if (-not (Test-Path -LiteralPath $legalFile.Key)) {
+        throw "Required legal file is missing: $($legalFile.Key)"
+    }
+
+    Copy-Item -LiteralPath $legalFile.Key -Destination (Join-Path $payloadDirectory $legalFile.Value)
+}
+
+$executables = foreach ($requiredFile in $requiredExecutables) {
+    $versionInfo = (Get-Item -LiteralPath (Join-Path $payloadDirectory $requiredFile)).VersionInfo
+    if (-not $versionInfo.ProductVersion.StartsWith($Version, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "$requiredFile has product version '$($versionInfo.ProductVersion)', expected '$Version'."
+    }
+
+    [ordered]@{
+        path = $requiredFile
+        productVersion = $versionInfo.ProductVersion
+        fileVersion = $versionInfo.FileVersion
     }
 }
 
@@ -102,6 +127,9 @@ $manifest = [ordered]@{
     version = $Version
     runtimeIdentifier = "win-x64"
     selfContained = $true
+    includedFrameworks = $selfContainedProof.IncludedFrameworks
+    signed = $false
+    executables = @($executables)
     files = @($files)
 }
 $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM

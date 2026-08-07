@@ -53,8 +53,8 @@ public sealed class ProtocolContractTests
         var interaction = new HostInteractionEnvelope(
             QuickPodsProtocol.Version,
             8,
-            HostInteractionKind.SetVolumeCommit,
-            42);
+            HostInteractionKind.PreviewAudioFlyout,
+            anchor: new TaskbarSurfaceAnchor(150, 1350, 600, 1410, 144));
 
         HostStateEnvelope restoredState =
             QuickPodsProtocolJson.DeserializeState(QuickPodsProtocolJson.Serialize(state));
@@ -63,6 +63,78 @@ public sealed class ProtocolContractTests
 
         Assert.Equal(state, restoredState);
         Assert.Equal(interaction, restoredInteraction);
+        Assert.Equal(250d, restoredInteraction.Anchor?.CenterXDip);
+        Assert.Equal(900d, restoredInteraction.Anchor?.TopDip);
+    }
+
+    [Fact]
+    public void ObserverLifecycleNotificationRequiresOnlySanitizedGenerationOrdinal()
+    {
+        var notification = new HostInteractionEnvelope(
+            QuickPodsProtocol.Version,
+            9,
+            HostInteractionKind.TaskbarObserverGenerationChanged,
+            observerGenerationOrdinal: 4);
+
+        HostInteractionEnvelope restored = QuickPodsProtocolJson.DeserializeInteraction(
+            QuickPodsProtocolJson.Serialize(notification));
+
+        Assert.True(HostInteractionEnvelope.IsObserverLifecycleNotification(restored.Kind));
+        Assert.Equal(4, restored.ObserverGenerationOrdinal);
+        Assert.Null(restored.VolumePercent);
+        Assert.Null(restored.Anchor);
+        Assert.Throws<ArgumentException>(() => new HostInteractionEnvelope(
+            QuickPodsProtocol.Version,
+            10,
+            HostInteractionKind.TaskbarObserverFaulted));
+        Assert.Throws<ArgumentException>(() => new HostInteractionEnvelope(
+            QuickPodsProtocol.Version,
+            11,
+            HostInteractionKind.ToggleMute,
+            observerGenerationOrdinal: 1));
+    }
+
+    [Fact]
+    public void SurfaceAnchorNotificationCanPublishOrClearVerifiedPlacement()
+    {
+        var anchor = new TaskbarSurfaceAnchor(900, 1350, 1320, 1410, 144);
+        var available = new HostInteractionEnvelope(
+            QuickPodsProtocol.Version,
+            12,
+            HostInteractionKind.TaskbarSurfaceAnchorChanged,
+            anchor: anchor);
+        var unavailable = new HostInteractionEnvelope(
+            QuickPodsProtocol.Version,
+            13,
+            HostInteractionKind.TaskbarSurfaceAnchorChanged);
+
+        Assert.Equal(anchor, QuickPodsProtocolJson.DeserializeInteraction(
+            QuickPodsProtocolJson.Serialize(available)).Anchor);
+        Assert.Null(QuickPodsProtocolJson.DeserializeInteraction(
+            QuickPodsProtocolJson.Serialize(unavailable)).Anchor);
+        Assert.Throws<ArgumentException>(() => new HostInteractionEnvelope(
+            QuickPodsProtocol.Version,
+            14,
+            HostInteractionKind.ToggleMute,
+            anchor: anchor));
+    }
+
+    [Fact]
+    public void TaskbarAnchorUsesCapturedDpiAcrossEveryWindowsScaleVariant()
+    {
+        uint[] dpis = [96, 120, 144, 168, 192, 216, 240, 288, 336];
+
+        foreach (uint dpi in dpis)
+        {
+            int left = checked((int)(1000 * dpi / 96));
+            int top = checked((int)(1800 * dpi / 96));
+            int right = checked((int)(1300 * dpi / 96));
+            int bottom = checked((int)(1840 * dpi / 96));
+            var anchor = new TaskbarSurfaceAnchor(left, top, right, bottom, dpi);
+
+            Assert.Equal(1150d, anchor.CenterXDip);
+            Assert.Equal(1800d, anchor.TopDip);
+        }
     }
 
     [Fact]

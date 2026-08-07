@@ -10,7 +10,6 @@ namespace QuickPods.Spike.TaskbarHost.Placement;
 internal static class FloatingPlacementCalculator
 {
     internal const uint MinimumSupportedDpi = 96;
-    internal const uint MaximumSupportedDpi = 240;
 
     private const double WidthDip = 300d;
     private const double HeightDip = 40d;
@@ -25,7 +24,7 @@ internal static class FloatingPlacementCalculator
                 FloatingPlacementUnavailableReason.InvalidWorkArea);
         }
 
-        if (input.Dpi < MinimumSupportedDpi || input.Dpi > MaximumSupportedDpi)
+        if (input.Dpi < MinimumSupportedDpi)
         {
             return FloatingPlacementResult.Unavailable(
                 FloatingPlacementUnavailableReason.UnsupportedDpi);

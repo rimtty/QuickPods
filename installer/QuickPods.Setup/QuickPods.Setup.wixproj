@@ -1,0 +1,25 @@
+<Project Sdk="WixToolset.Sdk/6.0.2">
+  <PropertyGroup>
+    <OutputType>Package</OutputType>
+    <Platform>x64</Platform>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <PackageVersion Condition="'$(PackageVersion)' == ''">0.1.0</PackageVersion>
+    <PackageProductCode Condition="'$(PackageProductCode)' == ''">*</PackageProductCode>
+    <PayloadDirectory Condition="'$(PayloadDirectory)' == ''">$(MSBuildProjectDirectory)\..\..\artifacts\installer\payload\QuickPods</PayloadDirectory>
+    <GeneratedPayloadFragment Condition="'$(GeneratedPayloadFragment)' == ''">$(MSBuildProjectDirectory)\obj\PayloadComponents.wxs</GeneratedPayloadFragment>
+    <InstallerOutputDirectory Condition="'$(InstallerOutputDirectory)' == ''">$(MSBuildProjectDirectory)\..\..\artifacts\installer</InstallerOutputDirectory>
+    <OutputName Condition="'$(OutputName)' == ''">QuickPods-$(PackageVersion)-win-x64</OutputName>
+    <DefineConstants>PackageVersion=$(PackageVersion);PackageProductCode=$(PackageProductCode)</DefineConstants>
+    <OutputPath>$(InstallerOutputDirectory)\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <SuppressPdbOutput>true</SuppressPdbOutput>
+    <!-- ICE64/ICE91 cannot model a file-based, fixed-scope per-user application.
+         Keep every other MSI validation rule enabled. -->
+    <SuppressIces>ICE64;ICE91</SuppressIces>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(GeneratedPayloadFragment)" />
+    <PackageReference Include="WixToolset.Util.wixext" />
+  </ItemGroup>
+</Project>
