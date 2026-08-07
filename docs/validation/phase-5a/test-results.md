@@ -83,7 +83,29 @@ QuickPodsを終了せず、Windowsが提示する次の全拡大率でflyoutのt
 
 候補を15:14:06 JSTに起動した後の`quickpods-20260807.jsonl`には、初期点以降の8回の切替に対応する`DisplaySettingsChanged`／work-area回復が8回記録された。TaskbarHostは起動時の`Starting`から`Connected`へ1回遷移した後に再接続／失敗せず、Warning／Errorは0件だった。確認終了時も`visual.83`由来のApp、TaskbarHost、TaskbarObserverが各1プロセスだけ存在した。自動試験も同じ実効DPI 96／120／144／168／192／216／240／288／336を対象とする。
 
-この結果によりDPI目視Gateは完了した。明示終了、設定／自動起動、テーマ、Explorer回復は未完了として[#43](https://github.com/rimtty/QuickPods/issues/43)を開いたままにする。
+この結果によりDPI目視Gateは完了した。設定／自動起動の実レジストリ連携、明示終了、テーマ、およびExplorer回復は、この時点では未完了として[#43](https://github.com/rimtty/QuickPods/issues/43)を開いたままにした。
+
+### 設定永続化・自動起動・明示終了（visual.86）
+
+2026-08-07、RDPセッションで自己完結候補`visual.86`を使用し、画面の見た目ではなく設定JSON、実ユーザーのHKCU Run値、および候補配置に属するプロセスだけを客観確認した。利用者が通知領域の設定画面から次の値へ変更した。
+
+- テーマ：ダーク
+- ホイール刻み：5%
+- 接続後に既定の音声デバイスへ設定：OFF
+- Bluetooth切断前に確認：ON
+- Windowsログイン時に自動起動：ON
+
+`%LocalAppData%\QuickPods\settings.json`は順に`Theme=Dark (1)`、`MouseWheelStepPercent=5`、`SetConnectedDeviceAsDefault=false`、`ConfirmBluetoothDisconnect=true`、`StartWithWindows=true`を保持した。HKCU Runの`QuickPods`値は次の完全一致となった。
+
+```text
+"E:\tool\QuickPods\artifacts\taskbar-anchor-visual86\QuickPods\QuickPods.exe" --background
+```
+
+利用者が通知領域メニューの明示的な`終了`を選択すると、この候補配置に属する`QuickPods`、`QuickPods.TaskbarHost`、`QuickPods.TaskbarObserver`は0件となり、設定JSONとRun値は保持された。同じRun値の`--background`条件で再起動すると、3プロセスが各1件だけ再生成され、いずれも`MainWindowHandle=0`のまま、変更した5設定を保持した。
+
+最後に利用者がテーマをWindows準拠、刻みを2%、既定化をON、切断確認をOFF、自動起動をOFFへ戻した。設定JSONは`Theme=System (0)`、`MouseWheelStepPercent=2`、`SetConnectedDeviceAsDefault=true`、`ConfirmBluetoothDisconnect=false`、`StartWithWindows=false`となり、HKCU Runの`QuickPods`値は削除された。
+
+以上により、実ユーザー領域での即時保存、明示終了、背景再起動後の保持、Run登録／削除は合格とする。RDPではWindowsへの再ログインそのものとテーマの最終描画を証明できないため、その視覚・セッション項目は[#43](https://github.com/rimtty/QuickPods/issues/43)へ残す。
 
 ## 初回検証時に合否を保留した項目
 
@@ -94,4 +116,4 @@ QuickPodsを終了せず、Windowsが提示する次の全拡大率でflyoutのt
 - 通知領域アイコンとメニューの目視・キーボード操作
 - 実Bluetoothオーディオの列挙、接続、切断、既定出力化
 
-通知領域／製品画面の残項目は[#43](https://github.com/rimtty/QuickPods/issues/43)、実Bluetooth列挙は[#38](https://github.com/rimtty/QuickPods/issues/38)、物理操作は[#41](https://github.com/rimtty/QuickPods/issues/41)で管理する。RDP安全縮退を物理成立性の代替にしない。
+通知領域／製品画面の残項目は[#43](https://github.com/rimtty/QuickPods/issues/43)で管理する。実Bluetooth列挙と物理操作は[#38](https://github.com/rimtty/QuickPods/issues/38)／[#41](https://github.com/rimtty/QuickPods/issues/41)で完了済みである。RDP安全縮退を物理成立性の代替にしない。
