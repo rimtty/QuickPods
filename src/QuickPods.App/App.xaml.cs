@@ -45,6 +45,7 @@ public partial class App : WpfApplication, IDisposable
     private readonly ProductLifetimePolicy lifetimePolicy = new();
     private readonly HashSet<string> pendingLifecycleReasons = new(StringComparer.Ordinal);
     private QuickPodsSettings productSettings = QuickPodsSettings.Default;
+    private TaskbarThemeMode resolvedTaskbarTheme = TaskbarThemeMode.Dark;
     private DispatcherTimer? lifecycleRecoveryTimer;
     private DispatcherTimer? flyoutDismissTimer;
     private DispatcherTimer? bluetoothTopologyRefreshTimer;
@@ -168,6 +169,7 @@ public partial class App : WpfApplication, IDisposable
         controller.StateChanged += OnAudioStateChanged;
         taskbarHost.InteractionReceived += OnHostInteractionReceived;
         taskbarHost.StateChanged += OnTaskbarHostStateChanged;
+        ApplyTheme(productSettings.Theme);
         taskbarHost.Start(CreateTaskbarSnapshot(controller.State));
         InitializeSystemLifecycle();
 
@@ -1054,12 +1056,17 @@ public partial class App : WpfApplication, IDisposable
                 : TaskbarSurfaceMode.Native,
             Math.Clamp(audio.VolumePercent, 0, 100),
             audio.IsMuted,
-            selectedView);
+            selectedView,
+            resolvedTaskbarTheme);
     }
 
     private void ApplyTheme(QuickPodsThemeMode theme)
     {
-        if (SystemParameters.HighContrast)
+        resolvedTaskbarTheme = TaskbarThemeResolver.Resolve(
+            theme,
+            IsWindowsAppsLightTheme(),
+            SystemParameters.HighContrast);
+        if (resolvedTaskbarTheme == TaskbarThemeMode.HighContrast)
         {
             SetBrushColor("WindowBrush", WpfSystemColors.WindowColor);
             SetBrushColor("PanelBrush", WpfSystemColors.WindowColor);
@@ -1079,9 +1086,7 @@ public partial class App : WpfApplication, IDisposable
             return;
         }
 
-        bool useLightTheme = theme == QuickPodsThemeMode.Light ||
-            (theme == QuickPodsThemeMode.System && IsWindowsAppsLightTheme());
-        if (useLightTheme)
+        if (resolvedTaskbarTheme == TaskbarThemeMode.Light)
         {
             SetBrushColor("WindowBrush", MediaColor.FromRgb(0xF5, 0xF7, 0xFA));
             SetBrushColor("PanelBrush", Colors.White);

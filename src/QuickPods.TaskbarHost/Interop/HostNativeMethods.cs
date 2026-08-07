@@ -50,8 +50,6 @@ internal static class HostNativeMethods
     internal const uint SetWindowPositionNoOwnerZOrder = 0x0200;
     internal const nint WindowInsertAfterTop = 0;
     internal const uint PeekMessageRemove = 0x0001;
-    internal const uint SpiGetHighContrast = 0x0042;
-    internal const uint HighContrastOn = 0x00000001;
     internal const uint TrackMouseEventHover = 0x00000001;
     internal const uint TrackMouseEventLeave = 0x00000002;
     internal const uint FlyoutHoverTimeMilliseconds = 180;
@@ -196,14 +194,6 @@ internal static class HostNativeMethods
     [DllImport("user32.dll", EntryPoint = "DefWindowProcW", CharSet = CharSet.Unicode)]
     internal static extern nint DefWindowProcedure(nint window, uint message, nuint wParam, nint lParam);
 
-    [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW", CharSet = CharSet.Unicode, SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static extern bool SystemParametersInfo(
-        uint action,
-        uint parameter,
-        ref NativeHighContrast value,
-        uint flags);
-
     [DllImport("user32.dll", EntryPoint = "GetSysColor", ExactSpelling = true)]
     internal static extern uint GetSystemColor(int index);
 
@@ -290,13 +280,5 @@ internal static class HostNativeMethods
         internal uint Flags;
         internal nint TrackWindow;
         internal uint HoverTime;
-    }
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    internal struct NativeHighContrast
-    {
-        internal uint Size;
-        internal uint Flags;
-        internal nint DefaultScheme;
     }
 }
