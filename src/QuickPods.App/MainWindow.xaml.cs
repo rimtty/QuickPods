@@ -249,6 +249,8 @@ public partial class MainWindow : Window
 
     internal Task RequestRefreshAsync() => RefreshAllAsync();
 
+    internal Task RequestBluetoothRefreshAsync() => RefreshBluetoothAsync();
+
     internal async Task RecoverAfterSystemChangeAsync()
     {
         if (IsVisible)
@@ -491,7 +493,7 @@ public partial class MainWindow : Window
         {
             BluetoothDeviceList.ItemsSource = bluetoothView.Devices;
             BluetoothDeviceList.SelectedValue = bluetoothView.SelectedDeviceKey;
-            BluetoothDeviceList.IsEnabled = !bluetoothView.IsRefreshing && !bluetoothView.IsBusy;
+            BluetoothDeviceList.IsHitTestVisible = !bluetoothView.IsRefreshing && !bluetoothView.IsBusy;
             BluetoothDeviceList.Visibility = bluetoothView.HasDevices
                 ? Visibility.Visible
                 : Visibility.Collapsed;
@@ -508,7 +510,8 @@ public partial class MainWindow : Window
                 ? "ペアリング済みのBluetoothオーディオを確認しています"
                 : "ペアリング済みのBluetoothオーディオがありません";
             EmptyRefreshButton.IsEnabled = !bluetoothView.IsRefreshing && !bluetoothView.IsBusy;
-            PrimaryActionButton.Content = bluetoothView.PrimaryActionText;
+            PrimaryActionText.Text = bluetoothView.PrimaryActionText;
+            PrimaryBusyIndicator.Tag = bluetoothView.IsRefreshing || bluetoothView.IsBusy;
             System.Windows.Automation.AutomationProperties.SetName(
                 PrimaryActionButton,
                 bluetoothView.PrimaryActionText);
@@ -535,7 +538,7 @@ public partial class MainWindow : Window
 
     private async Task RefreshBluetoothAsync()
     {
-        if (bluetoothCatalog is null || bluetoothView.IsBusy)
+        if (bluetoothCatalog is null || bluetoothView.IsBusy || bluetoothRefreshing)
         {
             return;
         }

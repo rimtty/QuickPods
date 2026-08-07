@@ -47,6 +47,7 @@ public partial class App : WpfApplication, IDisposable
     private QuickPodsSettings productSettings = QuickPodsSettings.Default;
     private DispatcherTimer? lifecycleRecoveryTimer;
     private DispatcherTimer? flyoutDismissTimer;
+    private DispatcherTimer? bluetoothTopologyRefreshTimer;
     private TaskbarSurfaceAnchor? lastTaskbarAnchor;
     private bool lifecycleRecoveryRunning;
     private bool lifecycleEventsSubscribed;
@@ -123,6 +124,18 @@ public partial class App : WpfApplication, IDisposable
         {
             IsEnabled = false,
         };
+        bluetoothTopologyRefreshTimer = new DispatcherTimer(
+            TimeSpan.FromMilliseconds(450),
+            DispatcherPriority.Background,
+            OnBluetoothTopologyRefreshTick,
+            Dispatcher)
+        {
+            IsEnabled = false,
+        };
+        if (windowsAudio is not null)
+        {
+            windowsAudio.TopologyChanged += OnAudioTopologyChanged;
+        }
 
         bool trayIconAvailable = false;
         try
@@ -226,6 +239,12 @@ public partial class App : WpfApplication, IDisposable
 
         flyoutDismissTimer?.Stop();
         flyoutDismissTimer = null;
+        bluetoothTopologyRefreshTimer?.Stop();
+        bluetoothTopologyRefreshTimer = null;
+        if (windowsAudio is not null)
+        {
+            windowsAudio.TopologyChanged -= OnAudioTopologyChanged;
+        }
 
         if (taskbarHost is not null)
         {
@@ -777,12 +796,81 @@ public partial class App : WpfApplication, IDisposable
         }
 
         window.PositionAboveTaskbar(lastTaskbarAnchor);
+        RequestBluetoothStateRefresh(window);
         flyoutAutoDismissActive = autoDismiss;
         flyoutDismissTimer?.Stop();
 
         if (activate)
         {
             _ = window.Activate();
+        }
+    }
+
+    private void OnAudioTopologyChanged(object? sender, EventArgs eventArgs)
+    {
+        if (disposed || Dispatcher.HasShutdownStarted)
+        {
+            return;
+        }
+
+        _ = Dispatcher.InvokeAsync(() =>
+        {
+            if (disposed || bluetoothTopologyRefreshTimer is null)
+            {
+                return;
+            }
+
+            bluetoothTopologyRefreshTimer.Stop();
+            bluetoothTopologyRefreshTimer.Start();
+        }, DispatcherPriority.Background);
+    }
+
+    private void OnBluetoothTopologyRefreshTick(object? sender, EventArgs eventArgs)
+    {
+        bluetoothTopologyRefreshTimer?.Stop();
+        Log(
+            QuickPodsLogLevel.Information,
+            "BluetoothTopologyRefreshRequested",
+            "Windows reported an audio topology change; QuickPods requested a Bluetooth state refresh.");
+        if (MainWindow is MainWindow window)
+        {
+            RequestBluetoothStateRefresh(window);
+        }
+    }
+
+    private void RequestBluetoothStateRefresh(MainWindow window) =>
+        _ = RefreshBluetoothStateSafelyAsync(window);
+
+    private async Task RefreshBluetoothStateSafelyAsync(MainWindow window)
+    {
+        Task? initialization = bluetoothInitialization;
+        if (initialization is null || disposed)
+        {
+            return;
+        }
+
+        try
+        {
+            await initialization;
+            if (!disposed)
+            {
+                await window.RequestBluetoothRefreshAsync();
+            }
+        }
+        catch (OperationCanceledException) when (
+            disposed || bluetoothLifetime?.IsCancellationRequested == true)
+        {
+        }
+        catch (Exception exception)
+        {
+            Log(
+                QuickPodsLogLevel.Warning,
+                "BluetoothStateRefreshFailed",
+                "QuickPods could not refresh Bluetooth state after a Windows topology change.",
+                new Dictionary<string, object?>
+                {
+                    ["FailureType"] = exception.GetType().Name,
+                });
         }
     }
 

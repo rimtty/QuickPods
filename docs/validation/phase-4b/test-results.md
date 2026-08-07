@@ -28,3 +28,9 @@ Default Submitted=False Failure=OwnershipUnknown State=Failed Capability=Verific
 ```
 
 この結果は、RDP中にBluetooth KS要求とPolicyConfig書き込みを送信しない安全境界だけを示す。物理デバイス列挙は[Issue #38](https://github.com/rimtty/QuickPods/issues/38)で追跡し、物理KS mutationと既定出力変更は別のローカルコンソールGateで扱う。DPI、解像度、描画、Floating、クリック、ホイール試験は現在のRDP環境では実施しない。
+
+## local-console予備確認（2026-08-07）
+
+`visual.71`とAirPods Proを使い、製品UIから接続、既定出力化、切断が成功した。JSONLには`Connecting → SettingDefault → Succeeded`と`Disconnecting → Succeeded`が記録され、Windows設定でも接続／切断状態を操作者が確認した。複数の予備試行は成功したが、現行UIで定めた反復数、選択外Bluetooth機器への影響0、外部操作後の状態追従を同じrunで確認していないためIssue #41の合格証拠にはまだ使用しない。
+
+操作中にListBox全体をWPFのdisabled状態へ移したため白い選択面が現れる問題を`visual.72`で修正した。行の描画状態は維持して入力だけを抑止し、対象行と主操作ボタンへシアンの回転indicatorを表示する。Windows側の外部接続／切断はCore Audio topology通知と表示直前更新の二経路でカタログへ反映する。処理中表示と外部状態追従の目視確認後、Issue #41の接続／既定化／切断反復Gateへ進む。

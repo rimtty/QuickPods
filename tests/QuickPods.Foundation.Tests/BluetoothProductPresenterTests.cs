@@ -28,6 +28,7 @@ public sealed class BluetoothProductPresenterTests
 
         Assert.Equal(2, view.Devices.Length);
         Assert.NotEqual(view.Devices[0].DeviceKey, view.Devices[1].DeviceKey);
+        Assert.All(view.Devices, device => Assert.Equal("\uE7F6", device.IconGlyph));
         Assert.Equal("接続済み・既定", view.Devices[0].StatusText);
         Assert.Equal(ProductPrimaryActionKind.Disconnect, view.PrimaryAction);
         Assert.True(view.IsPrimaryActionEnabled);
@@ -62,6 +63,52 @@ public sealed class BluetoothProductPresenterTests
         Assert.Equal("既定の出力に設定", view.PrimaryActionText);
         Assert.True(view.ShowSoundRecovery);
         Assert.NotNull(view.ErrorMessage);
+    }
+
+    [Fact]
+    public void WindowsDeviceIconIsCarriedToTheRow()
+    {
+        BluetoothAudioCatalogSnapshot catalog = Catalog(
+            generation: 4,
+            Device(DeviceA, "AirPods Pro", isSelected: true) with
+            {
+                IconPng = [1, 2, 3],
+            });
+
+        BluetoothDeviceRowPresentation row = Assert.Single(BluetoothProductPresenter.Project(
+            catalog,
+            BluetoothOperationSnapshot.Idle,
+            isRefreshing: false).Devices);
+
+        Assert.True(row.HasDeviceIcon);
+        Assert.Equal([1, 2, 3], row.IconPng.AsEnumerable());
+    }
+
+    [Fact]
+    public void OnlyTheOperationTargetShowsTheProcessingIndicator()
+    {
+        BluetoothAudioCatalogSnapshot catalog = Catalog(
+            generation: 6,
+            Device(DeviceA, "AirPods Pro", isSelected: true),
+            Device(DeviceB, "Speaker", isSelected: false));
+        var operation = new BluetoothOperationSnapshot(
+            Revision: 8,
+            new BluetoothOperationTarget(DeviceA, 6),
+            BluetoothRequestedAction.Connect,
+            QuickPodsOperation.Connecting,
+            BluetoothOperationOutcome.InProgress,
+            BluetoothConnectionState.Disconnected,
+            DefaultOutputState.NotApplicable,
+            null);
+
+        BluetoothProductPresentation view = BluetoothProductPresenter.Project(
+            catalog,
+            operation,
+            isRefreshing: false);
+
+        Assert.True(view.Devices.Single(device => device.DeviceKey == DeviceA).IsProcessing);
+        Assert.False(view.Devices.Single(device => device.DeviceKey == DeviceB).IsProcessing);
+        Assert.Equal("接続中", view.Devices.Single(device => device.DeviceKey == DeviceA).StatusText);
     }
 
     [Fact]

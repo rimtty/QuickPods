@@ -96,20 +96,24 @@ internal sealed class DefaultDeviceNotificationClient : IMMNotificationClient
     private readonly Func<Action, bool> post;
     private readonly Action defaultEndpointChanged;
     private readonly Action<string, AudioDeviceState> deviceStateChanged;
+    private readonly Action? topologyChanged;
     private DeviceStateSignal? latestDeviceState;
     private int defaultChangeQueued;
     private int deviceStateWorkQueued;
+    private int topologyChangeQueued;
 
     public DefaultDeviceNotificationClient(
         AudioRole role,
         Func<Action, bool> post,
         Action defaultEndpointChanged,
-        Action<string, AudioDeviceState> deviceStateChanged)
+        Action<string, AudioDeviceState> deviceStateChanged,
+        Action? topologyChanged = null)
     {
         this.role = role;
         this.post = post;
         this.defaultEndpointChanged = defaultEndpointChanged;
         this.deviceStateChanged = deviceStateChanged;
+        this.topologyChanged = topologyChanged;
     }
 
     public int OnDeviceStateChanged(string deviceId, AudioDeviceState newState)
@@ -121,12 +125,12 @@ internal sealed class DefaultDeviceNotificationClient : IMMNotificationClient
             return EFail;
         }
 
-        return 0;
+        return QueueTopologyChanged();
     }
 
-    public int OnDeviceAdded(string deviceId) => 0;
+    public int OnDeviceAdded(string deviceId) => QueueTopologyChanged();
 
-    public int OnDeviceRemoved(string deviceId) => 0;
+    public int OnDeviceRemoved(string deviceId) => QueueTopologyChanged();
 
     public int OnDefaultDeviceChanged(AudioDataFlow dataFlow, AudioRole eventRole, string? defaultDeviceId)
     {
@@ -150,7 +154,7 @@ internal sealed class DefaultDeviceNotificationClient : IMMNotificationClient
             return EFail;
         }
 
-        return 0;
+        return QueueTopologyChanged();
     }
 
     public int OnPropertyValueChanged(string deviceId, PropertyKey propertyKey) => 0;
@@ -175,6 +179,26 @@ internal sealed class DefaultDeviceNotificationClient : IMMNotificationClient
                 Volatile.Write(ref deviceStateWorkQueued, 0);
             }
         }
+    }
+
+    private int QueueTopologyChanged()
+    {
+        if (topologyChanged is null || Interlocked.Exchange(ref topologyChangeQueued, 1) != 0)
+        {
+            return 0;
+        }
+
+        if (post(() =>
+        {
+            Volatile.Write(ref topologyChangeQueued, 0);
+            topologyChanged();
+        }))
+        {
+            return 0;
+        }
+
+        Volatile.Write(ref topologyChangeQueued, 0);
+        return EFail;
     }
 
     private sealed record DeviceStateSignal(string DeviceId, AudioDeviceState State);

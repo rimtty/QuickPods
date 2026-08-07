@@ -16,11 +16,16 @@ public sealed record BluetoothDeviceRowPresentation(
     BluetoothDeviceKey DeviceKey,
     string DisplayName,
     BluetoothAudioKind Kind,
+    ImmutableArray<byte> IconPng,
     string IconGlyph,
     string StatusText,
+    bool IsProcessing,
     string AccessibleName,
     bool IsSelected,
-    bool IsEnabled);
+    bool IsEnabled)
+{
+    public bool HasDeviceIcon => !IconPng.IsDefaultOrEmpty;
+}
 
 public sealed record BluetoothProductPresentation(
     long CatalogGeneration,
@@ -61,12 +66,18 @@ public static class BluetoothProductPresenter
                 output,
                 catalog.InventoryGeneration,
                 operation);
+            bool isProcessing = isBusy && IsMatching(
+                device,
+                catalog.InventoryGeneration,
+                operation);
             return new BluetoothDeviceRowPresentation(
                 device.DeviceKey,
                 device.DisplayName,
                 device.Kind,
+                device.IconPng,
                 CreateIconGlyph(device.Kind),
                 status,
+                isProcessing,
                 $"{device.DisplayName}、ペアリング済み、{status}",
                 device.IsSelected,
                 !isRefreshing && !isBusy);
@@ -268,8 +279,7 @@ public static class BluetoothProductPresenter
     private static string CreateIconGlyph(BluetoothAudioKind kind) =>
         kind switch
         {
-            BluetoothAudioKind.Speaker => "\uE7F5",
-            BluetoothAudioKind.Earbuds => "\uE95B",
+            BluetoothAudioKind.Speaker => "\uE767",
             _ => "\uE7F6",
         };
 }
