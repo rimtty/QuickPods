@@ -368,7 +368,7 @@ try {
             }
 
             $app = Get-NamedProcessEvidence -State $state -Name "QuickPods"
-            $host = Get-NamedProcessEvidence -State $state -Name "QuickPods.TaskbarHost"
+            $hostEvidence = Get-NamedProcessEvidence -State $state -Name "QuickPods.TaskbarHost"
             $observer = Get-NamedProcessEvidence -State $state -Name "QuickPods.TaskbarObserver"
             $newExplorer = @($state.Explorer | Where-Object Id -ne $baselineExplorer.Id)
             $signature = @(
@@ -402,7 +402,7 @@ try {
                 throw "A duplicate process or unsupported floating surface appeared during recovery."
             }
             if ($null -eq $app -or $app.Id -ne $baselineApp.Id -or
-                $null -eq $host -or $host.Id -ne $baselineHost.Id) {
+                $null -eq $hostEvidence -or $hostEvidence.Id -ne $baselineHost.Id) {
                 throw "The App or TaskbarHost process identity changed during Explorer recovery."
             }
 
