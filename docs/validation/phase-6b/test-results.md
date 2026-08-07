@@ -97,7 +97,7 @@ GitHub Actions run 31118567631もrestore、toolchain、audit、format、build、
 
 ## 未実施
 
-clean local-console環境でのinstall／launch／update／uninstall／startup残骸確認と、署名証明書を用いた署名検証は実施していない。`build/Test-InstallerLifecycle.ps1`は既存user stateを拒否した上で旧版install、常駐中upgrade、常駐中uninstall、startup／user-data境界を一回で検証するが、現ホストにはWindows Sandboxが導入されておらず、通常user環境を変更して結果を代用していない。短縮Gate D [#48](https://github.com/rimtty/QuickPods/issues/48)は完了済みであるため、Phase 6Bの実装はMainへ統合できる。正式releaseとIssue #50の完了はclean lifecycleと署名済みartifactまで保留する。
+clean local-console環境でのinstall／launch／update／uninstall／startup残骸確認と、署名証明書を用いた署名検証は実施していない。`build/Test-InstallerLifecycle.ps1`は既存user stateを拒否した上で旧版install、常駐中upgrade、常駐中uninstall、startup／user-data境界を一回で検証するが、現ホストにはWindows Sandboxが導入されておらず、通常user環境を変更して結果を代用していない。短縮Gate D [#48](https://github.com/rimtty/QuickPods/issues/48)完了後、Phase 6B実装はPR #51（Main `645b3a8`）として統合した。正式releaseとIssue #50の完了はclean lifecycleと署名済みartifactまで保留する。
 
 実Bluetooth catalog [#38](https://github.com/rimtty/QuickPods/issues/38)と物理接続／切断／既定出力 [#41](https://github.com/rimtty/QuickPods/issues/41)は合格した。local-console証拠[#43](https://github.com/rimtty/QuickPods/issues/43)はDPI、keyboard、tray、設定保存、明示終了、診断操作まで合格し、非RDPの実ログイン自動起動とtheme／High Contrast最終描画だけを残す。Explorer回復は[#18](https://github.com/rimtty/QuickPods/issues/18)／[#34](https://github.com/rimtty/QuickPods/issues/34)へ分離する。
 
