@@ -258,8 +258,10 @@ public partial class MainWindow : Window
             PositionAboveTaskbarCore(placementAnchor);
         }
 
-        await RefreshAllAsync();
+        await RefreshAllAsync(suppressBluetoothCancellation: true);
     }
+
+    internal void ClearPlacementAnchor() => placementAnchor = null;
 
     internal Task SetTaskbarSurfaceVisibleAsync(bool visible) => PersistProductSettingsAsync(
         productSettings with
@@ -532,7 +534,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task RefreshBluetoothAsync()
+    private async Task RefreshBluetoothAsync(bool suppressCancellation = false)
     {
         if (bluetoothCatalog is null || bluetoothView.IsBusy || bluetoothRefreshing)
         {
@@ -546,6 +548,10 @@ public partial class MainWindow : Window
         {
             await bluetoothCatalog.RefreshAsync();
         }
+        catch (OperationCanceledException) when (suppressCancellation)
+        {
+            bluetoothCatalogError = null;
+        }
         catch (Exception exception)
         {
             ReportBluetoothCatalogFailure(exception.Message);
@@ -557,10 +563,10 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task RefreshAllAsync()
+    private async Task RefreshAllAsync(bool suppressBluetoothCancellation = false)
     {
         await RunAudioOperationAsync(() => audio.InitializeAsync().AsTask());
-        await RefreshBluetoothAsync();
+        await RefreshBluetoothAsync(suppressBluetoothCancellation);
     }
 
     private async Task InitializeSettingsAsync()

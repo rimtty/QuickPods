@@ -50,6 +50,7 @@ public partial class App : WpfApplication, IDisposable
     private DispatcherTimer? bluetoothTopologyRefreshTimer;
     private TaskbarSurfaceAnchor? lastTaskbarAnchor;
     private bool lifecycleRecoveryRunning;
+    private bool lifecycleRecoverySuspended;
     private bool lifecycleEventsSubscribed;
     private bool productSettingsInitialized;
     private bool flyoutAutoDismissActive;
@@ -677,24 +678,71 @@ public partial class App : WpfApplication, IDisposable
                 QuickPodsLogLevel.Information,
                 "SystemSuspending",
                 "Windows is suspending; the visible product window was hidden.");
-            _ = Dispatcher.InvokeAsync(() => MainWindow?.Hide());
+            PrepareForSystemTransition(clearPlacementAnchor: true, suspendRecovery: true);
             return;
         }
 
+        PrepareForSystemTransition(clearPlacementAnchor: true, suspendRecovery: false);
         QueueLifecycleRecovery($"Power:{eventArgs.Mode}");
     }
 
     private void OnSessionSwitch(object sender, SessionSwitchEventArgs eventArgs)
     {
-        if (eventArgs.Reason is SessionSwitchReason.SessionLock or
-            SessionSwitchReason.ConsoleDisconnect or
-            SessionSwitchReason.RemoteConnect)
+        SystemSessionTransition transition = eventArgs.Reason switch
         {
-            _ = Dispatcher.InvokeAsync(() => MainWindow?.Hide());
+            SessionSwitchReason.SessionLock or
+            SessionSwitchReason.SessionLogoff or
+            SessionSwitchReason.ConsoleDisconnect or
+            SessionSwitchReason.RemoteConnect => SystemSessionTransition.BecameUnavailable,
+            SessionSwitchReason.SessionUnlock or
+            SessionSwitchReason.SessionLogon or
+            SessionSwitchReason.ConsoleConnect or
+            SessionSwitchReason.RemoteDisconnect => SystemSessionTransition.BecameAvailable,
+            _ => SystemSessionTransition.Other,
+        };
+        SystemSessionRecoveryDecision decision = SystemSessionRecoveryPolicy.Decide(transition);
+        if (decision.HideFlyout || decision.ClearPlacementAnchor)
+        {
+            PrepareForSystemTransition(
+                decision.ClearPlacementAnchor,
+                decision.SuspendRecovery);
         }
 
-        QueueLifecycleRecovery($"Session:{eventArgs.Reason}");
+        if (decision.QueueRecovery)
+        {
+            QueueLifecycleRecovery($"Session:{eventArgs.Reason}");
+        }
     }
+
+    private void PrepareForSystemTransition(
+        bool clearPlacementAnchor,
+        bool suspendRecovery) =>
+        _ = Dispatcher.InvokeAsync(() =>
+        {
+            lifecycleRecoverySuspended = suspendRecovery;
+            if (suspendRecovery)
+            {
+                lifecycleRecoveryTimer?.Stop();
+                pendingLifecycleReasons.Clear();
+            }
+
+            flyoutAutoDismissActive = false;
+            flyoutDismissTimer?.Stop();
+            if (clearPlacementAnchor)
+            {
+                lastTaskbarAnchor = null;
+            }
+
+            if (MainWindow is MainWindow window)
+            {
+                if (clearPlacementAnchor)
+                {
+                    window.ClearPlacementAnchor();
+                }
+
+                window.Hide();
+            }
+        });
 
     private void QueueLifecycleRecovery(string reason)
     {
@@ -705,7 +753,7 @@ public partial class App : WpfApplication, IDisposable
 
         _ = Dispatcher.InvokeAsync(() =>
         {
-            if (disposed || lifecycleRecoveryTimer is null)
+            if (disposed || lifecycleRecoverySuspended || lifecycleRecoveryTimer is null)
             {
                 return;
             }
@@ -719,7 +767,12 @@ public partial class App : WpfApplication, IDisposable
     private async void OnLifecycleRecoveryTick(object? sender, EventArgs eventArgs)
     {
         lifecycleRecoveryTimer?.Stop();
-        if (lifecycleRecoveryRunning || disposed)
+        if (lifecycleRecoverySuspended || disposed)
+        {
+            return;
+        }
+
+        if (lifecycleRecoveryRunning)
         {
             lifecycleRecoveryTimer?.Start();
             return;
