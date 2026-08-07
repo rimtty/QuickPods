@@ -44,6 +44,37 @@ RemainingReleaseProcesses=0
 
 `%LocalAppData%\QuickPods\logs\quickpods-20260806.jsonl`の生成を確認した。観測したイベントは`ApplicationStarted`、Bluetoothカタログ件数／generation、製品設定であり、生のContainer ID、Endpoint ID、PnP ID、MACアドレス、アカウント識別子を含まない。
 
+## ローカルコンソール部分検証（2026-08-07）
+
+Issue [#43](https://github.com/rimtty/QuickPods/issues/43)の受け入れ確認を、Remote DesktopではないWindows 11のローカル`console`セッションで開始した。今回の部分検証条件は次のとおり。
+
+- GPU／解像度：NVIDIA GeForce RTX 3080、3840×2160
+- 拡大率：150%（`HKCU\Control Panel\Desktop\LogPixels=144`）
+- タスクバー：中央揃え
+- 候補：self-contained `visual.82`
+- 実装SHA：`73cc515`（Phase 6Bへ`17111dd`としてmerge済み）
+- 起動前提：`StartWithWindows=false`、HKCU Runの`QuickPods`値なし
+
+キーボード操作は利用者の目視と実操作で次を確認した。
+
+- `Tab`でフォーカスを移動できる
+- 音量スライダーを矢印キーで変更できる
+- `Space`でミュート／解除を切り替えられる
+- `Escape`でflyoutを閉じられる
+
+通知領域と常駐ライフタイムは、利用者が次の一連の操作を実施し、異常がないことを確認した。
+
+- 通知領域アイコンの右クリックメニューを表示できる
+- ダブルクリックと`QuickPods を開く`の両方が既存画面を表示する
+- 画面の閉じる操作後もQuickPodsとタスクバー面が常駐する
+- `タスクバー操作バーを表示`をOFFからONへ戻すと、面が重複せず復帰する
+
+表示ON／OFF時のログには`DisplayMode=TrayOnly`、続いて`DisplayMode=Auto`の`SettingsApplied`が1回ずつ記録された。復帰後のプロセスは`QuickPods`、`QuickPods.TaskbarHost`、`QuickPods.TaskbarObserver`が各1件で、重複と孤立helperはなかった。ObserverのPID更新は表示面の再生成に伴う想定内の遷移である。
+
+単一インスタンスは候補EXEを再度起動して非視覚的にも確認した。二つ目の`QuickPods.exe`（PID 19512）は5秒以内に終了コード0で終了し、既存の`QuickPods`、`QuickPods.TaskbarHost`、`QuickPods.TaskbarObserver`はそれぞれ同一PIDのまま1プロセスずつ維持された。重複プロセスと孤立helperは発生していない。
+
+この節は部分証跡であり、明示終了、設定／自動起動、100／125／200%、テーマ、Explorer回復は未完了として[#43](https://github.com/rimtty/QuickPods/issues/43)を開いたままにする。
+
 ## 現環境で合否を出さない項目
 
 現在はRemote Desktopであるため、次をPhase 5A合格の証拠として扱わない。

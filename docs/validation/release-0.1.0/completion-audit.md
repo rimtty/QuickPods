@@ -41,18 +41,18 @@
 | AC-023 | 設定を再起動後も保持 | Proven | [Phase 5A](../phase-5a/test-results.md)の全設定JSON round-trip、破損時はPhase 5Bで隔離再生成 | なし |
 | AC-024 | 主要API失敗を分類済みログへ記録 | Proven | [Phase 5A](../phase-5a/test-results.md)のsanitized JSONL、[Phase 5B](../phase-5b/test-results.md)のlifecycle／interaction例外境界 | なし |
 | AC-025 | 24時間で継続的resource増加なし | Pending | [Phase 6A](../phase-6a/test-results.md)は3秒tooling smokeのみで合否対象外 | 24時間Gate D：[Issue #48](https://github.com/rimtty/QuickPods/issues/48) |
-| AC-026 | フライアウトの主要操作をkeyboardで実行 | Partial / Gate pending | [Phase 5B](../phase-5b/test-results.md)のAutomation metadata／keyboard確定経路、[Phase 5C](../phase-5c/test-results.md)の統合UI・目視合格 | local-console focus／keyboard／screen reader：[Issue #43](https://github.com/rimtty/QuickPods/issues/43) |
+| AC-026 | フライアウトの主要操作をkeyboardで実行 | Proven | [Phase 5B](../phase-5b/test-results.md)のAutomation metadata／keyboard確定経路、[Phase 5C](../phase-5c/test-results.md)の統合UI・目視合格、[Phase 5A](../phase-5a/test-results.md)の150% local-console `Tab`／矢印キー／`Space`／`Escape`実操作 | なし |
 | AC-027 | Ceiling由来コードがあればMIT同梱 | Partial / Gate pending | PR #51で`ThirdPartyNotices.txt`と配布payload静的検査を実装 | Phase 6B統合・最終配布物確認：[Issue #50](https://github.com/rimtty/QuickPods/issues/50) |
 
 ## 集計
 
 | 状態 | 件数 | AC |
 |---|---:|---|
-| Proven | 18 | 001～015、019、023、024 |
-| Partial / Gate pending | 8 | 016～018、020～022、026、027 |
+| Proven | 19 | 001～015、019、023、024、026 |
+| Partial / Gate pending | 7 | 016～018、020～022、027 |
 | Pending | 1 | 025 |
 
-`18 / 27 Proven`は現時点の完成率を表す数値ではなく、同じ範囲の証拠が揃った受入項目数である。実装済み行を自動的に`Proven`へ昇格しない。
+`19 / 27 Proven`は現時点の完成率を表す数値ではなく、同じ範囲の証拠が揃った受入項目数である。実装済み行を自動的に`Proven`へ昇格しない。
 
 ## 残作業の最小Gateセット
 
@@ -60,7 +60,7 @@
 |---|---|---|
 | #33 | 016、020 | center-aligned NoFit Floatingのvisibility、z-order、input、cleanup |
 | #18／#34／#48 | 018、021 | 製品版Explorer restart、重複0、10秒以内、長寿命processのUSER／GDI非増加 |
-| #43 | 017、026 | local-console DPI、focus、keyboard、High Contrast、tray settings |
+| #43 | 017 | local-console DPI、screen reader、High Contrast、tray settings |
 | #48 | 025 | 24時間resource Gate D |
 | #50／PR #51 | 022、027 | clean standard-user MSI lifecycle、法務payload、署名済み最終成果物 |
 
