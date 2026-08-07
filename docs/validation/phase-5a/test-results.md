@@ -44,7 +44,7 @@ RemainingReleaseProcesses=0
 
 `%LocalAppData%\QuickPods\logs\quickpods-20260806.jsonl`の生成を確認した。観測したイベントは`ApplicationStarted`、Bluetoothカタログ件数／generation、製品設定であり、生のContainer ID、Endpoint ID、PnP ID、MACアドレス、アカウント識別子を含まない。
 
-## ローカルコンソール部分検証（2026-08-07）
+## ローカルコンソール検証（2026-08-07）
 
 Issue [#43](https://github.com/rimtty/QuickPods/issues/43)の受け入れ確認を、Remote DesktopではないWindows 11のローカル`console`セッションで開始した。今回の部分検証条件は次のとおり。
 
@@ -73,15 +73,25 @@ Issue [#43](https://github.com/rimtty/QuickPods/issues/43)の受け入れ確認�
 
 単一インスタンスは候補EXEを再度起動して非視覚的にも確認した。二つ目の`QuickPods.exe`（PID 19512）は5秒以内に終了コード0で終了し、既存の`QuickPods`、`QuickPods.TaskbarHost`、`QuickPods.TaskbarObserver`はそれぞれ同一PIDのまま1プロセスずつ維持された。重複プロセスと孤立helperは発生していない。
 
-この節は部分証跡であり、明示終了、設定／自動起動、100／125／200%、テーマ、Explorer回復は未完了として[#43](https://github.com/rimtty/QuickPods/issues/43)を開いたままにする。
+### live DPIマトリクス
 
-## 現環境で合否を出さない項目
+150%から100%へ変更した後、非表示中のflyoutが保持していた古いWPF DPIで新しい物理pxアンカーを変換し、タスクバーから大きく離れる欠陥を[#71](https://github.com/rimtty/QuickPods/issues/71)で検出した。taskbar面が通知するアンカーへ取得時DPIを含め、そのDPIでDIPへ変換する修正版`visual.83`（実装SHA `ac1df61`、Phase 6Bへ`6d0ee48`としてmerge）を作成した。
 
-現在はRemote Desktopであるため、次をPhase 5A合格の証拠として扱わない。
+QuickPodsを終了せず、Windowsが提示する次の全拡大率でflyoutのtaskbar追従と想定操作を利用者が目視確認し、すべて合格した。
 
-- 100／125／150／200% DPI、解像度、mixed DPI
+- 100%、125%、150%、175%、200%、225%、250%、300%、350%
+
+候補を15:14:06 JSTに起動した後の`quickpods-20260807.jsonl`には、初期点以降の8回の切替に対応する`DisplaySettingsChanged`／work-area回復が8回記録された。TaskbarHostは起動時の`Starting`から`Connected`へ1回遷移した後に再接続／失敗せず、Warning／Errorは0件だった。確認終了時も`visual.83`由来のApp、TaskbarHost、TaskbarObserverが各1プロセスだけ存在した。自動試験も同じ実効DPI 96／120／144／168／192／216／240／288／336を対象とする。
+
+この結果によりDPI目視Gateは完了した。明示終了、設定／自動起動、テーマ、Explorer回復は未完了として[#43](https://github.com/rimtty/QuickPods/issues/43)を開いたままにする。
+
+## 初回検証時に合否を保留した項目
+
+2026-08-06の初回検証はRemote Desktopだったため、次をその時点のPhase 5A合格証拠として扱わなかった。DPI、通知領域、flyout入力は翌日のローカルコンソール証拠で補完したが、mixed DPIと物理Bluetoothの別機器条件は個別Issueで引き続き追跡する。
+
+- mixed DPIとモニター間移動
 - native／floatingの配置、描画、クリック位置、ホイール入力
 - 通知領域アイコンとメニューの目視・キーボード操作
 - 実Bluetoothオーディオの列挙、接続、切断、既定出力化
 
-通知領域／製品画面／DPIのローカル確認は[#43](https://github.com/rimtty/QuickPods/issues/43)、実Bluetooth列挙は[#38](https://github.com/rimtty/QuickPods/issues/38)、物理操作は[#41](https://github.com/rimtty/QuickPods/issues/41)で別日に確認する。RDP安全縮退を物理成立性の代替にしない。
+通知領域／製品画面の残項目は[#43](https://github.com/rimtty/QuickPods/issues/43)、実Bluetooth列挙は[#38](https://github.com/rimtty/QuickPods/issues/38)、物理操作は[#41](https://github.com/rimtty/QuickPods/issues/41)で管理する。RDP安全縮退を物理成立性の代替にしない。

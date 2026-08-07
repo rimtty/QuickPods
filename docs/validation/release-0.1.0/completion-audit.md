@@ -32,7 +32,7 @@
 | AC-014 | 安全な空きへタスクバー内表示 | Proven | [Phase 3A](../phase-3a/display-host/test-results.md)のcenter-aligned Native実表示・入力 | なし |
 | AC-015 | Windows標準要素を1pxも覆わない | Proven | [Phase 3A](../phase-3a/display-host/test-results.md)のUIA＋native obstacle統合、fail-closed placement | なし |
 | AC-016 | 狭い空きでcompact／fallback | Partial / Gate pending | compact／NoFit routing自動契約は合格。左揃えは仕様どおりHidden | center-aligned NoFit Floating目視・入力：[Issue #33](https://github.com/rimtty/QuickPods/issues/33) |
-| AC-017 | DPI 100／125／150／200%で表示・入力ずれなし | Partial / Gate pending | Phase 0／3Aの座標契約と過去実機証拠。現行UIのRDP結果は合否に不使用 | 現行製品のlocal-console DPI：[Issue #43](https://github.com/rimtty/QuickPods/issues/43) |
+| AC-017 | DPI 100／125／150／200%で表示・入力ずれなし | Proven | [Phase 5A](../phase-5a/test-results.md)のlocal-console `visual.83`で100／125／150／175／200／225／250／300／350%をlive切替し、全点のtaskbar追従・入力を目視合格。ログ上も8回の表示変更回復、Host継続、Warning／Error 0件 | なし |
 | AC-018 | Explorer再起動後10秒以内に1面だけ復旧 | Partial / Gate pending | Phase 0 Spikeは10/10、[Phase 3B](../phase-3b/ipc-recovery/test-results.md)はsynthetic `TaskbarCreated`とHost／Observer復旧、Phase 5CはStart 10秒超でnative面維持 | 製品版Explorer restart／resource：[Issue #34](https://github.com/rimtty/QuickPods/issues/34)、[Issue #48](https://github.com/rimtty/QuickPods/issues/48) |
 | AC-019 | 終了後に残骸ウィンドウなし | Proven | [Phase 3A](../phase-3a/display-host/test-results.md)、[Phase 3B](../phase-3b/ipc-recovery/test-results.md)、[Phase 5A](../phase-5a/test-results.md)で残留0 | なし |
 | AC-020 | native失敗時も音量・Bluetoothを利用可能 | Partial / Gate pending | [Phase 3B](../phase-3b/ipc-recovery/test-results.md)のHost失敗時App生存、通知領域／Hidden policy | center-aligned NoFitのoperator-visible fallback：[Issue #33](https://github.com/rimtty/QuickPods/issues/33) |
@@ -48,11 +48,11 @@
 
 | 状態 | 件数 | AC |
 |---|---:|---|
-| Proven | 19 | 001～015、019、023、024、026 |
-| Partial / Gate pending | 7 | 016～018、020～022、027 |
+| Proven | 20 | 001～015、017、019、023、024、026 |
+| Partial / Gate pending | 6 | 016、018、020～022、027 |
 | Pending | 1 | 025 |
 
-`19 / 27 Proven`は現時点の完成率を表す数値ではなく、同じ範囲の証拠が揃った受入項目数である。実装済み行を自動的に`Proven`へ昇格しない。
+`20 / 27 Proven`は現時点の完成率を表す数値ではなく、同じ範囲の証拠が揃った受入項目数である。実装済み行を自動的に`Proven`へ昇格しない。
 
 ## 残作業の最小Gateセット
 
@@ -60,7 +60,6 @@
 |---|---|---|
 | #33 | 016、020 | center-aligned NoFit Floatingのvisibility、z-order、input、cleanup |
 | #18／#34／#48 | 018、021 | 製品版Explorer restart、重複0、10秒以内、長寿命processのUSER／GDI非増加 |
-| #43 | 017 | local-console DPI、screen reader、High Contrast、tray settings |
 | #48 | 025 | 24時間resource Gate D |
 | #50／PR #51 | 022、027 | clean standard-user MSI lifecycle、法務payload、署名済み最終成果物 |
 
