@@ -24,8 +24,8 @@ internal static class SliderGeometry
 
         double scale = height / 40d;
         int inset = Math.Max(2, (int)Math.Round(8d * scale));
-        int iconLeft = Math.Max(inset, (int)Math.Round(11d * scale));
-        int iconSize = Math.Clamp((int)Math.Round(17d * scale), 10, 34);
+        int iconLeft = Math.Max(inset, (int)Math.Round(9d * scale));
+        int iconSize = Math.Clamp((int)Math.Round(22d * scale), 14, 44);
         int centerY = height / 2;
         bool standard = width >= (int)Math.Round(250d * scale);
         int proposedLeft = (int)Math.Round((standard ? 42d : 36d) * scale);

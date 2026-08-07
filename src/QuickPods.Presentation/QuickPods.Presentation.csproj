@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\QuickPods.Contracts\QuickPods.Contracts.csproj" />
     <ProjectReference Include="..\QuickPods.Core\QuickPods.Core.csproj" />
   </ItemGroup>
 
