@@ -22,7 +22,7 @@
 | AC-004 | Windows側変更へ自動追従 | Proven | [Phase 2](../phase-2/audio-mvp/test-results.md)の手動変更・音量キー回帰 | なし |
 | AC-005 | 既定デバイス変更へ再起動なしで追従 | Proven | [Phase 2](../phase-2/audio-mvp/test-results.md)のLogitech→Dell→Logitech実往復 | なし |
 | AC-006 | デバイスなし／無効化中に非クラッシュ | Proven | [Phase 2](../phase-2/audio-mvp/test-results.md)のbinding retire／再bind、Phase 5C空状態 | なし |
-| AC-007 | Bluetoothを物理機器単位で一覧・単一選択 | Partial / Gate pending | [Phase 4A](../phase-4a/test-results.md)の0／1／複数／同名契約、RDPでは安全な空一覧 | 物理列挙とprofile集約：[Issue #38](https://github.com/rimtty/QuickPods/issues/38) |
+| AC-007 | Bluetoothを物理機器単位で一覧・単一選択 | Proven | [Phase 4A](../phase-4a/test-results.md)の実AirPods単一行、同一ContainerのRender／Capture集約、選択復元、外部状態追従と自動複数機器契約 | なし |
 | AC-008 | 選択・更新だけではOSを変更しない | Proven | [Phase 4A](../phase-4a/test-results.md)と[Phase 5A](../phase-5a/test-results.md)のread-only／fake mutation 0件 | なし |
 | AC-009 | 接続・切断後にMMDevice実状態を確認 | Partial / Gate pending | [Phase 4B](../phase-4b/test-results.md)のorchestration／stale拒否。製品RDP経路は要求を安全拒否 | 製品版の物理接続・切断：[Issue #41](https://github.com/rimtty/QuickPods/issues/41) |
 | AC-010 | 接続後にConsole／Multimedia既定出力を確認 | Partial / Gate pending | Phase 0 Gate A2と[Phase 4B](../phase-4b/test-results.md)のproduct orchestration／部分成功 | 製品版の物理既定出力化：[Issue #41](https://github.com/rimtty/QuickPods/issues/41) |
@@ -48,17 +48,16 @@
 
 | 状態 | 件数 | AC |
 |---|---:|---|
-| Proven | 14 | 001～006、008、011、012、014、015、019、023、024 |
-| Partial / Gate pending | 12 | 007、009、010、013、016～018、020～022、026、027 |
+| Proven | 15 | 001～008、011、012、014、015、019、023、024 |
+| Partial / Gate pending | 11 | 009、010、013、016～018、020～022、026、027 |
 | Pending | 1 | 025 |
 
-`14 / 27 Proven`は現時点の完成率を表す数値ではなく、同じ範囲の証拠が揃った受入項目数である。実装済み行を自動的に`Proven`へ昇格しない。
+`15 / 27 Proven`は現時点の完成率を表す数値ではなく、同じ範囲の証拠が揃った受入項目数である。実装済み行を自動的に`Proven`へ昇格しない。
 
 ## 残作業の最小Gateセット
 
 | Gate | 閉じるAC | 実施内容 |
 |---|---|---|
-| #38 | 007 | local-consoleで物理Bluetooth一覧、profile集約、単一選択 |
 | #41 | 009、010、013 | 接続→実状態→既定出力、切断、選択外影響 |
 | #33 | 016、020 | center-aligned NoFit Floatingのvisibility、z-order、input、cleanup |
 | #18／#34／#48 | 018、021 | 製品版Explorer restart、重複0、10秒以内、長寿命processのUSER／GDI非増加 |

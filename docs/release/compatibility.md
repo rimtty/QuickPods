@@ -12,7 +12,7 @@
 
 Bluetooth一覧はpaired association endpoint、MMDevice、Container IDの一致を読み取り専用で確認する。直接の接続／切断は対象driverが安全なKS Reconnect／Disconnect propertyを両方向とも公開する場合だけ有効になる。接続後の既定出力化は対象stereo render endpointを一意に確認できた場合だけConsole／Multimediaへ適用する。未対応または不確実な機器ではWindows Bluetooth／Sound settingsを案内し、推測したmutationを送らない。
 
-参照する物理Bluetooth環境の最終互換性はIssue #38と#41で未完了である。RDPのRemote AudioはローカルBluetooth inventoryではないため、RDP中は物理対応判定を行わない。
+参照する物理Bluetooth環境では、Issue #38でAirPodsの単一行列挙、同一ContainerのRender／Capture集約、選択復元と外部状態追従を確認した。直接接続／切断／既定出力の最終互換性はIssue #41で継続する。RDPのRemote AudioはローカルBluetooth inventoryではないため、RDP中は物理対応判定を行わない。
 
 ## Display baseline
 
