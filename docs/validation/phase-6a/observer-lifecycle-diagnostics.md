@@ -52,6 +52,26 @@ behavior are unchanged.
 - `dotnet format --verify-no-changes`: passed;
 - `git diff --check`: passed.
 
-A later real shell-generation event can now prove its exact sanitized reason in
-the application JSONL. The historical `visual.84` retirement remains
-indeterminate by design and is not relabeled after the fact.
+## `visual.85` live lifecycle verification
+
+The merged correction at commit `cbf7571` was published as the self-contained
+`0.1.0-visual.85` candidate. The running App and TaskbarHost were kept in place
+while two Observer retirement paths were exercised separately:
+
+1. A registered `TaskbarCreated` message was sent only to TaskbarHost's hidden
+   `QuickPods.Runtime.Notification` window. Explorer and Windows settings were
+   not changed. Observer PID 77636 was replaced by PID 59516 and the JSONL
+   recorded one Information-level `TaskbarObserverRetired` event with reason
+   `TaskbarCreated` and generation ordinal 0.
+2. Only Observer PID 59516 was then terminated. TaskbarHost recovered it as PID
+   21148 and the JSONL recorded one Warning-level `TaskbarObserverRetired` event
+   with reason `Disconnected` and generation ordinal 1.
+
+After both operations there was exactly one App, one TaskbarHost, and one
+TaskbarObserver. App and TaskbarHost identities were unchanged. This proves that
+the supervisor still replaces an Observer and that the new diagnostic separates
+a normal shell-generation retirement from an unannounced process loss without
+persisting process identity or device data.
+
+Issue #77 acceptance is therefore complete. The historical `visual.84`
+retirement remains indeterminate by design and is not relabeled after the fact.

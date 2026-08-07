@@ -73,13 +73,21 @@ focused smokeは次のとおり。
 - Windows PowerShell 5.1：安定seriesを正常解析
 - 進行中の`visual.84` CSV：`-Preview`で解析でき、capture integrityはPreview、AC-025はReviewRequiredを維持
 
-growth signalはreview補助であり、自動的なleak判定ではない。最終Gateでは24時間series、アプリログ、Explorer反復、Bluetooth反復を合わせてAC-025を判定する。共有self-contained .NET pageをprocessごとに重複計上し得るWorking Setは単純合算の絶対値だけで判定せず、時間推移とPrivate Memoryを併記する。
+growth signalはreview補助であり、自動的なleak判定ではない。共有self-contained .NET pageをprocessごとに重複計上し得るWorking Setは単純合算の絶対値だけで判定せず、時間推移とPrivate Memoryを併記する。
+
+## 2026-08-07 Gate D短縮エージング判定
+
+利用者判断により24時間から短縮し、local-console `visual.84`を2.01時間、1,391 sample観測した。公式samplerのstderrは空で、QuickPods App、TaskbarHost、Observerの監督対象treeを追跡した。AppとTaskbarHostは全期間同一processとして継続し、TaskbarObserverだけが一度世代交代した。Explorerの再起動およびWindows Application log上のApplication Error、.NET Runtime、Windows Error Reporting、Application Hangは確認されなかった。元のQuickPods JSONLにもWarning／Errorはなかった。
+
+開始時の合算値はPrivate Memory 101.6 MB、Working Set 248.5 MB、Handle 1,278、GDI 32、USER 48だった。Observer世代交代直前はPrivate Memory 121.66 MB、Working Set約273 MB、Handle 1,316、GDI 32、USER 50だった。その後のBluetooth catalog更新／UI表示を含む区間で段階的なallocation増加があり、終盤はPrivate Memory約252.67 MB、Working Set約384.42 MB、Handle 1,611、GDI 49、USER 58だった。5分medianはPrivate Memory 227.93→242.02→246.05 MB、Working Set 361.62→374.15→378.60 MB、Handle 1,594→1,598→1,597、GDI 49、USER 59→58となった。
+
+この短いseriesには段階的allocationと終盤の緩やかな増加があるため、24時間相当の「leakなし」を証明するものではない。一方、Handle／GDI／USERの継続増加、process treeの崩壊、App／Hostの再起動、stderr、OS crash記録、アプリWarning／Errorはなく、利用者が短縮範囲で重大なresource異常なしと判定した。Issue #48のresource観測はこの証跡で完了とする。
+
+Observer世代交代の履歴原因は旧protocolでは記録されず断定不能だったため、Issue #77でprotocol version 3のsanitized lifecycle診断を追加した。`visual.85`では正常な`TaskbarCreated`がInformation／generation 0、Observer単体停止がWarningの`Disconnected`／generation 1として記録され、どちらもApp／TaskbarHostを維持してObserver一体へ回復した。詳細は[observer-lifecycle-diagnostics.md](observer-lifecycle-diagnostics.md)を参照する。
 
 ## 未完了Gate
 
-- 物理Bluetooth列挙：[#38](https://github.com/rimtty/QuickPods/issues/38)
-- 物理接続／切断／既定出力：[#41](https://github.com/rimtty/QuickPods/issues/41)
 - local-console表示／DPI／電源：[#43](https://github.com/rimtty/QuickPods/issues/43)
-- 24時間resource／Explorer／Bluetooth反復：[#48](https://github.com/rimtty/QuickPods/issues/48)
+- Explorer実再起動後の回復：[#34](https://github.com/rimtty/QuickPods/issues/34)
 
 Phase 6AのCIをこれらの代替にしない。
