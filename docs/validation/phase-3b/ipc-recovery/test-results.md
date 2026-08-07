@@ -9,7 +9,7 @@
 | Architecture | x64 |
 | Taskbar | Center aligned, DPI 168, 5120 x 84 physical px |
 | Audio safety | Playback stopped; original and restored state 10.0%, mute off |
-| Issue | #34 and the physical acceptance portion of #18 remain follow-up gates; #33 was removed from the release gate on 2026-08-07 |
+| Issue | #18/#34 accepted on 2026-08-08; #33 was removed from the release gate on 2026-08-07 |
 
 The checkpoint values above describe the original local-console run. A later
 Remote Desktop session alternated between virtual and physical display
@@ -64,14 +64,40 @@ deferred until a stable local-console session is available.
   diagnostic suite. Foundation remains 50/50 and the Release solution build
   remains at zero warnings and zero errors.
 
+## Accepted product Explorer-recovery gate
+
+On 2026-08-08, the exact self-contained `win-x64` candidate
+`0.1.0-gate.183405+138efb1` was exercised in the active local Windows console
+at DPI 168 (175%). The gate warmed the real flyout, allowed a 20-second
+baseline settlement, then restarted Explorer once with explicit confirmation.
+
+- Recovery completed in 7,683 ms against the 10-second limit.
+- App and TaskbarHost retained their original process identities.
+- The old TaskbarObserver exited and exactly one replacement generation was
+  created.
+- Final App/Host/Observer/Native/Floating topology was `1/1/1/1/0`; no
+  duplicate process or surface appeared in any sampled transition.
+- App GDI/USER deltas were `-3/0`; TaskbarHost GDI/USER deltas were `0/0`.
+- The sanitized log contained one `ExplorerGenerationChanged` retirement and
+  zero Warning/Error entries.
+- After recovery, the operator confirmed real taskbar-wheel volume, speaker
+  mute, flyout opening, and flyout-slider input remained usable.
+
+The first four development runs are retained as diagnostic history: they
+exposed two evidence-script races and one product lifecycle-telemetry gap.
+Those findings were fixed and regression-tested before the accepted run. The
+authoritative local evidence is
+`artifacts/gates/issue-18-34/explorer-recovery-pass-final.json`; the ignored
+artifact stores only the bounded process/resource and sanitized-log evidence.
+
 ## Remaining Phase 3B gates
 
 - [x] implement the ADR-0001 observer helper and sanitized epoch/invalidation protocol;
 - [x] receive `TaskbarCreated`, retire the old Explorer generation, and recover hidden-first;
 - [x] verify observer/host ownership and no residue across forced shutdown;
 - [x] route mute, flyout, and context-menu commands from both visible surfaces;
-- [ ] run the bounded Explorer restart/resource test and record USER/GDI evidence;
+- [x] run the bounded Explorer restart/resource test and record USER/GDI evidence;
 - [x] retain the fail-closed center-aligned NoFit contract without an additional dedicated physical reproduction; product decision recorded 2026-08-07 and Issue #33 closed as not planned;
-- [ ] rerun Start/Search continuity and user-visible input after the complete runtime is assembled.
+- [x] rerun Start/Search continuity and user-visible input after the complete runtime is assembled.
 
-Checkpoint status: **IPC/process recovery Go; Phase 3B overall remains in progress**.
+Checkpoint status: **Phase 3B Go**.
