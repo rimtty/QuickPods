@@ -1,5 +1,6 @@
 using QuickPods.Contracts;
 using QuickPods.TaskbarHost.Hosting;
+using QuickPods.TaskbarHost.Interop;
 using Xunit;
 
 namespace QuickPods.Foundation.Tests;
@@ -64,5 +65,29 @@ public sealed class TaskbarRenderingTests
         Assert.Equal("\uE74F", FluentAudioGlyphs.ForMuteState(isMuted: true));
         Assert.Equal("\uE7F6", FluentAudioGlyphs.Headphones);
         Assert.Equal("Segoe Fluent Icons", FluentAudioGlyphs.FontFamily);
+    }
+
+    [Fact]
+    public void ResolvedThemeSelectsDeterministicNativePalette()
+    {
+        TaskbarRenderTheme dark = TaskbarRenderTheme.Resolve(TaskbarThemeMode.Dark);
+        TaskbarRenderTheme light = TaskbarRenderTheme.Resolve(TaskbarThemeMode.Light);
+        TaskbarRenderTheme highContrast = TaskbarRenderTheme.Resolve(
+            TaskbarThemeMode.HighContrast);
+
+        Assert.Equal(0x0024211Fu, dark.SurfaceColor);
+        Assert.Equal(0x00F4F2F0u, dark.ForegroundColor);
+        Assert.Equal(0x00FAF7F5u, light.SurfaceColor);
+        Assert.Equal(0x001C1815u, light.ForegroundColor);
+        Assert.NotEqual(dark, light);
+        Assert.Equal(dark.TransparentColorKey, highContrast.TransparentColorKey);
+        Assert.Equal(
+            HostNativeMethods.GetSystemColor(HostNativeMethods.ColorWindow),
+            highContrast.SurfaceColor);
+        Assert.Equal(
+            HostNativeMethods.GetSystemColor(HostNativeMethods.ColorWindowText),
+            highContrast.ForegroundColor);
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            TaskbarRenderTheme.Resolve((TaskbarThemeMode)99));
     }
 }

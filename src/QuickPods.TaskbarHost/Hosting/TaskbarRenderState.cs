@@ -91,32 +91,26 @@ internal readonly record struct TaskbarRenderTheme(
         0x00EED95E,
         0x00F4F2F0);
 
-    internal static TaskbarRenderTheme Current
-    {
-        get
-        {
-            var highContrast = new HostNativeMethods.NativeHighContrast
-            {
-                Size = (uint)System.Runtime.InteropServices.Marshal.SizeOf<
-                    HostNativeMethods.NativeHighContrast>(),
-            };
-            if (!HostNativeMethods.SystemParametersInfo(
-                    HostNativeMethods.SpiGetHighContrast,
-                    highContrast.Size,
-                    ref highContrast,
-                    0) ||
-                (highContrast.Flags & HostNativeMethods.HighContrastOn) == 0)
-            {
-                return Dark;
-            }
+    internal static TaskbarRenderTheme Light { get; } = new(
+        0x00FF00FF,
+        0x00FAF7F5,
+        0x00E1DAD5,
+        0x00D9D1CB,
+        0x00D0B932,
+        0x001C1815);
 
-            return new TaskbarRenderTheme(
+    internal static TaskbarRenderTheme Resolve(TaskbarThemeMode mode) =>
+        mode switch
+        {
+            TaskbarThemeMode.Dark => Dark,
+            TaskbarThemeMode.Light => Light,
+            TaskbarThemeMode.HighContrast => new TaskbarRenderTheme(
                 Dark.TransparentColorKey,
                 HostNativeMethods.GetSystemColor(HostNativeMethods.ColorWindow),
                 HostNativeMethods.GetSystemColor(HostNativeMethods.ColorWindowText),
                 HostNativeMethods.GetSystemColor(HostNativeMethods.ColorGrayText),
                 HostNativeMethods.GetSystemColor(HostNativeMethods.ColorHighlight),
-                HostNativeMethods.GetSystemColor(HostNativeMethods.ColorWindowText));
-        }
-    }
+                HostNativeMethods.GetSystemColor(HostNativeMethods.ColorWindowText)),
+            _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null),
+        };
 }
