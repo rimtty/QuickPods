@@ -28,6 +28,7 @@
         Closed="OnClosed">
     <Window.Resources>
         <local:ImmutableBytesToImageSourceConverter x:Key="DeviceIconSourceConverter" />
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
 
         <Style x:Key="QuickPodsDiagnosticTextStyle" TargetType="TextBlock">
             <Setter Property="Visibility" Value="Visible" />
@@ -42,7 +43,6 @@
         </Style>
 
         <Style x:Key="QuickPodsBusySpinnerStyle" TargetType="TextBlock">
-            <Setter Property="Visibility" Value="Collapsed" />
             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
             <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
             <Setter Property="RenderTransform">
@@ -51,23 +51,17 @@
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
-                <Trigger Property="Tag" Value="True">
-                    <Setter Property="Visibility" Value="Visible" />
-                    <Trigger.EnterActions>
-                        <BeginStoryboard x:Name="BusyRotation">
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
-                                                 From="0"
-                                                 To="360"
-                                                 Duration="0:0:0.9"
-                                                 RepeatBehavior="Forever" />
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.EnterActions>
-                    <Trigger.ExitActions>
-                        <RemoveStoryboard BeginStoryboardName="BusyRotation" />
-                    </Trigger.ExitActions>
-                </Trigger>
+                <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
+                                             From="0"
+                                             To="360"
+                                             Duration="0:0:0.9"
+                                             RepeatBehavior="Forever" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </EventTrigger>
             </Style.Triggers>
         </Style>
 
@@ -260,8 +254,8 @@
                                                        FontSize="12"
                                                        Foreground="{DynamicResource AccentBrush}"
                                                        Style="{StaticResource QuickPodsBusySpinnerStyle}"
-                                                       Tag="{Binding IsProcessing}"
-                                                       Text="&#xE72C;" />
+                                                       Text="&#xE72C;"
+                                                       Visibility="{Binding IsProcessing, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                             <TextBlock VerticalAlignment="Center"
                                                        FontSize="12"
                                                        Foreground="{DynamicResource SecondaryTextBrush}"
@@ -401,7 +395,8 @@
                                    FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
                                    FontSize="15"
                                    Style="{StaticResource QuickPodsBusySpinnerStyle}"
-                                   Text="&#xE72C;" />
+                                   Text="&#xE72C;"
+                                   Visibility="Collapsed" />
                         <TextBlock x:Name="PrimaryActionText"
                                    VerticalAlignment="Center"
                                    Text="接続" />

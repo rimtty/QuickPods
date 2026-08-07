@@ -511,7 +511,9 @@ public partial class MainWindow : Window
                 : "ペアリング済みのBluetoothオーディオがありません";
             EmptyRefreshButton.IsEnabled = !bluetoothView.IsRefreshing && !bluetoothView.IsBusy;
             PrimaryActionText.Text = bluetoothView.PrimaryActionText;
-            PrimaryBusyIndicator.Tag = bluetoothView.IsRefreshing || bluetoothView.IsBusy;
+            PrimaryBusyIndicator.Visibility = bluetoothView.IsRefreshing || bluetoothView.IsBusy
+                ? Visibility.Visible
+                : Visibility.Collapsed;
             System.Windows.Automation.AutomationProperties.SetName(
                 PrimaryActionButton,
                 bluetoothView.PrimaryActionText);
