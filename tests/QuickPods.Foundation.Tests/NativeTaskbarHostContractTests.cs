@@ -1,4 +1,5 @@
 using QuickPods.Contracts;
+using QuickPods.TaskbarHost.Discovery;
 using QuickPods.TaskbarHost.Hosting;
 using Xunit;
 
@@ -6,6 +7,27 @@ namespace QuickPods.Foundation.Tests;
 
 public sealed class NativeTaskbarHostContractTests
 {
+    [Fact]
+    public async Task AutomationMtaReusesOneDedicatedWorkerAcrossCompletedScans()
+    {
+        var workerThreadIds = new HashSet<int>();
+
+        for (int iteration = 0; iteration < 8; iteration++)
+        {
+            int workerThreadId = await AutomationMta.RunAsync(
+                () =>
+                {
+                    Assert.Equal(ApartmentState.MTA, Thread.CurrentThread.GetApartmentState());
+                    return Environment.CurrentManagedThreadId;
+                },
+                TimeSpan.FromSeconds(2),
+                CancellationToken.None);
+            workerThreadIds.Add(workerThreadId);
+        }
+
+        Assert.Single(workerThreadIds);
+    }
+
     [Fact]
     public void PopupPreservedStyleForbidsChildAndTopmostBits()
     {
