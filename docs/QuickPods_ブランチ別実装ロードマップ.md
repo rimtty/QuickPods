@@ -24,7 +24,7 @@
 | 項目 | 状態 |
 |---|---|
 | Git | `main`はPhase 6A（PR #49）まで統合済み。Phase 5C PR #54はPhase 6BへSquash統合済み。Phase 6BはPR #51で最終Gate待ち |
-| Remote | `origin/main`へPhase 0～6Aの実装PRを統合済み。全体進捗はIssue #2、残存Gateは#15／#18／#19／#33／#34／#43／#48／#50で管理。物理Bluetooth #38／#41とPhase 5C #53は完了済み |
+| Remote | `origin/main`へPhase 0～6Aの実装PRを統合済み。全体進捗はIssue #2、残存Gateは#15／#18／#19／#34／#43／#50で管理。物理Bluetooth #38／#41、resource観測 #48、Observer診断 #77、Phase 5C #53は完了済み。#33の専用NoFit再現は2026-08-07に不要と判断 |
 | 追跡対象 | 計画資料、ブランド資産、製品コード、インストーラー、検証証跡、既知の制限 |
 | ソース／テスト／CI | .NET 10製品solution、Windows CI、RC／MSI生成、focused regressionを運用中 |
 | AGENTS.md | なし |
@@ -349,7 +349,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 業務サービスから独立した表示ホストを完成させる |
-| 状態 | **実装・Phase 3A実機Gate完了** — Issue #30／PR #32。Native/Floating/Hidden表示経路と左揃え非対応判定を実装。Foundation 45/45、全solution Release 0 warning、最新stacked CIに合格。175%中央揃えNativeではclick／drag／wheel、Start／Search中の同位置維持、自然破棄、残留0に合格し、移植時の`GetParent`誤用を`GetAncestor(GA_PARENT)`へ修正。175%左揃えは`UnsupportedAlignment → Hidden`、previewでもHWND生成なし・残留0に合格し、中央揃えへ戻した後の`Place → Native`と実描画復帰も確認。中央揃えNoFit時のFloating Z順はPhase 3B Issue #33へ分離 |
+| 状態 | **実装・Phase 3A実機Gate完了** — Issue #30／PR #32。Native/Floating/Hidden表示経路と左揃え非対応判定を実装。Foundation 45/45、全solution Release 0 warning、最新stacked CIに合格。175%中央揃えNativeではclick／drag／wheel、Start／Search中の同位置維持、自然破棄、残留0に合格し、移植時の`GetParent`誤用を`GetAncestor(GA_PARENT)`へ修正。175%左揃えは`UnsupportedAlignment → Hidden`、previewでもHWND生成なし・残留0に合格し、中央揃えへ戻した後の`Place → Native`と実描画復帰も確認。追加の中央揃えNoFit再現は2026-08-07の製品判断で不要 |
 | Gate BがGo | raw Win32 `QuickPods.TaskbarHost`、UIA探索、安全領域、描画、ヒットテスト |
 | Gate BがNo-Go | タスクバー直上のフローティングストリップを実装 |
 | 共通 | `Place`／`VerifiedNoFit`／`UnsupportedConfiguration`／`TransientUnknown`、DPI座標、負座標、テーマ入力 |
@@ -362,7 +362,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 本体、Core Audio、表示ホストを結合し、表示の復旧とフォールバックを完成させる |
-| 状態 | **実装完了（2026-08-06）** — Issue #34／PR #35。CurrentUserOnly IPC、完全スナップショット、実音量往復、Host復旧、Explorer世代Observer、`TaskbarCreated`、Job Objectを統合。center-aligned NoFitとlocal-console復旧GateはIssue #33／#34で未完了 |
+| 状態 | **実装完了（2026-08-06）** — Issue #34／PR #35。CurrentUserOnly IPC、完全スナップショット、実音量往復、Host復旧、Explorer世代Observer、`TaskbarCreated`、Job Objectを統合。local-console製品版Explorer復旧GateはIssue #34で未完了。center-aligned NoFitの専用再現は2026-08-07に不要と判断 |
 | IPC | 同一ユーザーSID限定の名前付きパイプ、ProtocolVersion、Sequence、再接続時の完全スナップショット |
 | 入力 | 音量暫定値／最終値、ミュート、フライアウト要求、コンテキストメニュー要求 |
 | 復旧 | `TaskbarCreated`、Watchdog、Explorer世代、ホスト再起動、連続失敗時のセッション無効化 |
@@ -444,9 +444,9 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | Release Candidateの機能・性能・リソース品質を確定する |
-| 状態 | **実装完了・Gate待ち（2026-08-06）** — Issue #47／PR #49。決定論的RC toolingとCIは統合済み。24時間Gate DはIssue #48 |
+| 状態 | **実装完了・短縮Gate D承認済み（2026-08-07）** — Issue #47／PR #49。決定論的RC toolingとCIは統合済み。2.01時間のresource観測はIssue #48で完了 |
 | 自動試験 | 単体、Windows統合、擬似親、IPC、設定移行、回帰試験 |
-| 実機試験 | 全手動マトリクス、Explorer再起動反復、Bluetooth 50サイクル、24時間試験 |
+| 実機試験 | 全手動マトリクス、Explorer再起動反復、承認された期間のエージング試験。Bluetooth 50サイクルは、既存の実機接続／切断／既定化／音声／外部追従証拠を十分とする2026-08-07の判断により除外 |
 | 計測 | CPU、Working Set、GDI、USER、Handle、COM、IPC再接続、UIA時間 |
 | 文書 | 互換性、既知の制限、試験記録、残存リスク |
 | 完了条件 | AC-001～027、Gate Dの品質項目を満たし、継続的なリソース増加がない |

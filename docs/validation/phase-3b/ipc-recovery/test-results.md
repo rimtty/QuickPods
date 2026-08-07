@@ -9,7 +9,7 @@
 | Architecture | x64 |
 | Taskbar | Center aligned, DPI 168, 5120 x 84 physical px |
 | Audio safety | Playback stopped; original and restored state 10.0%, mute off |
-| Issue | #34; #33 and the physical acceptance portion of #18 remain follow-up gates |
+| Issue | #34 and the physical acceptance portion of #18 remain follow-up gates; #33 was removed from the release gate on 2026-08-07 |
 
 The checkpoint values above describe the original local-console run. A later
 Remote Desktop session alternated between virtual and physical display
@@ -71,7 +71,7 @@ deferred until a stable local-console session is available.
 - [x] verify observer/host ownership and no residue across forced shutdown;
 - [x] route mute, flyout, and context-menu commands from both visible surfaces;
 - [ ] run the bounded Explorer restart/resource test and record USER/GDI evidence;
-- [ ] resolve or safely downgrade center-aligned NoFit Floating z-order under Issue #33 (local-console visual gate deferred while the active session is RDP);
+- [x] retain the fail-closed center-aligned NoFit contract without an additional dedicated physical reproduction; product decision recorded 2026-08-07 and Issue #33 closed as not planned;
 - [ ] rerun Start/Search continuity and user-visible input after the complete runtime is assembled.
 
 Checkpoint status: **IPC/process recovery Go; Phase 3B overall remains in progress**.

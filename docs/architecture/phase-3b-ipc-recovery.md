@@ -2,7 +2,7 @@
 
 ## Status
 
-In progress on `codex/phase-3b-ipc-recovery` under Issue #34. The app/host IPC, bounded process recovery, ADR-0001 Explorer-generation observer boundary, and complete Phase 3B host command path are implemented and live-tested. The physical Explorer-restart/resource gate and the center-aligned NoFit decision in Issue #33 remain pending. DPI/Floating visual acceptance is deferred while the available session is Remote Desktop because its virtual display topology does not provide authoritative local-renderer evidence.
+In progress on `codex/phase-3b-ipc-recovery` under Issue #34. The app/host IPC, bounded process recovery, ADR-0001 Explorer-generation observer boundary, and complete Phase 3B host command path are implemented and live-tested. The physical Explorer-restart/resource gate remains pending. The dedicated center-aligned NoFit reproduction formerly tracked by Issue #33 was removed from the release gate by product decision on 2026-08-07; existing fail-closed routing and automated invariants remain unchanged.
 
 ## Process boundary
 

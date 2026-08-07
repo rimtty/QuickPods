@@ -31,16 +31,16 @@
 | AC-013 | 選択外Bluetooth機器へ影響しない | Proven | [Phase 4B](../phase-4b/test-results.md)の選択Container限定実操作と、操作者による無線・入力機器・非選択機器への影響0確認 | なし |
 | AC-014 | 安全な空きへタスクバー内表示 | Proven | [Phase 3A](../phase-3a/display-host/test-results.md)のcenter-aligned Native実表示・入力 | なし |
 | AC-015 | Windows標準要素を1pxも覆わない | Proven | [Phase 3A](../phase-3a/display-host/test-results.md)のUIA＋native obstacle統合、fail-closed placement | なし |
-| AC-016 | 狭い空きでcompact／fallback | Partial / Gate pending | compact／NoFit routing自動契約は合格。左揃えは仕様どおりHidden | center-aligned NoFit Floating目視・入力：[Issue #33](https://github.com/rimtty/QuickPods/issues/33) |
+| AC-016 | 狭い空きでcompact／fallback | Proven | compact／NoFit routing自動契約、Phase 0のNoFit実機fallback、左揃えの仕様どおりHiddenを確認。2026-08-07に専用のcenter-aligned NoFit再現Gateを不要と判断 | なし |
 | AC-017 | DPI 100／125／150／200%で表示・入力ずれなし | Proven | [Phase 5A](../phase-5a/test-results.md)のlocal-console `visual.83`で100／125／150／175／200／225／250／300／350%をlive切替し、全点のtaskbar追従・入力を目視合格。ログ上も8回の表示変更回復、Host継続、Warning／Error 0件 | なし |
-| AC-018 | Explorer再起動後10秒以内に1面だけ復旧 | Partial / Gate pending | Phase 0 Spikeは10/10、[Phase 3B](../phase-3b/ipc-recovery/test-results.md)はsynthetic `TaskbarCreated`とHost／Observer復旧、Phase 5CはStart 10秒超でnative面維持 | 製品版Explorer restart／resource：[Issue #34](https://github.com/rimtty/QuickPods/issues/34)、[Issue #48](https://github.com/rimtty/QuickPods/issues/48) |
+| AC-018 | Explorer再起動後10秒以内に1面だけ復旧 | Partial / Gate pending | Phase 0 Spikeは10/10、[Phase 3B](../phase-3b/ipc-recovery/test-results.md)はsynthetic `TaskbarCreated`とHost／Observer復旧、Phase 5CはStart 10秒超でnative面維持 | 製品版Explorer restart：[Issue #34](https://github.com/rimtty/QuickPods/issues/34) |
 | AC-019 | 終了後に残骸ウィンドウなし | Proven | [Phase 3A](../phase-3a/display-host/test-results.md)、[Phase 3B](../phase-3b/ipc-recovery/test-results.md)、[Phase 5A](../phase-5a/test-results.md)で残留0 | なし |
-| AC-020 | native失敗時も音量・Bluetoothを利用可能 | Partial / Gate pending | [Phase 3B](../phase-3b/ipc-recovery/test-results.md)のHost失敗時App生存、通知領域／Hidden policy | center-aligned NoFitのoperator-visible fallback：[Issue #33](https://github.com/rimtty/QuickPods/issues/33) |
-| AC-021 | Explorerをクラッシュ／ハングさせない | Partial / Gate pending | 別process境界、Phase 0の10 restart、Phase 3A／3Bのbounded live runs | 製品版Explorer反復、世代別UIA資源、24時間観測：[Issue #18](https://github.com/rimtty/QuickPods/issues/18)、[Issue #34](https://github.com/rimtty/QuickPods/issues/34)、[Issue #48](https://github.com/rimtty/QuickPods/issues/48) |
+| AC-020 | native失敗時も音量・Bluetoothを利用可能 | Proven | [Phase 3B](../phase-3b/ipc-recovery/test-results.md)のHost失敗時App生存、通知領域／Hidden policy、製品画面からの音量／Bluetooth操作を確認。2026-08-07に専用のcenter-aligned NoFit再現Gateを不要と判断 | なし |
+| AC-021 | Explorerをクラッシュ／ハングさせない | Partial / Gate pending | 別process境界、Phase 0の10 restart、Phase 3A／3Bのbounded live runs、Issue #77のsanitized Observer世代診断と正常／異常回復 | 製品版Explorer反復、世代別UIA資源：[Issue #18](https://github.com/rimtty/QuickPods/issues/18)、[Issue #34](https://github.com/rimtty/QuickPods/issues/34) |
 | AC-022 | 管理者権限を要求しない | Partial / Gate pending | 通常権限のAudio／Bluetooth／policy実績、PR #51のper-user／non-elevated MSI静的検査 | clean standard-user MSI lifecycle：[Issue #50](https://github.com/rimtty/QuickPods/issues/50) |
 | AC-023 | 設定を再起動後も保持 | Proven | [Phase 5A](../phase-5a/test-results.md)の全設定JSON round-trip、破損時はPhase 5Bで隔離再生成 | なし |
 | AC-024 | 主要API失敗を分類済みログへ記録 | Proven | [Phase 5A](../phase-5a/test-results.md)のsanitized JSONL、[Phase 5B](../phase-5b/test-results.md)のlifecycle／interaction例外境界 | なし |
-| AC-025 | 24時間で継続的resource増加なし | Pending | [Phase 6A](../phase-6a/test-results.md)は3秒tooling smokeのみで合否対象外 | 24時間Gate D：[Issue #48](https://github.com/rimtty/QuickPods/issues/48) |
+| AC-025 | 承認されたエージング期間で重大な継続的resource増加なし | Proven | [Phase 6A](../phase-6a/test-results.md)のlocal-console `visual.84`を2.01時間、1,391 sample観測。App／Host継続、process tree崩壊・stderr・OS crash記録・アプリWarning／Errorなし。利用者が短縮範囲で重大なresource異常なしと承認 | なし |
 | AC-026 | フライアウトの主要操作をkeyboardで実行 | Proven | [Phase 5B](../phase-5b/test-results.md)のAutomation metadata／keyboard確定経路、[Phase 5C](../phase-5c/test-results.md)の統合UI・目視合格、[Phase 5A](../phase-5a/test-results.md)の150% local-console `Tab`／矢印キー／`Space`／`Escape`実操作 | なし |
 | AC-027 | Ceiling由来コードがあればMIT同梱 | Partial / Gate pending | PR #51で`ThirdPartyNotices.txt`と配布payload静的検査を実装 | Phase 6B統合・最終配布物確認：[Issue #50](https://github.com/rimtty/QuickPods/issues/50) |
 
@@ -48,19 +48,17 @@
 
 | 状態 | 件数 | AC |
 |---|---:|---|
-| Proven | 20 | 001～015、017、019、023、024、026 |
-| Partial / Gate pending | 6 | 016、018、020～022、027 |
-| Pending | 1 | 025 |
+| Proven | 23 | 001～017、019、020、023～026 |
+| Partial / Gate pending | 4 | 018、021、022、027 |
+| Pending | 0 | なし |
 
-`20 / 27 Proven`は現時点の完成率を表す数値ではなく、同じ範囲の証拠が揃った受入項目数である。実装済み行を自動的に`Proven`へ昇格しない。
+`23 / 27 Proven`は現時点の完成率を表す数値ではなく、同じ範囲の証拠が揃った受入項目数である。実装済み行を自動的に`Proven`へ昇格しない。2026-08-07の製品判断により、Issue #33の専用NoFit Floating再現とIssue #48のBluetooth 50-cycle耐久は追加Gateから除外し、resource観測は2.01時間、1,391 sampleの短縮範囲で重大な異常なしとして承認した。既存の安全なfallback実装とBluetoothの実機機能証拠は維持する。
 
 ## 残作業の最小Gateセット
 
 | Gate | 閉じるAC | 実施内容 |
 |---|---|---|
-| #33 | 016、020 | center-aligned NoFit Floatingのvisibility、z-order、input、cleanup |
-| #18／#34／#48 | 018、021 | 製品版Explorer restart、重複0、10秒以内、長寿命processのUSER／GDI非増加 |
-| #48 | 025 | 24時間resource Gate D |
+| #18／#34 | 018、021 | 製品版Explorer restart、重複0、10秒以内、長寿命processのUSER／GDI非増加 |
 | #50／PR #51 | 022、027 | clean standard-user MSI lifecycle、法務payload、署名済み最終成果物 |
 
 ## 追加P2証拠
