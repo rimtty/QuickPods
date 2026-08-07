@@ -3,7 +3,13 @@ name: CI
 on:
   push:
     branches: [main]
-  pull_request: {}
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   workflow_dispatch:
 
 permissions:
@@ -80,15 +86,17 @@ jobs:
           name: test-results
           path: TestResults/**
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 3
 
       - name: Publish release candidate
+        if: ${{ github.event_name != 'pull_request' }}
         run: >-
           ./build/Publish-ReleaseCandidate.ps1
           -OutputDirectory artifacts/rc
           -Version 0.1.0-ci.${{ github.run_number }}
 
       - name: Publish per-user MSI
+        if: ${{ github.event_name != 'pull_request' }}
         run: >-
           ./build/Publish-Installer.ps1
           -OutputDirectory artifacts/installer
@@ -98,6 +106,7 @@ jobs:
           -SkipRestore
 
       - name: Upload release candidate
+        if: ${{ github.event_name != 'pull_request' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: quickpods-release-candidate
@@ -106,9 +115,10 @@ jobs:
             artifacts/rc/SHA256SUMS.txt
             artifacts/rc/QuickPods/artifact-manifest.json
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 3
 
       - name: Upload per-user MSI
+        if: ${{ github.event_name != 'pull_request' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: quickpods-per-user-msi
@@ -118,4 +128,4 @@ jobs:
             artifacts/installer/installer-manifest.json
             artifacts/installer/payload-artifact-manifest.json
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 3
