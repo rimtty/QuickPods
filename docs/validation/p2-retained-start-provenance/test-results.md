@@ -2,7 +2,7 @@
 
 ## 対象
 
-2026-08-07、`codex/p2-retained-start-provenance`（base `bca36c4`）で Issue [#15](https://github.com/rimtty/QuickPods/issues/15) の保持した Start landmark の証拠化、verified factoryの出所検証、順序付きcontinuity attemptのfail-closed境界を実装した。
+2026-08-07、`codex/p2-retained-start-provenance`（最新検証base `2294b80`）で Issue [#15](https://github.com/rimtty/QuickPods/issues/15) の保持した Start landmark の証拠化、verified factoryの出所検証、順序付きcontinuity attemptのfail-closed境界を実装した。
 
 - 完全観測済み `TaskbarContinuityAnchor` からだけ private proof を生成する
 - `DirectExpected`、同一taskbar geometry、`StartButtonMissing`だけの不完全観測、fresh Start不在を生成時に要求する
@@ -25,11 +25,12 @@
 2026-08-07の結果：
 
 - `dotnet test tests/QuickPods.Spike.TaskbarHost.Tests/QuickPods.Spike.TaskbarHost.Tests.csproj -c Release --no-restore -p:TreatWarningsAsErrors=true`：183／183 Pass
-- `dotnet test QuickPods.sln -c Release --no-build --no-restore -- RunConfiguration.TreatNoTestsAsError=true`：376／376 Pass
+- `dotnet build QuickPods.sln -c Release --no-restore -warnaserror`：警告0、error 0
+- `dotnet test QuickPods.sln -c Release --no-build --no-restore`：398／398 Pass
   - Smoke 1
   - Default Endpoint Policy 7
   - Core Audio 44
-  - Foundation 76
+  - Foundation 98
   - Taskbar Host 183
   - Bluetooth KS 65
 - `dotnet format QuickPods.sln --verify-no-changes --no-restore --severity warn --verbosity minimal`：差分なし
