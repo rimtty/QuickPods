@@ -3,23 +3,28 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:contracts="clr-namespace:QuickPods.Contracts;assembly=QuickPods.Contracts"
         xmlns:local="clr-namespace:QuickPods.App"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="QuickPods"
-        Width="402"
-        MinWidth="402"
-        MaxWidth="402"
+        Width="382"
+        MinWidth="382"
+        MaxWidth="382"
         MaxHeight="760"
         SizeToContent="WidthAndHeight"
         WindowStartupLocation="Manual"
-        WindowStyle="None"
+        WindowStyle="SingleBorderWindow"
         ResizeMode="NoResize"
-        AllowsTransparency="True"
+        AllowsTransparency="False"
         ShowInTaskbar="False"
         ShowActivated="False"
         Topmost="True"
-        Background="Transparent"
+        Background="{DynamicResource WindowBrush}"
         Foreground="{DynamicResource PrimaryTextBrush}"
+        FontFamily="Segoe UI Variable Text, Yu Gothic UI"
         SnapsToDevicePixels="True"
+        UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        SourceInitialized="OnSourceInitialized"
         Loaded="OnLoaded"
         ContentRendered="OnContentRendered"
         SizeChanged="OnWindowSizeChanged"
@@ -28,6 +33,14 @@
         PreviewKeyDown="OnWindowPreviewKeyDown"
         Closing="OnClosing"
         Closed="OnClosed">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0"
+                            ResizeBorderThickness="0"
+                            GlassFrameThickness="0"
+                            CornerRadius="0"
+                            UseAeroCaptionButtons="False" />
+    </shell:WindowChrome.WindowChrome>
+
     <Window.Resources>
         <local:ImmutableBytesToImageSourceConverter x:Key="DeviceIconSourceConverter" />
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
@@ -110,19 +123,11 @@
     </Window.Resources>
 
     <Border x:Name="FlyoutSurface"
-            Margin="10,10,10,4"
+            Margin="0"
             Background="{DynamicResource WindowBrush}"
             BorderBrush="{DynamicResource PanelBorderBrush}"
             BorderThickness="1"
-            CornerRadius="16">
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="24"
-                              Direction="270"
-                              Opacity="0.52"
-                              ShadowDepth="5"
-                              Color="#000000" />
-        </Border.Effect>
-
+            CornerRadius="12">
         <ScrollViewer MaxHeight="720"
                       VerticalContentAlignment="Top"
                       HorizontalScrollBarVisibility="Disabled"

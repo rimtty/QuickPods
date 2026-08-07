@@ -2,11 +2,13 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Threading;
 using QuickPods.Contracts;
 using QuickPods.Core;
@@ -22,6 +24,10 @@ namespace QuickPods.App;
 
 public partial class MainWindow : Window
 {
+    private const int DwmUseImmersiveDarkMode = 20;
+    private const int DwmWindowCornerPreference = 33;
+    private const int DwmWindowCornerRound = 2;
+
     private readonly AudioController audio;
     private readonly BluetoothCatalogController? bluetoothCatalog;
     private readonly BluetoothOperationController? bluetoothOperations;
@@ -311,8 +317,14 @@ public partial class MainWindow : Window
             Math.Max(workArea.Top + 8, workArea.Bottom - height - bottomInset));
     }
 
-    private void OnContentRendered(object? sender, EventArgs eventArgs) =>
+    private void OnSourceInitialized(object? sender, EventArgs eventArgs) =>
+        ApplyNativeWindowTheme();
+
+    private void OnContentRendered(object? sender, EventArgs eventArgs)
+    {
+        ApplyNativeWindowTheme();
         PositionAboveTaskbarCore(placementAnchor);
+    }
 
     private void OnWindowSizeChanged(object sender, SizeChangedEventArgs eventArgs)
     {
@@ -716,7 +728,45 @@ public partial class MainWindow : Window
         productSettings = settings.Normalize();
         settingsWindow?.ApplySettings(productSettings);
         SettingsChanged?.Invoke(productSettings);
+        ApplyNativeWindowTheme();
     }
+
+    private void ApplyNativeWindowTheme()
+    {
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
+        {
+            return;
+        }
+
+        nint windowHandle = new WindowInteropHelper(this).Handle;
+        if (windowHandle == nint.Zero)
+        {
+            return;
+        }
+
+        bool useDarkFrame = System.Windows.Application.Current.Resources["WindowBrush"] is
+            SolidColorBrush brush &&
+            ((brush.Color.R * 299) + (brush.Color.G * 587) + (brush.Color.B * 114)) < 128000;
+        int darkMode = useDarkFrame ? 1 : 0;
+        int cornerPreference = DwmWindowCornerRound;
+        _ = DwmSetWindowAttribute(
+            windowHandle,
+            DwmUseImmersiveDarkMode,
+            ref darkMode,
+            sizeof(int));
+        _ = DwmSetWindowAttribute(
+            windowHandle,
+            DwmWindowCornerPreference,
+            ref cornerPreference,
+            sizeof(int));
+    }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(
+        nint windowHandle,
+        int attribute,
+        ref int attributeValue,
+        int attributeSize);
 
     private string CreateDiagnosticSummary()
     {
