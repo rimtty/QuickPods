@@ -54,7 +54,18 @@ public sealed class NativeTaskbarHostContractTests
         Assert.Equal(0, HostInteractionCalculator.VolumePercentFromWheel(0, -120));
 
         var session = new NativeSliderInteractionSession(TaskbarSurfaceMode.Floating);
-        Assert.True(session.SetState(new(TaskbarSurfaceMode.Native, 25, false, null)));
+        Assert.True(session.SetState(new(
+            TaskbarSurfaceMode.Native,
+            25,
+            false,
+            null,
+            TaskbarThemeMode.Light)));
+        Assert.False(session.SetState(new(
+            TaskbarSurfaceMode.Native,
+            25,
+            false,
+            null,
+            TaskbarThemeMode.Light)));
         Assert.True(session.TryBegin(
             layout,
             PointMessage(layout.TrackLeft, layout.CenterY),
@@ -90,6 +101,7 @@ public sealed class NativeTaskbarHostContractTests
         Assert.False(hover.TryRequestPreview());
 
         Assert.Equal(TaskbarSurfaceMode.Floating, session.State.SurfaceMode);
+        Assert.Equal(TaskbarThemeMode.Light, session.State.Theme);
         Assert.Equal((0L, HostInteractionKind.SetVolumePreview, 0),
             (started.Envelope.Sequence, started.Envelope.Kind, started.Envelope.VolumePercent));
         Assert.Equal((1L, HostInteractionKind.SetVolumePreview, 100),

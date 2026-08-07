@@ -4,7 +4,7 @@ namespace QuickPods.Contracts;
 
 public static class QuickPodsProtocol
 {
-    public const int Version = 4;
+    public const int Version = 5;
 
     public const int MaximumMessageCharacters = 16 * 1024;
 }
@@ -14,6 +14,13 @@ public enum TaskbarSurfaceMode
     Native,
     Floating,
     Hidden,
+}
+
+public enum TaskbarThemeMode
+{
+    Dark,
+    Light,
+    HighContrast,
 }
 
 public enum HostInteractionKind
@@ -102,7 +109,8 @@ public sealed record TaskbarStateSnapshot(
     TaskbarSurfaceMode SurfaceMode,
     int VolumePercent,
     bool IsMuted,
-    TaskbarDeviceView? SelectedDevice);
+    TaskbarDeviceView? SelectedDevice,
+    TaskbarThemeMode Theme = TaskbarThemeMode.Dark);
 
 public sealed record HostStateEnvelope
 {

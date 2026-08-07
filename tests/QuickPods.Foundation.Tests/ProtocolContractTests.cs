@@ -48,7 +48,12 @@ public sealed class ProtocolContractTests
     [Fact]
     public void JsonLineProtocolRoundTripsBothDirections()
     {
-        var snapshot = new TaskbarStateSnapshot(TaskbarSurfaceMode.Native, 64, true, null);
+        var snapshot = new TaskbarStateSnapshot(
+            TaskbarSurfaceMode.Native,
+            64,
+            true,
+            null,
+            TaskbarThemeMode.Light);
         var state = new HostStateEnvelope(QuickPodsProtocol.Version, 7, snapshot);
         var interaction = new HostInteractionEnvelope(
             QuickPodsProtocol.Version,
@@ -62,6 +67,7 @@ public sealed class ProtocolContractTests
             QuickPodsProtocolJson.DeserializeInteraction(QuickPodsProtocolJson.Serialize(interaction));
 
         Assert.Equal(state, restoredState);
+        Assert.Equal(TaskbarThemeMode.Light, restoredState.Snapshot.Theme);
         Assert.Equal(interaction, restoredInteraction);
         Assert.Equal(250d, restoredInteraction.Anchor?.CenterXDip);
         Assert.Equal(900d, restoredInteraction.Anchor?.TopDip);
