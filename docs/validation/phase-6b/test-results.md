@@ -99,4 +99,4 @@ GitHub Actions run 31118567631もrestore、toolchain、audit、format、build、
 
 clean local-console環境でのinstall／launch／update／uninstall／startup残骸確認と、署名証明書を用いた署名検証は実施していない。`build/Test-InstallerLifecycle.ps1`は既存user stateを拒否した上で旧版install、常駐中upgrade、常駐中uninstall、startup／user-data境界を一回で検証するが、現ホストにはWindows Sandboxが導入されておらず、通常user環境を変更して結果を代用していない。Phase 6Bの最終mergeはロードマップどおりGate D [#48](https://github.com/rimtty/QuickPods/issues/48)通過後とする。
 
-実Bluetooth [#38](https://github.com/rimtty/QuickPods/issues/38)／[#41](https://github.com/rimtty/QuickPods/issues/41)、local-console表示／電源 [#43](https://github.com/rimtty/QuickPods/issues/43)も未完了である。
+実Bluetooth catalog [#38](https://github.com/rimtty/QuickPods/issues/38)と物理接続／切断／既定出力 [#41](https://github.com/rimtty/QuickPods/issues/41)は合格した。local-console表示／電源 [#43](https://github.com/rimtty/QuickPods/issues/43)は未完了である。

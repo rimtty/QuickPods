@@ -15,7 +15,6 @@ public sealed class WindowsBluetoothDeviceOperationPort : IBluetoothDeviceOperat
     private static readonly TimeSpan ObservationInterval = TimeSpan.FromMilliseconds(250);
 
     private readonly WindowsBluetoothAudioCatalogPort catalog;
-    private readonly WindowsBluetoothCapabilityProbe capabilityProbe;
     private readonly BluetoothWorkerProcessRunner worker;
     private readonly MtaAudioWorker audioWorker = new();
     private int disposed;
@@ -24,7 +23,6 @@ public sealed class WindowsBluetoothDeviceOperationPort : IBluetoothDeviceOperat
     {
         this.catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         string workerPath = Path.Combine(AppContext.BaseDirectory, "QuickPods.BluetoothWorker.exe");
-        capabilityProbe = new WindowsBluetoothCapabilityProbe(workerPath);
         worker = new BluetoothWorkerProcessRunner(workerPath);
     }
 
@@ -67,14 +65,10 @@ public sealed class WindowsBluetoothDeviceOperationPort : IBluetoothDeviceOperat
                 BluetoothMutationFailure.None);
         }
 
-        BluetoothDeviceCapability capability = await capabilityProbe.ProbeAsync(
-            binding,
-            cancellationToken).ConfigureAwait(false);
-        if (capability != BluetoothDeviceCapability.DirectControl)
-        {
-            return Failure(preflight.ConnectionState, MapCapabilityFailure(capability));
-        }
-
+        // The catalog/controller already admitted only a DirectControl descriptor from this
+        // exact inventory generation. Repeating every Basic Support probe here starts several
+        // isolated workers for multi-profile devices and delays the actual reconnect request.
+        // The mutation worker still validates the concrete adapter and safely reports failure.
         string? reconnectAdapter = ResolveReconnectAdapter(binding);
         if (reconnectAdapter is null || !catalog.TryResolveBinding(target, out _))
         {
@@ -115,14 +109,6 @@ public sealed class WindowsBluetoothDeviceOperationPort : IBluetoothDeviceOperat
                 BluetoothConnectionState.Disconnected,
                 RequestSubmitted: false,
                 BluetoothMutationFailure.None);
-        }
-
-        BluetoothDeviceCapability capability = await capabilityProbe.ProbeAsync(
-            binding,
-            cancellationToken).ConfigureAwait(false);
-        if (capability != BluetoothDeviceCapability.DirectControl)
-        {
-            return Failure(preflight.ConnectionState, MapCapabilityFailure(capability));
         }
 
         string[] disconnectAdapters = ResolveDisconnectAdapters(binding);
@@ -327,15 +313,6 @@ public sealed class WindowsBluetoothDeviceOperationPort : IBluetoothDeviceOperat
             .SelectMany(endpoint => endpoint.AdapterDeviceIds)
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)];
-
-    private static BluetoothMutationFailure MapCapabilityFailure(
-        BluetoothDeviceCapability capability) =>
-        capability switch
-        {
-            BluetoothDeviceCapability.SettingsOnly => BluetoothMutationFailure.Unsupported,
-            BluetoothDeviceCapability.OwnershipUnknown => BluetoothMutationFailure.OwnershipUnknown,
-            _ => BluetoothMutationFailure.DeviceUnavailable,
-        };
 
     private static BluetoothDeviceOperationResult Failure(
         BluetoothConnectionState state,

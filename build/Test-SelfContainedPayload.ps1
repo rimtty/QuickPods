@@ -16,6 +16,18 @@ $requiredExecutables = @(
     "QuickPods.TaskbarObserver.exe",
     "QuickPods.BluetoothWorker.exe"
 )
+$requiredManagedAssemblies = @(
+    "QuickPods.dll",
+    "QuickPods.TaskbarHost.dll",
+    "QuickPods.TaskbarObserver.dll",
+    "QuickPods.BluetoothWorker.dll"
+)
+$requiredDependencyManifests = @(
+    "QuickPods.deps.json",
+    "QuickPods.TaskbarHost.deps.json",
+    "QuickPods.TaskbarObserver.deps.json",
+    "QuickPods.BluetoothWorker.deps.json"
+)
 $requiredRuntimeFiles = @(
     "hostfxr.dll",
     "hostpolicy.dll",
@@ -42,6 +54,8 @@ $runtimeConfigExpectations = [ordered]@{
 
 $requiredFiles = @(
     $requiredExecutables
+    $requiredManagedAssemblies
+    $requiredDependencyManifests
     $requiredRuntimeFiles
     $runtimeConfigExpectations.Keys
 )
@@ -106,6 +120,8 @@ foreach ($expectation in $runtimeConfigExpectations.GetEnumerator()) {
     PayloadDirectory = $payloadRoot
     DependencyMode = "selfContained"
     Executables = $requiredExecutables
+    ManagedAssemblies = $requiredManagedAssemblies
+    DependencyManifests = $requiredDependencyManifests
     RuntimeFiles = $requiredRuntimeFiles
     RuntimeConfigs = @($runtimeConfigExpectations.Keys)
     IncludedFrameworks = [pscustomobject]$includedFrameworkVersions

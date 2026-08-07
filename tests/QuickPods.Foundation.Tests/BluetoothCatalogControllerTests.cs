@@ -1,6 +1,7 @@
 using QuickPods.Core;
 using QuickPods.Core.Models;
 using QuickPods.Core.Ports;
+using QuickPods.Windows.Audio.Interop;
 using QuickPods.Windows.Bluetooth;
 using Xunit;
 
@@ -26,6 +27,12 @@ public sealed class BluetoothCatalogControllerTests
         Assert.StartsWith("bt-", first.Value, StringComparison.Ordinal);
         Assert.DoesNotContain(firstContainer.ToString("D"), first.Value, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void CoreAudioDeviceCollectionUsesTheWindowsSdkInterfaceId() =>
+        Assert.Equal(
+            new Guid("0BD7A1BE-7A1A-44DB-8397-CC5392387B5E"),
+            typeof(IMMDeviceCollection).GUID);
 
     [Fact]
     public void WindowsBindingRegistryRequiresTheExactNewestInventoryGeneration()
@@ -76,6 +83,27 @@ public sealed class BluetoothCatalogControllerTests
     }
 
     [Fact]
+    public void BluetoothPnpNodesCollapseProfilesIntoOnePhysicalContainer()
+    {
+        Guid device = new("11223344-5566-7788-99AA-BBCCDDEEFF00");
+        Guid other = new("11223344-5566-7788-99AA-BBCCDDEEFF01");
+
+        IReadOnlyDictionary<Guid, BluetoothPnpContainer> result =
+            WindowsBluetoothPnpInventory.Collate(
+            [
+                new(device, "hands-free-id", "AirPods Pro Hands-Free"),
+                new(device, "avrcp-id", "AirPods Pro AVRCP Transport"),
+                new(device, "preferred-id", "AirPods Pro"),
+                new(other, "other-id", null),
+            ]);
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal("AirPods Pro", result[device].DisplayName);
+        Assert.Equal("preferred-id", result[device].DeviceInstanceId);
+        Assert.Equal("Bluetooth audio", result[other].DisplayName);
+    }
+
+    [Fact]
     public async Task CatalogAggregatesProfilesAndKeepsDeviceFaultsIndependent()
     {
         var port = new QueueCatalogPort();
@@ -83,6 +111,7 @@ public sealed class BluetoothCatalogControllerTests
             Endpoint(DeviceA, "Same name", BluetoothAudioProfile.Stereo, BluetoothEndpointDirection.Render,
                 BluetoothEndpointAvailability.Active, BluetoothDeviceCapability.DirectControl) with
             {
+                IconPng = [1, 2, 3],
                 IsConsoleDefault = true,
                 IsMultimediaDefault = true,
             },
@@ -110,6 +139,7 @@ public sealed class BluetoothCatalogControllerTests
         Assert.Equal(BluetoothConnectionState.Connected, connected.ConnectionState);
         Assert.Equal(DefaultOutputState.Default, connected.DefaultOutputState);
         Assert.Equal(BluetoothDeviceCapability.DirectControl, connected.Capability);
+        Assert.Equal([1, 2, 3], connected.IconPng.AsEnumerable());
         Assert.Equal(
             [BluetoothAudioProfile.Stereo, BluetoothAudioProfile.HandsFree],
             connected.Profiles.AsEnumerable());

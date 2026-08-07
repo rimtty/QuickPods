@@ -3,16 +3,11 @@ using System.Runtime.InteropServices;
 using QuickPods.Core.Models;
 using QuickPods.Core.Ports;
 using QuickPods.Windows.Audio.Interop;
-using Windows.Devices.Enumeration;
 
 namespace QuickPods.Windows.Bluetooth;
 
 public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCatalogPort, IDisposable
 {
-    private const string PairedBluetoothAepSelector =
-        "(System.Devices.Aep.ProtocolId:=\"{E0CBF06C-CD8B-4647-BB8A-263B43F0F974}\" OR " +
-        "System.Devices.Aep.ProtocolId:=\"{BB7BB05E-5972-42B5-94FC-76EAA7084D49}\") AND " +
-        "System.Devices.Aep.IsPaired:=System.StructuredQueryType.Boolean#True";
     private const ushort VariantTypeUnsignedInt = 19;
     private const ushort VariantTypeWideString = 31;
     private const ushort VariantTypeClassId = 72;
@@ -29,18 +24,11 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
     private static readonly PropertyKey AudioEndpointFormFactor = new(
         new Guid("1DA5D803-D492-4EDD-8C23-E0C0FFEE7F0E"),
         0);
-    private static readonly string[] AepProperties =
-    [
-        "System.Devices.Aep.ContainerId",
-        "System.Devices.Aep.IsPaired",
-        "System.Devices.Aep.ProtocolId",
-        "System.Devices.Aep.Category",
-        "System.ItemNameDisplay",
-    ];
     private static readonly TimeSpan DiscoveryTimeout = TimeSpan.FromSeconds(20);
 
     private readonly MtaAudioWorker worker = new();
     private readonly WindowsBluetoothBindingRegistry bindingRegistry = new();
+    private readonly WindowsBluetoothDeviceIconReader deviceIconReader = new();
     private readonly WindowsBluetoothCapabilityProbe capabilityProbe;
     private int disposed;
 
@@ -67,11 +55,12 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(DiscoveryTimeout);
-        IReadOnlyDictionary<Guid, AepContainerMetadata> containers =
-            await ReadPairedBluetoothContainersAsync(timeout.Token).ConfigureAwait(false);
         WindowsBluetoothDiscovery discovery = await worker.InvokeAsync(
-            () => ReadAudioEndpoints(containers),
+            () => ReadAudioEndpoints(
+                WindowsBluetoothPnpInventory.ReadContainers(timeout.Token)),
             timeout.Token).ConfigureAwait(false);
+        IReadOnlyDictionary<BluetoothDeviceKey, ImmutableArray<byte>> icons =
+            await ReadDeviceIconsAsync(discovery, timeout.Token).ConfigureAwait(false);
         IReadOnlyDictionary<BluetoothDeviceKey, BluetoothDeviceCapability> capabilities =
             await ProbeCapabilitiesAsync(discovery.Bindings, timeout.Token).ConfigureAwait(false);
         _ = bindingRegistry.Publish(inventoryGeneration, discovery.Bindings);
@@ -79,6 +68,7 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
             inventoryGeneration,
             discovery.Endpoints.Select(endpoint => endpoint with
             {
+                IconPng = icons.GetValueOrDefault(endpoint.DeviceKey, []),
                 Capability = capabilities.GetValueOrDefault(
                     endpoint.DeviceKey,
                     BluetoothDeviceCapability.OwnershipUnknown),
@@ -119,6 +109,34 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
         return capabilities;
     }
 
+    private async Task<IReadOnlyDictionary<BluetoothDeviceKey, ImmutableArray<byte>>>
+        ReadDeviceIconsAsync(
+            WindowsBluetoothDiscovery discovery,
+            CancellationToken cancellationToken)
+    {
+        var icons = new Dictionary<BluetoothDeviceKey, ImmutableArray<byte>>();
+        foreach (WindowsBluetoothDeviceBinding binding in discovery.Bindings)
+        {
+            if (!discovery.Containers.TryGetValue(
+                    binding.ContainerId,
+                    out BluetoothPnpContainer? container))
+            {
+                continue;
+            }
+
+            ImmutableArray<byte> icon = await deviceIconReader.ReadAsync(
+                binding.ContainerId,
+                container.DeviceInstanceId,
+                cancellationToken).ConfigureAwait(false);
+            if (!icon.IsDefaultOrEmpty)
+            {
+                icons[binding.DeviceKey] = icon;
+            }
+        }
+
+        return icons;
+    }
+
     public void Dispose()
     {
         if (Interlocked.Exchange(ref disposed, 1) == 0)
@@ -127,42 +145,12 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
         }
     }
 
-    private static async Task<IReadOnlyDictionary<Guid, AepContainerMetadata>>
-        ReadPairedBluetoothContainersAsync(CancellationToken cancellationToken)
-    {
-        DeviceInformationCollection devices = await DeviceInformation.FindAllAsync(
-                PairedBluetoothAepSelector,
-                AepProperties,
-                DeviceInformationKind.AssociationEndpoint)
-            .AsTask(cancellationToken)
-            .ConfigureAwait(false);
-        var result = new Dictionary<Guid, AepContainerMetadata>();
-        foreach (DeviceInformation device in devices)
-        {
-            if (!ReadBoolean(device, "System.Devices.Aep.IsPaired") ||
-                !TryReadGuid(device, "System.Devices.Aep.ContainerId", out Guid containerId) ||
-                containerId == Guid.Empty)
-            {
-                continue;
-            }
-
-            var candidate = new AepContainerMetadata(
-                string.IsNullOrWhiteSpace(device.Name) ? "Bluetooth audio" : device.Name.Trim(),
-                ReadStringArray(device, "System.Devices.Aep.Category"));
-            result[containerId] = result.TryGetValue(containerId, out AepContainerMetadata? existing)
-                ? existing.Merge(candidate)
-                : candidate;
-        }
-
-        return result;
-    }
-
     private static WindowsBluetoothDiscovery ReadAudioEndpoints(
-        IReadOnlyDictionary<Guid, AepContainerMetadata> containers)
+        IReadOnlyDictionary<Guid, BluetoothPnpContainer> containers)
     {
         if (containers.Count == 0)
         {
-            return new([], []);
+            return new([], [], containers);
         }
 
         IMMDeviceEnumerator? enumerator = null;
@@ -229,7 +217,8 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
                 HasAmbiguousAdapterOwnership: false))]);
         return new(
             [.. discovered.Select(endpoint => endpoint.Evidence)],
-            bindings);
+            bindings,
+            containers);
     }
 
     internal static ImmutableArray<WindowsBluetoothDeviceBinding> MarkAmbiguousAdapterOwnership(
@@ -255,7 +244,7 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
 
     private static bool TryReadEndpoint(
         IMMDevice device,
-        IReadOnlyDictionary<Guid, AepContainerMetadata> containers,
+        IReadOnlyDictionary<Guid, BluetoothPnpContainer> containers,
         string? consoleDefaultId,
         string? multimediaDefaultId,
         out WindowsBluetoothEndpointDiscovery endpoint)
@@ -277,7 +266,7 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
                 device.OpenPropertyStore(StorageModeRead, out properties),
                 nameof(IMMDevice.OpenPropertyStore));
             Guid? containerId = ReadGuidProperty(properties, DeviceContainerId);
-            if (containerId is not Guid id || !containers.TryGetValue(id, out AepContainerMetadata? metadata))
+            if (containerId is not Guid id || !containers.TryGetValue(id, out BluetoothPnpContainer? metadata))
             {
                 return false;
             }
@@ -301,7 +290,7 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
                 new BluetoothAudioEndpointEvidence(
                     deviceKey,
                     displayName,
-                    ResolveKind(metadata.Categories, formFactor),
+                    ResolveKind(formFactor),
                     profile,
                     direction,
                     availability,
@@ -359,25 +348,8 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
         }
     }
 
-    private static BluetoothAudioKind ResolveKind(
-        ImmutableArray<string> categories,
-        uint formFactor)
+    private static BluetoothAudioKind ResolveKind(uint formFactor)
     {
-        if (categories.Any(category => category.Contains("Speaker", StringComparison.OrdinalIgnoreCase)))
-        {
-            return BluetoothAudioKind.Speaker;
-        }
-
-        if (categories.Any(category => category.Contains("Headset", StringComparison.OrdinalIgnoreCase)))
-        {
-            return BluetoothAudioKind.Headset;
-        }
-
-        if (categories.Any(category => category.Contains("Headphone", StringComparison.OrdinalIgnoreCase)))
-        {
-            return BluetoothAudioKind.Headphones;
-        }
-
         return formFactor switch
         {
             1 => BluetoothAudioKind.Speaker,
@@ -538,26 +510,6 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
         }
     }
 
-    private static bool ReadBoolean(DeviceInformation device, string key) =>
-        device.Properties.TryGetValue(key, out object? value) && value is true;
-
-    private static bool TryReadGuid(DeviceInformation device, string key, out Guid value)
-    {
-        if (device.Properties.TryGetValue(key, out object? property) && property is Guid guid)
-        {
-            value = guid;
-            return true;
-        }
-
-        value = default;
-        return false;
-    }
-
-    private static ImmutableArray<string> ReadStringArray(DeviceInformation device, string key) =>
-        device.Properties.TryGetValue(key, out object? value) && value is IEnumerable<string> values
-            ? [.. values.Where(item => !string.IsNullOrWhiteSpace(item))]
-            : [];
-
     private static bool IsEndpointLocalFailure(Exception exception) =>
         exception is COMException or InvalidCastException or CoreAudioInteropException;
 
@@ -569,21 +521,6 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
         }
     }
 
-    private sealed record AepContainerMetadata(
-        string DisplayName,
-        ImmutableArray<string> Categories)
-    {
-        internal AepContainerMetadata Merge(AepContainerMetadata other) =>
-            new(
-                new[] { DisplayName, other.DisplayName }
-                    .Order(StringComparer.OrdinalIgnoreCase)
-                    .First(),
-                [.. Categories
-                    .Concat(other.Categories)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .Order(StringComparer.OrdinalIgnoreCase)]);
-    }
-
     private sealed record WindowsBluetoothEndpointDiscovery(
         Guid ContainerId,
         BluetoothAudioEndpointEvidence Evidence,
@@ -591,6 +528,7 @@ public sealed partial class WindowsBluetoothAudioCatalogPort : IBluetoothAudioCa
 
     private sealed record WindowsBluetoothDiscovery(
         ImmutableArray<BluetoothAudioEndpointEvidence> Endpoints,
-        ImmutableArray<WindowsBluetoothDeviceBinding> Bindings);
+        ImmutableArray<WindowsBluetoothDeviceBinding> Bindings,
+        IReadOnlyDictionary<Guid, BluetoothPnpContainer> Containers);
 
 }

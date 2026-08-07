@@ -1,4 +1,7 @@
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Interop;
+using System.Windows.Media;
 using QuickPods.Core.Models;
 using WpfClipboard = System.Windows.Clipboard;
 
@@ -6,6 +9,12 @@ namespace QuickPods.App;
 
 public partial class SettingsWindow : Window
 {
+    private const int DwmUseImmersiveDarkMode = 20;
+    private const int DwmWindowCornerPreference = 33;
+    private const int DwmSystemBackdropType = 38;
+    private const int DwmWindowCornerRound = 2;
+    private const int DwmSystemBackdropMainWindow = 2;
+
     private readonly Func<QuickPodsSettings> readSettings;
     private readonly Func<QuickPodsSettings, Task<QuickPodsSettings>> updateSettings;
     private readonly Func<bool, Task<QuickPodsSettings>> updateStartup;
@@ -52,6 +61,7 @@ public partial class SettingsWindow : Window
             ConfirmBluetoothDisconnectCheckBox.IsChecked =
                 normalized.ConfirmBluetoothDisconnect;
             StartWithWindowsCheckBox.IsChecked = normalized.StartWithWindows;
+            ApplyNativeWindowTheme();
         }
         finally
         {
@@ -124,6 +134,37 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private async void OnResetSettings(object sender, RoutedEventArgs eventArgs)
+    {
+        if (applyingSettings || updatePending)
+        {
+            return;
+        }
+
+        await RunUpdateAsync(
+            ResetEditableSettingsAsync,
+            "設定を既定値に戻せませんでした");
+    }
+
+    private async Task<QuickPodsSettings> ResetEditableSettingsAsync()
+    {
+        QuickPodsSettings defaults = QuickPodsSettings.Default;
+        QuickPodsSettings current = readSettings();
+        if (current.StartWithWindows != defaults.StartWithWindows)
+        {
+            current = await updateStartup(defaults.StartWithWindows);
+        }
+
+        return await updateSettings(current with
+        {
+            DisplayMode = defaults.DisplayMode,
+            Theme = defaults.Theme,
+            MouseWheelStepPercent = defaults.MouseWheelStepPercent,
+            SetConnectedDeviceAsDefault = defaults.SetConnectedDeviceAsDefault,
+            ConfirmBluetoothDisconnect = defaults.ConfirmBluetoothDisconnect,
+        });
+    }
+
     private async Task RunUpdateAsync(
         Func<Task<QuickPodsSettings>> operation,
         string failureMessage)
@@ -155,6 +196,7 @@ public partial class SettingsWindow : Window
         SetConnectedDeviceAsDefaultCheckBox.IsEnabled = enabled;
         ConfirmBluetoothDisconnectCheckBox.IsEnabled = enabled;
         StartWithWindowsCheckBox.IsEnabled = enabled;
+        ResetSettingsButton.IsEnabled = enabled;
     }
 
     private void InitializeChoices()
@@ -187,5 +229,53 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private sealed record SettingChoice<T>(T Value, string Text);
+    private sealed record SettingChoice<T>(T Value, string Text)
+    {
+        public override string ToString() => Text;
+    }
+
+    private void OnSourceInitialized(object? sender, EventArgs eventArgs) =>
+        ApplyNativeWindowTheme();
+
+    private void ApplyNativeWindowTheme()
+    {
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
+        {
+            return;
+        }
+
+        nint windowHandle = new WindowInteropHelper(this).Handle;
+        if (windowHandle == nint.Zero)
+        {
+            return;
+        }
+
+        bool useDarkTitleBar = System.Windows.Application.Current.Resources["WindowBrush"] is SolidColorBrush brush &&
+            ((brush.Color.R * 299) + (brush.Color.G * 587) + (brush.Color.B * 114)) < 128000;
+        int darkMode = useDarkTitleBar ? 1 : 0;
+        int cornerPreference = DwmWindowCornerRound;
+        int backdropType = DwmSystemBackdropMainWindow;
+        _ = DwmSetWindowAttribute(
+            windowHandle,
+            DwmUseImmersiveDarkMode,
+            ref darkMode,
+            sizeof(int));
+        _ = DwmSetWindowAttribute(
+            windowHandle,
+            DwmWindowCornerPreference,
+            ref cornerPreference,
+            sizeof(int));
+        _ = DwmSetWindowAttribute(
+            windowHandle,
+            DwmSystemBackdropType,
+            ref backdropType,
+            sizeof(int));
+    }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(
+        nint windowHandle,
+        int attribute,
+        ref int attributeValue,
+        int attributeSize);
 }

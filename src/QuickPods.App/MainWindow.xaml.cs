@@ -249,6 +249,8 @@ public partial class MainWindow : Window
 
     internal Task RequestRefreshAsync() => RefreshAllAsync();
 
+    internal Task RequestBluetoothRefreshAsync() => RefreshBluetoothAsync();
+
     internal async Task RecoverAfterSystemChangeAsync()
     {
         if (IsVisible)
@@ -491,7 +493,7 @@ public partial class MainWindow : Window
         {
             BluetoothDeviceList.ItemsSource = bluetoothView.Devices;
             BluetoothDeviceList.SelectedValue = bluetoothView.SelectedDeviceKey;
-            BluetoothDeviceList.IsEnabled = !bluetoothView.IsRefreshing && !bluetoothView.IsBusy;
+            BluetoothDeviceList.IsHitTestVisible = !bluetoothView.IsRefreshing && !bluetoothView.IsBusy;
             BluetoothDeviceList.Visibility = bluetoothView.HasDevices
                 ? Visibility.Visible
                 : Visibility.Collapsed;
@@ -508,7 +510,10 @@ public partial class MainWindow : Window
                 ? "ペアリング済みのBluetoothオーディオを確認しています"
                 : "ペアリング済みのBluetoothオーディオがありません";
             EmptyRefreshButton.IsEnabled = !bluetoothView.IsRefreshing && !bluetoothView.IsBusy;
-            PrimaryActionButton.Content = bluetoothView.PrimaryActionText;
+            PrimaryActionText.Text = bluetoothView.PrimaryActionText;
+            PrimaryBusyIndicator.Visibility = bluetoothView.IsRefreshing || bluetoothView.IsBusy
+                ? Visibility.Visible
+                : Visibility.Collapsed;
             System.Windows.Automation.AutomationProperties.SetName(
                 PrimaryActionButton,
                 bluetoothView.PrimaryActionText);
@@ -518,12 +523,6 @@ public partial class MainWindow : Window
                     ? "上下矢印でデバイスを選択します。選択だけでは接続状態を変更しません。"
                     : BluetoothEmptyText.Text);
             PrimaryActionButton.IsEnabled = bluetoothView.IsPrimaryActionEnabled;
-            SoundSettingsButton.Visibility = bluetoothView.HasDevices
-                ? Visibility.Visible
-                : Visibility.Collapsed;
-            BluetoothSettingsButton.Visibility = bluetoothView.HasDevices
-                ? Visibility.Collapsed
-                : Visibility.Visible;
             BluetoothDiagnosticText.Text = bluetoothView.ErrorMessage ?? string.Empty;
             RefreshButton.IsEnabled = !bluetoothView.IsRefreshing && !bluetoothView.IsBusy;
         }
@@ -535,7 +534,7 @@ public partial class MainWindow : Window
 
     private async Task RefreshBluetoothAsync()
     {
-        if (bluetoothCatalog is null || bluetoothView.IsBusy)
+        if (bluetoothCatalog is null || bluetoothView.IsBusy || bluetoothRefreshing)
         {
             return;
         }

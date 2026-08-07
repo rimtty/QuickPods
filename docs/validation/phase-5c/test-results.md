@@ -36,6 +36,18 @@ flyout外へpointerを移した際のdismiss、empty-state card下18 px余白、
 
 最終stackはRelease build警告0／error 0、全回帰380／380、format、dependency audit、self-contained RC、per-user MSI生成に合格した。PR #54 CIは成功し、2026-08-07にPhase 6BへSquash commit `cc6b99b`として統合した。
 
+### タスクバー内Bluetooth状態表示（visual.74）
+
+選択機器名の後ろへ状態を連結する従来表示では、狭いtaskbar面で末尾省略されると`未接続`だけが見えなくなる問題を修正した。未接続、利用不可、確認中、および処理中は状態を先頭へ固定し、未接続時は`未接続 · AirPods Pro`の順で表示する。通常の接続済み状態は機器名を主表示として維持する。headphones横のstatus dotは未接続時にtrack color、接続中／接続済み時にaccent colorを使用する。
+
+Release solution buildは警告0／error 0、taskbar rendering focused testsは3／3 Pass、format verificationと`git diff --check`も成功した。自己完結payload `0.1.0-visual.74`（495 files、SHA-256 `3eafb5cd473e78b15592691bfb6340b37a12c112ecb4352a9f066df1d3feda75`）を起動し、ユーザーが未接続状態の先頭表示、グレーのstatus dot、および接続時のシアン表示を実機で目視確認して合格と判定した。
+
+### 設定導線と前面表示（visual.75）
+
+機器一覧の有無で`サウンド設定を開く`と`Bluetooth設定を開く`を排他的に重ねていた表示を廃止し、flyout下部へ2つの導線を横並びで常時表示する。Bluetooth導線には専用glyphを使用し、各ボタンは既存の`ms-settings:sound`／`ms-settings:bluetooth`境界を呼び出す。flyoutは`Topmost=True`、`ShowActivated=False`とし、通常のトップレベルwindowより前面を維持しながらhover表示時にkeyboard focusを奪わない。
+
+Release solution buildは警告0／error 0、Windows settings launcher／dismiss focused testsは2／2 Pass、format verificationと`git diff --check`も成功した。自己完結payload `0.1.0-visual.75`（495 files、SHA-256 `87db3940cd9089d082f15fd0c64821756107342cb221f11c3413ac5a5baae374`）で、ユーザーがWindows設定を重ねた状態でもQuickPodsが前面へ表示されること、hoverとfocusの挙動、および両設定導線の表示を実機で確認して合格と判定した。
+
 ## 後続Gate
 
 - local-consoleでtray右クリックの`QuickPods 設定...`から独立settings windowを開き、保存操作ができること（Issue #43）

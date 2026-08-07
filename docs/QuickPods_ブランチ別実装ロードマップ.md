@@ -24,7 +24,7 @@
 | 項目 | 状態 |
 |---|---|
 | Git | `main`はPhase 6A（PR #49）まで統合済み。Phase 5C PR #54はPhase 6BへSquash統合済み。Phase 6BはPR #51で最終Gate待ち |
-| Remote | `origin/main`へPhase 0～6Aの実装PRを統合済み。全体進捗はIssue #2、残存Gateは#15／#18／#19／#33／#34／#38／#41／#43／#48／#50で管理。Phase 5C #53は完了済み |
+| Remote | `origin/main`へPhase 0～6Aの実装PRを統合済み。全体進捗はIssue #2、残存Gateは#15／#18／#19／#33／#34／#43／#48／#50で管理。物理Bluetooth #38／#41とPhase 5C #53は完了済み |
 | 追跡対象 | 計画資料、ブランド資産、製品コード、インストーラー、検証証跡、既知の制限 |
 | ソース／テスト／CI | .NET 10製品solution、Windows CI、RC／MSI生成、focused regressionを運用中 |
 | AGENTS.md | なし |
@@ -378,7 +378,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 複数Bluetoothオーディオの列挙、集約、選択、能力をUIから独立して完成させる |
-| 状態 | **実装完了（2026-08-06）** — Issue #36／PR #37。実Bluetooth列挙のlocal-console最終GateはIssue #38 |
+| 状態 | **実装・local-console Gate完了（2026-08-07）** — Issue #36／PR #37、物理列挙・profile集約Gate #38。現行修正はPR #64で統合待ち |
 | 実装 | Container ID集約、A2DP/HFP統合、単一選択、永続化、読み取り専用更新、カタログ世代、機器単位Capability |
 | Gate AがNo-Go | 非対応機器だけ`BluetoothDriverUnsupported`とし、一覧とWindows設定導線は維持 |
 | テスト | 0／1／複数／同名、選択復元、再ペアリング、選択・更新の無操作、古い世代、無関係Endpoint障害の非波及 |
@@ -389,7 +389,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 選択機器の接続、既定出力設定、切断を複合操作として本体と表示ホストへ統合する |
-| 状態 | **実装完了（2026-08-06）** — Issue #39／PR #40。実機接続・切断・既定出力のlocal-console最終GateはIssue #41 |
+| 状態 | **実装・local-console Gate完了（2026-08-07）** — Issue #39／PR #40、実機接続・切断・既定出力Gate #41。現行修正はPR #64で統合待ち |
 | 実装 | KS操作、実状態確認、Console／Multimedia既定出力設定、部分成功、連打防止、StateSnapshot、設定導線 |
 | Gate A2がNo-Go | 接続済み・非既定を表示し、サウンド設定ランチャーを提供 |
 | 実機試験 | 参照機器接続→既定出力、切断、A→B→A、圏外、ケース内、他端末、無線OFF、再ペアリング、選択外影響 |
@@ -432,9 +432,9 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 承認済みモックに沿ってタスクバー常設面、hover flyout、Bluetooth空／一覧状態の視覚・操作忠実度を完成させる |
-| 状態 | **実装・UI手動Gate完了（2026-08-07）** — PR #54をPhase 6BへSquash統合。実pointer anchor、hover dismiss、tray-first起動、Start 10秒超continuity、Release build、380件回帰、ユーザー目視に合格。実Bluetooth一覧はIssue #38／#41、local-console DPI／keyboardはIssue #43へ継続 |
+| 状態 | **実装・UI手動Gate完了（2026-08-07）** — PR #54をPhase 6BへSquash統合。実pointer anchor、hover dismiss、tray-first起動、Start 10秒超continuity、Release build、380件回帰、ユーザー目視に合格。実Bluetooth #38／#41は合格し、local-console DPI／keyboard #43へ継続 |
 | 実装 | タスクバー内volume／device表示、non-activating hover、surface anchor、borderless flyout、空一覧、device rows、主操作、設定導線 |
-| 境界 | 左揃え非対応policyを維持。実BluetoothはIssue #38／#41、local-console DPIはIssue #43で判定 |
+| 境界 | 左揃え非対応policyを維持。物理Bluetooth #38／#41は合格済み、local-console DPIはIssue #43で判定 |
 | 完了条件 | **達成** — ユーザー目視とPR #54 CIに合格し、物理機器／DPIの明示的な後続Gateを閉じずにPhase 6Bへ統合 |
 
 ### Phase 6：Release Candidateと配布

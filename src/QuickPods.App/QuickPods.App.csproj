@@ -67,4 +67,20 @@
           SkipUnchangedFiles="true" />
   </Target>
 
+  <!-- ProjectReference with ReferenceOutputAssembly=false keeps the helper processes out of
+       the app's dependency graph. Publish therefore needs an explicit final copy of their
+       managed entry assemblies; the apphost/deps/runtimeconfig files are already discovered. -->
+  <Target Name="CopyHelperManagedAssembliesToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <_HelperManagedAssembly Include="$(TargetDir)QuickPods.TaskbarHost.dll" />
+      <_HelperManagedAssembly Include="$(TargetDir)QuickPods.TaskbarObserver.dll" />
+      <_HelperManagedAssembly Include="$(TargetDir)QuickPods.BluetoothWorker.dll" />
+    </ItemGroup>
+    <Error Condition="!Exists('%(_HelperManagedAssembly.Identity)')"
+           Text="Required QuickPods helper assembly is missing: %(_HelperManagedAssembly.Identity)" />
+    <Copy SourceFiles="@(_HelperManagedAssembly)"
+          DestinationFolder="$(PublishDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>

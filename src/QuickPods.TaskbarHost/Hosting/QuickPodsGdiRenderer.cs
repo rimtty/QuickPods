@@ -198,14 +198,11 @@ internal static class QuickPodsGdiRenderer
             deviceIconLeft,
             height / 2,
             Math.Max(13, (int)Math.Round(18d * scale)),
-            state.HasSelectedDevice,
+            state.HasActiveDeviceConnection,
             theme);
-        string label = state.HasSelectedDevice && !string.IsNullOrWhiteSpace(state.DeviceStatusText)
-            ? $"{state.DeviceDisplayName} {state.DeviceStatusText}"
-            : state.DeviceDisplayName;
         DrawLabel(
             deviceContext,
-            label,
+            state.DeviceLabel,
             new NativeRect
             {
                 Left = deviceTextLeft,
@@ -319,7 +316,7 @@ internal static class QuickPodsGdiRenderer
         int left,
         int centerY,
         int size,
-        bool hasDevice,
+        bool hasActiveConnection,
         TaskbarRenderTheme theme)
     {
         int top = centerY - (size / 2);
@@ -359,7 +356,7 @@ internal static class QuickPodsGdiRenderer
         });
 
         int dotRadius = Math.Max(2, size / 7);
-        uint dotColor = hasDevice ? theme.AccentColor : theme.TrackColor;
+        uint dotColor = hasActiveConnection ? theme.AccentColor : theme.TrackColor;
         using SafeGdiObjectHandle dotBrush = CreateBrush(dotColor);
         using SafeGdiObjectHandle dotPen = CreatePen(1, dotColor);
         WithSelectedObjects(deviceContext, dotBrush, dotPen, () =>

@@ -18,7 +18,11 @@ public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposab
         try
         {
             AudioEventContext eventContext = AudioEventContext.Create();
-            session = worker.Invoke(() => new CoreAudioSession(worker, Publish, eventContext));
+            session = worker.Invoke(() => new CoreAudioSession(
+                worker,
+                Publish,
+                PublishTopologyChanged,
+                eventContext));
         }
         catch
         {
@@ -28,6 +32,8 @@ public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposab
     }
 
     public event EventHandler<AudioStateChangedEventArgs>? StateChanged;
+
+    public event EventHandler? TopologyChanged;
 
     public ValueTask<AudioState> ReadAsync(CancellationToken cancellationToken) =>
         InvokeAsync(session.GetSnapshot, cancellationToken);
@@ -70,6 +76,8 @@ public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposab
         StateChanged?.Invoke(this, new AudioStateChangedEventArgs(state, isSelfOriginated));
     }
 
+    private void PublishTopologyChanged() => TopologyChanged?.Invoke(this, EventArgs.Empty);
+
     private sealed class CoreAudioSession : IDisposable
     {
         private const int ElementNotFound = unchecked((int)0x80070490);
@@ -82,6 +90,7 @@ public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposab
 
         private readonly MtaAudioWorker worker;
         private readonly Action<AudioState, bool> stateSink;
+        private readonly Action topologySink;
         private readonly AudioEventContext eventContext;
         private readonly AudioRole role = AudioRole.Console;
         private readonly IMMDeviceEnumerator enumerator;
@@ -96,17 +105,20 @@ public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposab
         public CoreAudioSession(
             MtaAudioWorker worker,
             Action<AudioState, bool> stateSink,
+            Action topologySink,
             AudioEventContext eventContext)
         {
             this.worker = worker;
             this.stateSink = stateSink;
+            this.topologySink = topologySink;
             this.eventContext = eventContext;
             enumerator = (IMMDeviceEnumerator)(object)new MMDeviceEnumeratorComObject();
             deviceNotificationClient = new DefaultDeviceNotificationClient(
                 role,
                 worker.TryPost,
                 RebindDefaultEndpointSafely,
-                HandleDeviceStateChanged);
+                HandleDeviceStateChanged,
+                topologySink);
             recoveryTimer = new Timer(
                 _ => worker.TryPost(RebindDefaultEndpointSafely),
                 null,

@@ -46,12 +46,13 @@ public partial class App : WpfApplication, IDisposable
     private readonly HashSet<string> pendingLifecycleReasons = new(StringComparer.Ordinal);
     private QuickPodsSettings productSettings = QuickPodsSettings.Default;
     private DispatcherTimer? lifecycleRecoveryTimer;
-    private DispatcherTimer? flyoutPreviewDismissTimer;
+    private DispatcherTimer? flyoutDismissTimer;
+    private DispatcherTimer? bluetoothTopologyRefreshTimer;
     private TaskbarSurfaceAnchor? lastTaskbarAnchor;
     private bool lifecycleRecoveryRunning;
     private bool lifecycleEventsSubscribed;
     private bool productSettingsInitialized;
-    private bool flyoutPreviewActive;
+    private bool flyoutAutoDismissActive;
     private bool disposed;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -115,14 +116,26 @@ public partial class App : WpfApplication, IDisposable
         window.FlyoutPointerEntered += OnFlyoutPointerEntered;
         window.FlyoutPointerExited += OnFlyoutPointerExited;
         MainWindow = window;
-        flyoutPreviewDismissTimer = new DispatcherTimer(
+        flyoutDismissTimer = new DispatcherTimer(
             TimeSpan.FromMilliseconds(420),
             DispatcherPriority.Background,
-            OnFlyoutPreviewDismissTick,
+            OnFlyoutDismissTick,
             Dispatcher)
         {
             IsEnabled = false,
         };
+        bluetoothTopologyRefreshTimer = new DispatcherTimer(
+            TimeSpan.FromMilliseconds(450),
+            DispatcherPriority.Background,
+            OnBluetoothTopologyRefreshTick,
+            Dispatcher)
+        {
+            IsEnabled = false,
+        };
+        if (windowsAudio is not null)
+        {
+            windowsAudio.TopologyChanged += OnAudioTopologyChanged;
+        }
 
         bool trayIconAvailable = false;
         try
@@ -224,8 +237,14 @@ public partial class App : WpfApplication, IDisposable
             window.FlyoutPointerExited -= OnFlyoutPointerExited;
         }
 
-        flyoutPreviewDismissTimer?.Stop();
-        flyoutPreviewDismissTimer = null;
+        flyoutDismissTimer?.Stop();
+        flyoutDismissTimer = null;
+        bluetoothTopologyRefreshTimer?.Stop();
+        bluetoothTopologyRefreshTimer = null;
+        if (windowsAudio is not null)
+        {
+            windowsAudio.TopologyChanged -= OnAudioTopologyChanged;
+        }
 
         if (taskbarHost is not null)
         {
@@ -543,13 +562,13 @@ public partial class App : WpfApplication, IDisposable
                 break;
             case HostInteractionKind.OpenAudioFlyout:
             case HostInteractionKind.OpenContextMenu:
-                ShowMainWindow(interaction.Anchor, activate: true, preview: false);
+                ShowMainWindow(interaction.Anchor, activate: true, autoDismiss: true);
                 break;
             case HostInteractionKind.PreviewAudioFlyout:
-                ShowMainWindow(interaction.Anchor, activate: false, preview: true);
+                ShowMainWindow(interaction.Anchor, activate: false, autoDismiss: true);
                 break;
             case HostInteractionKind.TaskbarPointerExited:
-                ScheduleFlyoutPreviewDismiss();
+                ScheduleFlyoutDismiss();
                 break;
         }
     }
@@ -753,12 +772,12 @@ public partial class App : WpfApplication, IDisposable
     }
 
     private void ShowMainWindow() =>
-        ShowMainWindow(lastTaskbarAnchor, activate: true, preview: false);
+        ShowMainWindow(lastTaskbarAnchor, activate: true, autoDismiss: false);
 
     private void ShowMainWindow(
         TaskbarSurfaceAnchor? anchor,
         bool activate,
-        bool preview)
+        bool autoDismiss)
     {
         if (MainWindow is not MainWindow window)
         {
@@ -777,8 +796,9 @@ public partial class App : WpfApplication, IDisposable
         }
 
         window.PositionAboveTaskbar(lastTaskbarAnchor);
-        flyoutPreviewActive = preview;
-        flyoutPreviewDismissTimer?.Stop();
+        RequestBluetoothStateRefresh(window);
+        flyoutAutoDismissActive = autoDismiss;
+        flyoutDismissTimer?.Stop();
 
         if (activate)
         {
@@ -786,40 +806,108 @@ public partial class App : WpfApplication, IDisposable
         }
     }
 
-    private void OnFlyoutPointerEntered(object? sender, EventArgs eventArgs) =>
-        ScheduleFlyoutPreviewDismiss();
-
-    private void OnFlyoutPointerExited(object? sender, EventArgs eventArgs) =>
-        ScheduleFlyoutPreviewDismiss();
-
-    private void ScheduleFlyoutPreviewDismiss()
+    private void OnAudioTopologyChanged(object? sender, EventArgs eventArgs)
     {
-        if (!flyoutPreviewActive || flyoutPreviewDismissTimer is null)
+        if (disposed || Dispatcher.HasShutdownStarted)
         {
             return;
         }
 
-        flyoutPreviewDismissTimer.Stop();
-        flyoutPreviewDismissTimer.Start();
+        _ = Dispatcher.InvokeAsync(() =>
+        {
+            if (disposed || bluetoothTopologyRefreshTimer is null)
+            {
+                return;
+            }
+
+            bluetoothTopologyRefreshTimer.Stop();
+            bluetoothTopologyRefreshTimer.Start();
+        }, DispatcherPriority.Background);
     }
 
-    private void OnFlyoutPreviewDismissTick(object? sender, EventArgs eventArgs)
+    private void OnBluetoothTopologyRefreshTick(object? sender, EventArgs eventArgs)
     {
-        flyoutPreviewDismissTimer?.Stop();
+        bluetoothTopologyRefreshTimer?.Stop();
+        Log(
+            QuickPodsLogLevel.Information,
+            "BluetoothTopologyRefreshRequested",
+            "Windows reported an audio topology change; QuickPods requested a Bluetooth state refresh.");
+        if (MainWindow is MainWindow window)
+        {
+            RequestBluetoothStateRefresh(window);
+        }
+    }
+
+    private void RequestBluetoothStateRefresh(MainWindow window) =>
+        _ = RefreshBluetoothStateSafelyAsync(window);
+
+    private async Task RefreshBluetoothStateSafelyAsync(MainWindow window)
+    {
+        Task? initialization = bluetoothInitialization;
+        if (initialization is null || disposed)
+        {
+            return;
+        }
+
+        try
+        {
+            await initialization;
+            if (!disposed)
+            {
+                await window.RequestBluetoothRefreshAsync();
+            }
+        }
+        catch (OperationCanceledException) when (
+            disposed || bluetoothLifetime?.IsCancellationRequested == true)
+        {
+        }
+        catch (Exception exception)
+        {
+            Log(
+                QuickPodsLogLevel.Warning,
+                "BluetoothStateRefreshFailed",
+                "QuickPods could not refresh Bluetooth state after a Windows topology change.",
+                new Dictionary<string, object?>
+                {
+                    ["FailureType"] = exception.GetType().Name,
+                });
+        }
+    }
+
+    private void OnFlyoutPointerEntered(object? sender, EventArgs eventArgs) =>
+        ScheduleFlyoutDismiss();
+
+    private void OnFlyoutPointerExited(object? sender, EventArgs eventArgs) =>
+        ScheduleFlyoutDismiss();
+
+    private void ScheduleFlyoutDismiss()
+    {
+        if (!flyoutAutoDismissActive || flyoutDismissTimer is null)
+        {
+            return;
+        }
+
+        flyoutDismissTimer.Stop();
+        flyoutDismissTimer.Start();
+    }
+
+    private void OnFlyoutDismissTick(object? sender, EventArgs eventArgs)
+    {
+        flyoutDismissTimer?.Stop();
         if (MainWindow is not MainWindow window)
         {
             return;
         }
 
         switch (FlyoutDismissPolicy.Decide(
-            flyoutPreviewActive,
+            flyoutAutoDismissActive,
             window.IsPointerWithinFlyoutBounds()))
         {
             case FlyoutDismissAction.Rearm:
-                ScheduleFlyoutPreviewDismiss();
+                ScheduleFlyoutDismiss();
                 break;
             case FlyoutDismissAction.Hide:
-                flyoutPreviewActive = false;
+                flyoutAutoDismissActive = false;
                 window.Hide();
                 break;
         }
@@ -884,6 +972,7 @@ public partial class App : WpfApplication, IDisposable
             SetBrushColor("FocusBrush", WpfSystemColors.HighlightColor);
             SetBrushColor("ErrorBrush", WpfSystemColors.WindowTextColor);
             SetBrushColor("PrimaryButtonTextBrush", WpfSystemColors.HighlightTextColor);
+            SetBrushColor("ToggleThumbBrush", WpfSystemColors.WindowColor);
             return;
         }
 
@@ -905,6 +994,7 @@ public partial class App : WpfApplication, IDisposable
             SetBrushColor("FocusBrush", MediaColor.FromRgb(0x00, 0x6C, 0x80));
             SetBrushColor("ErrorBrush", MediaColor.FromRgb(0xA4, 0x26, 0x2C));
             SetBrushColor("PrimaryButtonTextBrush", MediaColor.FromRgb(0x10, 0x21, 0x26));
+            SetBrushColor("ToggleThumbBrush", Colors.White);
             return;
         }
 
@@ -922,6 +1012,7 @@ public partial class App : WpfApplication, IDisposable
         SetBrushColor("FocusBrush", MediaColor.FromRgb(0xB9, 0xF4, 0xFF));
         SetBrushColor("ErrorBrush", MediaColor.FromRgb(0xFF, 0xB4, 0xA9));
         SetBrushColor("PrimaryButtonTextBrush", MediaColor.FromRgb(0x10, 0x21, 0x26));
+        SetBrushColor("ToggleThumbBrush", MediaColor.FromRgb(0xF5, 0xF7, 0xFA));
     }
 
     private void SetBrushColor(string resourceKey, MediaColor color)
