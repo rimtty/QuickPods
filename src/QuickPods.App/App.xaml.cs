@@ -341,6 +341,11 @@ public partial class App : WpfApplication, IDisposable
         object? sender,
         TaskbarHostSupervisorState state)
     {
+        if (state.Lifecycle != TaskbarHostLifecycle.Connected)
+        {
+            _ = Dispatcher.InvokeAsync(() => UpdateTaskbarSurfaceAnchor(null));
+        }
+
         Log(
             state.Lifecycle == TaskbarHostLifecycle.DisabledForSession
                 ? QuickPodsLogLevel.Warning
@@ -551,6 +556,12 @@ public partial class App : WpfApplication, IDisposable
             return;
         }
 
+        if (interaction.Kind == HostInteractionKind.TaskbarSurfaceAnchorChanged)
+        {
+            UpdateTaskbarSurfaceAnchor(interaction.Anchor);
+            return;
+        }
+
         if (controller is null)
         {
             return;
@@ -578,6 +589,17 @@ public partial class App : WpfApplication, IDisposable
                 ScheduleFlyoutDismiss();
                 break;
         }
+    }
+
+    private void UpdateTaskbarSurfaceAnchor(TaskbarSurfaceAnchor? anchor)
+    {
+        lastTaskbarAnchor = anchor;
+        if (anchor is null || MainWindow is not MainWindow window || !window.IsVisible)
+        {
+            return;
+        }
+
+        window.PositionAboveTaskbar(anchor);
     }
 
     private void LogObserverLifecycle(HostInteractionEnvelope interaction)

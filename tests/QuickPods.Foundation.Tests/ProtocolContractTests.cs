@@ -95,6 +95,31 @@ public sealed class ProtocolContractTests
     }
 
     [Fact]
+    public void SurfaceAnchorNotificationCanPublishOrClearVerifiedPlacement()
+    {
+        var anchor = new TaskbarSurfaceAnchor(900, 1350, 1320, 1410, 144);
+        var available = new HostInteractionEnvelope(
+            QuickPodsProtocol.Version,
+            12,
+            HostInteractionKind.TaskbarSurfaceAnchorChanged,
+            anchor: anchor);
+        var unavailable = new HostInteractionEnvelope(
+            QuickPodsProtocol.Version,
+            13,
+            HostInteractionKind.TaskbarSurfaceAnchorChanged);
+
+        Assert.Equal(anchor, QuickPodsProtocolJson.DeserializeInteraction(
+            QuickPodsProtocolJson.Serialize(available)).Anchor);
+        Assert.Null(QuickPodsProtocolJson.DeserializeInteraction(
+            QuickPodsProtocolJson.Serialize(unavailable)).Anchor);
+        Assert.Throws<ArgumentException>(() => new HostInteractionEnvelope(
+            QuickPodsProtocol.Version,
+            14,
+            HostInteractionKind.ToggleMute,
+            anchor: anchor));
+    }
+
+    [Fact]
     public void TaskbarAnchorUsesCapturedDpiAcrossEveryWindowsScaleVariant()
     {
         uint[] dpis = [96, 120, 144, 168, 192, 216, 240, 288, 336];

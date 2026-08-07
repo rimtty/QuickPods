@@ -4,7 +4,7 @@ namespace QuickPods.Contracts;
 
 public static class QuickPodsProtocol
 {
-    public const int Version = 3;
+    public const int Version = 4;
 
     public const int MaximumMessageCharacters = 16 * 1024;
 }
@@ -25,6 +25,7 @@ public enum HostInteractionKind
     OpenContextMenu,
     PreviewAudioFlyout,
     TaskbarPointerExited,
+    TaskbarSurfaceAnchorChanged,
     TaskbarObserverTaskbarCreated,
     TaskbarObserverGenerationChanged,
     TaskbarObserverFaulted,
@@ -167,11 +168,12 @@ public sealed record HostInteractionEnvelope
             HostInteractionKind.OpenAudioFlyout or
             HostInteractionKind.OpenContextMenu or
             HostInteractionKind.PreviewAudioFlyout or
-            HostInteractionKind.TaskbarPointerExited;
+            HostInteractionKind.TaskbarPointerExited or
+            HostInteractionKind.TaskbarSurfaceAnchorChanged;
         if (!anchorInteraction && anchor is not null)
         {
             throw new ArgumentException(
-                "Only flyout interactions may include a taskbar surface anchor.",
+                "Only flyout and surface-anchor interactions may include a taskbar surface anchor.",
                 nameof(anchor));
         }
 

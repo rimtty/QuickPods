@@ -48,6 +48,14 @@ Release solution buildは警告0／error 0、taskbar rendering focused testsは3
 
 Release solution buildは警告0／error 0、Windows settings launcher／dismiss focused testsは2／2 Pass、format verificationと`git diff --check`も成功した。自己完結payload `0.1.0-visual.75`（495 files、SHA-256 `87db3940cd9089d082f15fd0c64821756107342cb221f11c3413ac5a5baae374`）で、ユーザーがWindows設定を重ねた状態でもQuickPodsが前面へ表示されること、hoverとfocusの挙動、および両設定導線の表示を実機で確認して合格と判定した。
 
+### 起動直後のFlyout anchor（visual.86）
+
+`visual.85`では、background起動後にtaskbar面へ一度もhoverせず二つ目の`QuickPods.exe`を起動すると、単一instance activation自体は成功する一方、Appがtaskbar anchorをまだ保持していないためFlyoutがwork area中央へfallbackしていた。TaskbarHostが実際に表示しているsurfaceの検証済みphysical boundsとDPIを、flyout要求とは独立したprotocol notificationとしてAppへ通知するよう変更した。placement無効化時またはHost切断時はcacheを破棄し、再配置完了後に新しいanchorを通知する。既に表示中のFlyoutは有効な新anchorを受けた場合だけ再配置し、一時的なnull通知では非表示にしない。
+
+自己完結payload `0.1.0-visual.86`（495 files、SHA-256 `c3f9329259106fbaf043bf1bfb5599744c109e0d183106069c59b6048ed81ef8`）をbackground起動し、hover操作を一度も挟まず二つ目の同じEXEを起動した。secondaryはexit code 0で終了し、App／TaskbarHost／TaskbarObserverは各1 processを維持した。ユーザーはFlyoutが画面中央ではなくtaskbar内QuickPods surface直上へ表示されることを実機で確認した。
+
+変更後はprotocol契約を含む全回帰398／398 Pass、format verification、`git diff --check`、self-contained payload検証に成功した。Taskbar anchorはHostが取得したDPI付きphysical座標をそのまま使用し、App側でmonitor中央や固定倍率から推測しない。
+
 ## 後続Gate
 
 - local-consoleでtray右クリックの`QuickPods 設定...`から独立settings windowを開き、保存操作ができること（Issue #43）
