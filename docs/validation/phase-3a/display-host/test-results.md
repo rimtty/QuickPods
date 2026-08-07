@@ -105,7 +105,7 @@ residual_process_count=0
 
 A 20-second preview and a separate 15-second evidence preview both completed naturally. A full virtual-screen capture taken while the latter was live showed the rendered QuickPods strip inside the center-aligned taskbar at the bottom center. The capture included unrelated application content and therefore remains an ignored local artifact rather than repository evidence. Together with the earlier operator input/Start/Search run, this proves `left-aligned Hidden → center-aligned Native`, actual rendering, input, continuity, and teardown. Phase 3A live acceptance is complete.
 
-The pre-policy Floating investigation exposed a possible generic z-order issue: a non-topmost Floating HWND could be live and visible according to Win32 while remaining below existing normal windows. Left alignment no longer exercises that path, so it does not block Phase 3A. Center-aligned NoFit reproduction and resolution are tracked by Issue #33 for Phase 3B.
+The pre-policy Floating investigation exposed a possible generic z-order issue: a non-topmost Floating HWND could be live and visible according to Win32 while remaining below existing normal windows. Left alignment no longer exercises that path, so it does not block Phase 3A. A dedicated center-aligned NoFit reproduction was tracked by Issue #33, then removed from the release gate by product decision on 2026-08-07; the existing fail-closed routing remains unchanged.
 
 ## Safety notes
 

@@ -4,8 +4,8 @@
 - Bluetoothの直接接続／切断はdriver capability依存であり、未対応機器はWindows設定へfallbackする。
 - RDP中はローカルBluetooth deviceを列挙・変更しない。Remote Audioの音量制御だけがCore Audioの既定endpointとして現れる場合がある。
 - 正式installer形式はユーザー単位MSIに確定したが、RC MSIはcode signing証明書の準備まで未署名である。自動更新は行わない。
-- local-consoleの実Bluetooth一覧・profile集約・接続／切断／既定出力は#38／#41で合格した。表示／電源受入れ（#43）、24時間resource／反復Gate（#48）は未完了である。
-- RDP上の短時間予備計測では3 processの単純合算Working Setが約214MB、Private Memoryが約64MBだった。共有pageを重複計上するWorking Setだけで結論を出さず、#48で時間変化と150MB目標を正式評価する。
+- local-consoleの実Bluetooth一覧・profile集約・接続／切断／既定出力は#38／#41で合格し、追加の50-cycle耐久は2026-08-07に不要と判断した。resource観測は2.01時間、1,391 sampleの短縮Gate Dを承認して#48を完了した。表示／電源受入れ（#43）とExplorer実再起動後の回復（#34）は未完了である。
+- RDP上の短時間予備計測では3 processの単純合算Working Setが約214MB、Private Memoryが約64MBだった。local-console Gate Dでは2.01時間の時間変化をPrivate Memory、Handle、GDI、USERと併記して確認し、共有pageを重複計上するWorking Setの絶対値だけでは判定していない。
 
 ## Distribution
 

@@ -50,7 +50,7 @@ focused smokeは次のとおり。
 - 稼働中の自己完結rc.62を3秒計測：3 samples、process count 2、本体継続
 - `git diff --check`：成功
 
-これは計測器の正否だけを確認した短時間試験であり、24時間resource Gate、Explorer反復、Bluetooth反復の合否には使用しない。
+これは計測器の正否だけを確認した短時間試験であり、24時間resource GateとExplorer反復の合否には使用しない。
 
 ## Gate D CSV解析の再現性
 
@@ -73,7 +73,7 @@ focused smokeは次のとおり。
 - Windows PowerShell 5.1：安定seriesを正常解析
 - 進行中の`visual.84` CSV：`-Preview`で解析でき、capture integrityはPreview、AC-025はReviewRequiredを維持
 
-growth signalはreview補助であり、自動的なleak判定ではない。共有self-contained .NET pageをprocessごとに重複計上し得るWorking Setは単純合算の絶対値だけで判定せず、時間推移とPrivate Memoryを併記する。
+growth signalはreview補助であり、自動的なleak判定ではない。共有self-contained .NET pageをprocessごとに重複計上し得るWorking Setは単純合算の絶対値だけで判定せず、時間推移とPrivate Memoryを併記する。Bluetooth 50-cycle耐久は、既存の実機機能証拠を十分とする2026-08-07の製品判断により追加Gateから除外した。
 
 ## 2026-08-07 Gate D短縮エージング判定
 
@@ -84,8 +84,7 @@ growth signalはreview補助であり、自動的なleak判定ではない。共
 この短いseriesには段階的allocationと終盤の緩やかな増加があるため、24時間相当の「leakなし」を証明するものではない。一方、Handle／GDI／USERの継続増加、process treeの崩壊、App／Hostの再起動、stderr、OS crash記録、アプリWarning／Errorはなく、利用者が短縮範囲で重大なresource異常なしと判定した。Issue #48のresource観測はこの証跡で完了とする。
 
 Observer世代交代の履歴原因は旧protocolでは記録されず断定不能だったため、Issue #77でprotocol version 3のsanitized lifecycle診断を追加した。`visual.85`では正常な`TaskbarCreated`がInformation／generation 0、Observer単体停止がWarningの`Disconnected`／generation 1として記録され、どちらもApp／TaskbarHostを維持してObserver一体へ回復した。詳細は[observer-lifecycle-diagnostics.md](observer-lifecycle-diagnostics.md)を参照する。
-
-## 未完了Gate
+## Gate依存関係
 
 - local-console表示／DPI／電源：[#43](https://github.com/rimtty/QuickPods/issues/43)
 - Explorer実再起動後の回復：[#34](https://github.com/rimtty/QuickPods/issues/34)

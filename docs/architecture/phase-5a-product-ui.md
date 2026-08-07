@@ -59,6 +59,6 @@ WPFの`ShutdownMode`は`OnExplicitShutdown`である。通常のウィンドウC
 
 - 実Bluetooth列挙：Issue #38
 - 実AirPods接続／切断／既定出力：Issue #41
-- RDPでは証明できない通知領域、製品画面、DPI、配置、クリック座標、ホイール：Issue #43（既存のtaskbar continuityは#33／#34）
+- RDPでは証明できない通知領域、製品画面、DPI、配置、クリック座標、ホイール：Issue #43（既存のtaskbar continuity／Explorer復旧は#34。#33の専用NoFit再現は2026-08-07に不要と判断）
 
 これらの未実施をPhase 5Aの自動テスト結果で代替しない。

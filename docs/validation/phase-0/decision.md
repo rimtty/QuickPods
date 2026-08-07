@@ -118,7 +118,7 @@ ConnectedDefault / ConnectedNotDefault
 | #18 UIA watcherのExplorer世代USER object増加 | P2 | Phase 3実装時、遅くともPhase 6前 | host別プロセス化はPhase 1で固定。解消は後続 |
 | #19 Core Audio複数出力の物理追試 | P2 | Phase 2／6互換性試験 | 通知・世代契約は採用済み。Phase 1 blockerではない |
 
-Phase 4では圏外、他端末接続中、Bluetooth無線OFF、再ペアリング、PolicyConfig部分状態を製品UIと設定導線を含めて検証する。Phase 6では長時間反復、別Windows build、リソース安定性を扱う。
+Phase 4では圏外、他端末接続中、Bluetooth無線OFF、再ペアリング、PolicyConfig部分状態を製品UIと設定導線を含めて検証する。Phase 6では別Windows buildとリソース安定性を扱う。Bluetoothの追加長時間反復は2026-08-07の製品判断で要求しない。
 
 ## Phase 1開始条件
 

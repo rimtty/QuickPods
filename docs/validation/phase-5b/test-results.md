@@ -44,4 +44,4 @@ Releaseの`QuickPods.exe`をRDPセッションで`--background`起動した。pr
 - sleep／hibernate復帰、RDP接続解除、monitor抜き差し
 - native／floatingの配置とrenderer
 
-物理Bluetooth列挙は[#38](https://github.com/rimtty/QuickPods/issues/38)、接続／切断／既定出力は[#41](https://github.com/rimtty/QuickPods/issues/41)のまま未完了とする。24時間resource試験（AC-025）はPhase 6で行う。
+この時点で未完了だった物理Bluetooth列挙[#38](https://github.com/rimtty/QuickPods/issues/38)と接続／切断／既定出力[#41](https://github.com/rimtty/QuickPods/issues/41)は後続の実機試験で完了した。resource試験（AC-025）はPhase 6で2.01時間、1,391 sampleの短縮Gate Dとして承認された。
