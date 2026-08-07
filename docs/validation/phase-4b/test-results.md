@@ -40,3 +40,7 @@ Default Submitted=False Failure=OwnershipUnknown State=Failed Capability=Verific
 `visual.73`の実機ログでは接続2回が13.936秒／14.401秒、切断2回が5.646秒／5.555秒ですべて成功した。接続中の最初のCore Audio topology通知は開始から2.226秒／7.103秒だった一方、Stereo Render Active後の`SettingDefault → Succeeded`は0.053秒／0.020秒だった。重複probe除去後も接続全体は短縮せず、WindowsがAirPodsのStereo Render endpointをActiveにする区間が支配的である。QuickPodsの固定待機やマイク取得待ちを短縮して解決できる遅延ではなく、Stereoが利用可能になる前に既定出力成功を返すことも行わない。
 
 同じ`visual.73`で、操作者が接続中／切断中の対象行と主操作ボタンにシアンのindicatorが回転表示されることを目視確認した。白い無効面を再発させず、状態文字列とanimationを同時に表示できたため処理中表示の視覚Gateは合格とする。Issue #41は所定の接続5回／切断5回、選択外機器への影響0、idempotent操作、adapter／driver情報を同一証跡へ揃えるまでopenのまま維持する。
+
+`visual.75`／`visual.76`の追加試行を含め、15秒以内に完了した接続成功は13.936秒、14.401秒、12.402秒、13.396秒、3.895秒の5回となった。切断成功は5回を超え、いずれも約5.5～5.9秒で5秒の安定windowを満たした。AirPodsがWindowsから切断された直後にペアリング済みiPhoneへ接続するmulti-host環境では、接続観測が15.122秒で2回timeoutした。試験的に接続期限だけ18秒へ延長しても18.136秒でtimeoutし、直後の手動retryが3.895秒で成功したため、固定期限延長は待ち時間だけを増やし根因を解消しないと判断して不採用とした。製品sourceは15秒、one-shot、自動retryなしを維持する。
+
+同じendpointがすでにActiveの状態で受けたConnect要求は、preflightから0.028秒で既定状態へ収束し、Bluetooth reconnect mutationを送らないidempotent経路を実機で通過した。Windows 11 Pro build 26200、MediaTek Bluetooth Adapter driver 1.1147.0.610、MediaTek Bluetooth Audio Device driver 1.6.0.48をsanitized環境証跡として記録した。multi-host timeout後の案内と遅延状態収束は[Issue #65](https://github.com/rimtty/QuickPods/issues/65)で追跡する。Issue #41は、選択外Bluetooth機器への影響0の操作者確認と、disconnected状態へのidempotent Disconnectを製品境界で確認するまでopenのまま維持する。

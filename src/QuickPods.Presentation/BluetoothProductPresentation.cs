@@ -262,7 +262,7 @@ public static class BluetoothProductPresenter
             QuickPodsErrorCode.BluetoothDriverUnsupported =>
                 "このデバイスはQuickPodsから直接操作できません。",
             QuickPodsErrorCode.BluetoothTimeout =>
-                "接続状態を期限内に確認できませんでした。状態を更新してから再試行してください。",
+                "接続状態を期限内に確認できませんでした。別の端末への接続や距離を確認し、状態を更新して再試行してください。",
             QuickPodsErrorCode.BluetoothSelectionStale =>
                 "デバイス一覧が更新されました。選択状態を確認してください。",
             QuickPodsErrorCode.BluetoothDeviceUnavailable =>
