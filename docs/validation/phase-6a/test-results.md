@@ -52,6 +52,29 @@ focused smokeは次のとおり。
 
 これは計測器の正否だけを確認した短時間試験であり、24時間resource Gate、Explorer反復、Bluetooth反復の合否には使用しない。
 
+## Gate D CSV解析の再現性
+
+24時間計測の完走後に人手だけでresource推移を集計すると、同じCSVでも判断根拠を再現しにくいため、Issue [#75](https://github.com/rimtty/QuickPods/issues/75)で`build/Summarize-QuickPodsResources.ps1`を追加した。解析器は読み取り専用であり、QuickPods、Bluetooth、Windows設定、計測中のCSVを変更しない。
+
+解析器は次を行う。
+
+- schema、0起点の連続sample番号、単調増加timestamp、非負metric、観測時間、最大sample gapを検証する
+- CPU、Working Set、Private Memory、Handle、GDI、USERとprocess countの範囲を集計する
+- 単発peakやGCだけをleakと扱わないよう、先頭／末尾10%のmedian差と全期間の最小二乗slopeを併記する
+- JSONとMarkdownを同時に生成する
+- capture integrityとperformance目標を分離し、AC-025を自動Passにはしない
+
+安定series、意図的に増加するseries、短縮series、sample番号を壊したseriesでfocused smokeを行った。結果は次のとおり。
+
+- 25時間の安定series：growth signalなし、final capture integrity Pass
+- 25時間の増加series：Private Memory、Working Set、Handle、GDI、USERをsignalとして検出
+- 45分の短縮series：要求時間不足としてfail closed
+- sample番号欠落series：連続性違反としてfail closed
+- Windows PowerShell 5.1：安定seriesを正常解析
+- 進行中の`visual.84` CSV：`-Preview`で解析でき、capture integrityはPreview、AC-025はReviewRequiredを維持
+
+growth signalはreview補助であり、自動的なleak判定ではない。最終Gateでは24時間series、アプリログ、Explorer反復、Bluetooth反復を合わせてAC-025を判定する。共有self-contained .NET pageをprocessごとに重複計上し得るWorking Setは単純合算の絶対値だけで判定せず、時間推移とPrivate Memoryを併記する。
+
 ## 未完了Gate
 
 - 物理Bluetooth列挙：[#38](https://github.com/rimtty/QuickPods/issues/38)
