@@ -772,17 +772,8 @@ public partial class MainWindow : Window
         try
         {
             bluetoothCatalogError = null;
-            BluetoothOperationSnapshot result = await operation();
-            string? operationError = BluetoothProductPresenter.Project(
-                bluetoothCatalog?.State ?? BluetoothAudioCatalogSnapshot.Empty,
-                result,
-                isRefreshing: false).ErrorMessage;
+            _ = await operation();
             await RefreshBluetoothAsync();
-            if (operationError is not null)
-            {
-                bluetoothCatalogError = operationError;
-            }
-
             ApplyBluetoothPresentation();
         }
         catch (Exception exception)

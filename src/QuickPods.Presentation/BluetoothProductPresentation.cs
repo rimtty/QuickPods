@@ -88,19 +88,16 @@ public static class BluetoothProductPresenter
             device => device.IsSelected);
         (ProductPrimaryActionKind action, string actionText, bool actionEnabled) =
             ResolvePrimaryAction(catalog, selected, operation, isRefreshing, isBusy);
-        bool matchingOperation = selected is not null && IsMatching(
-            selected,
-            catalog.InventoryGeneration,
-            operation);
         (BluetoothConnectionState selectedConnection, DefaultOutputState selectedOutput) =
             selected is null
                 ? (BluetoothConnectionState.Unknown, DefaultOutputState.NotApplicable)
                 : ResolveEffectiveState(selected, catalog.InventoryGeneration, operation);
         bool showSoundRecovery = selectedConnection == BluetoothConnectionState.Connected &&
             selectedOutput is DefaultOutputState.NotDefault or DefaultOutputState.Failed;
-        string? error = catalogError ?? (matchingOperation
-            ? CreateErrorMessage(operation.Error)
-            : null);
+        string? error = catalogError ?? (selected is not null &&
+            ShouldShowOperationError(selected, operation)
+                ? CreateErrorMessage(operation.Error)
+                : null);
 
         return new(
             catalog.InventoryGeneration,
@@ -256,6 +253,31 @@ public static class BluetoothProductPresenter
         operation.Target is { } target &&
         target.DeviceKey == device.DeviceKey &&
         target.InventoryGeneration == inventoryGeneration;
+
+    private static bool ShouldShowOperationError(
+        BluetoothAudioDeviceDescriptor selected,
+        BluetoothOperationSnapshot operation)
+    {
+        if (operation.Error is null ||
+            operation.Target is not { } target ||
+            target.DeviceKey != selected.DeviceKey)
+        {
+            return false;
+        }
+
+        bool requestedStateReached = operation.Error == QuickPodsErrorCode.DefaultOutputSwitchFailed
+            ? selected.ConnectionState == BluetoothConnectionState.Connected &&
+                selected.DefaultOutputState == DefaultOutputState.Default
+            : operation.RequestedAction switch
+            {
+                BluetoothRequestedAction.Connect =>
+                    selected.ConnectionState == BluetoothConnectionState.Connected,
+                BluetoothRequestedAction.Disconnect =>
+                    selected.ConnectionState == BluetoothConnectionState.Disconnected,
+                _ => false,
+            };
+        return !requestedStateReached;
+    }
 
     private static string? CreateErrorMessage(QuickPodsErrorCode? error) =>
         error switch
