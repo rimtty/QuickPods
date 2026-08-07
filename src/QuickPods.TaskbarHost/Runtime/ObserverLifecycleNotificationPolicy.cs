@@ -6,17 +6,22 @@ internal static class ObserverLifecycleNotificationPolicy
 {
     internal static HostInteractionKind ClassifyRetirement(
         ObserverInvalidationKind terminalKinds,
-        bool hasTransportFailure)
+        bool hasTransportFailure,
+        bool explorerGenerationExited = false)
     {
+        if (explorerGenerationExited ||
+            (terminalKinds & ObserverInvalidationKind.ExplorerGenerationChanged) != 0)
+        {
+            return HostInteractionKind.TaskbarObserverGenerationChanged;
+        }
+
         if (hasTransportFailure ||
             (terminalKinds & ObserverInvalidationKind.ObserverFaulted) != 0)
         {
             return HostInteractionKind.TaskbarObserverFaulted;
         }
 
-        return (terminalKinds & ObserverInvalidationKind.ExplorerGenerationChanged) != 0
-            ? HostInteractionKind.TaskbarObserverGenerationChanged
-            : HostInteractionKind.TaskbarObserverDisconnected;
+        return HostInteractionKind.TaskbarObserverDisconnected;
     }
 
     internal static HostInteractionKind ClassifyReplacement(

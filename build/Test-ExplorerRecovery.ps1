@@ -11,6 +11,11 @@ param(
     [ValidateRange(1, 60)]
     [int]$SettlementSeconds = 10,
 
+    [ValidateRange(0, 60)]
+    [int]$BaselineSettlementSeconds = 10,
+
+    [switch]$WarmUpFlyout,
+
     [switch]$PreflightOnly,
 
     [switch]$ConfirmExplorerRestart
@@ -318,6 +323,15 @@ $isLocalConsole = $sessionText -match '(?m)^>.*\sconsole\s+\d+\s'
 if (-not $isLocalConsole) {
     throw "The Explorer recovery gate must run in the active local console session."
 }
+if (-not $PreflightOnly) {
+    if ($WarmUpFlyout) {
+        Start-Process -FilePath $candidateExe
+    }
+    if ($BaselineSettlementSeconds -gt 0) {
+        Start-Sleep -Seconds $BaselineSettlementSeconds
+    }
+}
+
 $baseline = Get-GateState
 Assert-Baseline -State $baseline
 $baselineApp = Get-NamedProcessEvidence -State $baseline -Name "QuickPods"
@@ -337,6 +351,8 @@ $result = [ordered]@{
     Manifest = $manifest
     RecoveryTimeoutSeconds = $RecoveryTimeoutSeconds
     SettlementSeconds = $SettlementSeconds
+    BaselineSettlementSeconds = $BaselineSettlementSeconds
+    WarmUpFlyout = [bool]$WarmUpFlyout
     Baseline = $baseline
     Transitions = @()
     RecoveryElapsedMilliseconds = $null
