@@ -14,6 +14,7 @@
         AllowsTransparency="True"
         ShowInTaskbar="False"
         ShowActivated="False"
+        Topmost="True"
         Background="Transparent"
         Foreground="{DynamicResource PrimaryTextBrush}"
         SnapsToDevicePixels="True"
@@ -403,7 +404,7 @@
                     </StackPanel>
                 </Button>
 
-                <Grid Grid.Row="10">
+                <StackPanel Grid.Row="10" Orientation="Horizontal">
                     <Button x:Name="SoundSettingsButton"
                             HorizontalAlignment="Left"
                             AutomationProperties.Name="Windowsのサウンド設定を開く"
@@ -418,6 +419,7 @@
                         </StackPanel>
                     </Button>
                     <Button x:Name="BluetoothSettingsButton"
+                            Margin="12,0,0,0"
                             HorizontalAlignment="Left"
                             AutomationProperties.Name="WindowsのBluetooth設定を開く"
                             Click="OnOpenBluetoothSettings"
@@ -426,11 +428,11 @@
                             <TextBlock Margin="0,0,8,0"
                                        FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
                                        FontSize="17"
-                                       Text="&#xE713;" />
+                                       Text="&#xE702;" />
                             <TextBlock FontSize="13" Text="Bluetooth設定を開く" />
                         </StackPanel>
                     </Button>
-                </Grid>
+                </StackPanel>
 
                 <StackPanel Grid.Row="12">
                     <TextBlock x:Name="SettingsDiagnosticText"

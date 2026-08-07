@@ -523,12 +523,6 @@ public partial class MainWindow : Window
                     ? "上下矢印でデバイスを選択します。選択だけでは接続状態を変更しません。"
                     : BluetoothEmptyText.Text);
             PrimaryActionButton.IsEnabled = bluetoothView.IsPrimaryActionEnabled;
-            SoundSettingsButton.Visibility = bluetoothView.HasDevices
-                ? Visibility.Visible
-                : Visibility.Collapsed;
-            BluetoothSettingsButton.Visibility = bluetoothView.HasDevices
-                ? Visibility.Collapsed
-                : Visibility.Visible;
             BluetoothDiagnosticText.Text = bluetoothView.ErrorMessage ?? string.Empty;
             RefreshButton.IsEnabled = !bluetoothView.IsRefreshing && !bluetoothView.IsBusy;
         }
