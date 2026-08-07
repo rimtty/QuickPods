@@ -54,7 +54,7 @@ public sealed class ProtocolContractTests
             QuickPodsProtocol.Version,
             8,
             HostInteractionKind.PreviewAudioFlyout,
-            anchor: new TaskbarSurfaceAnchor(100, 900, 400, 940));
+            anchor: new TaskbarSurfaceAnchor(150, 1350, 600, 1410, 144));
 
         HostStateEnvelope restoredState =
             QuickPodsProtocolJson.DeserializeState(QuickPodsProtocolJson.Serialize(state));
@@ -63,6 +63,26 @@ public sealed class ProtocolContractTests
 
         Assert.Equal(state, restoredState);
         Assert.Equal(interaction, restoredInteraction);
+        Assert.Equal(250d, restoredInteraction.Anchor?.CenterXDip);
+        Assert.Equal(900d, restoredInteraction.Anchor?.TopDip);
+    }
+
+    [Fact]
+    public void TaskbarAnchorUsesCapturedDpiAcrossEveryWindowsScaleVariant()
+    {
+        uint[] dpis = [96, 120, 144, 168, 192, 216, 240, 288, 336];
+
+        foreach (uint dpi in dpis)
+        {
+            int left = checked((int)(1000 * dpi / 96));
+            int top = checked((int)(1800 * dpi / 96));
+            int right = checked((int)(1300 * dpi / 96));
+            int bottom = checked((int)(1840 * dpi / 96));
+            var anchor = new TaskbarSurfaceAnchor(left, top, right, bottom, dpi);
+
+            Assert.Equal(1150d, anchor.CenterXDip);
+            Assert.Equal(1800d, anchor.TopDip);
+        }
     }
 
     [Fact]

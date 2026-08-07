@@ -16,4 +16,4 @@ Bluetooth一覧はpaired association endpoint、MMDevice、Container IDの一致
 
 ## Display baseline
 
-タスクバー表示は中央揃えだけをsupportする。左揃え、taskbar evidenceが不完全な状態、空き領域が安全に証明できない状態では、taskbar surfaceを表示せず通知領域へfallbackする。100～250%、mixed DPI、High Contrast、monitor hot-plugの最終matrixはIssue #43で確認する。
+タスクバー表示は中央揃えだけをsupportする。左揃え、taskbar evidenceが不完全な状態、空き領域が安全に証明できない状態では、taskbar surfaceを表示せず通知領域へfallbackする。Windows 11が提示する100、125、150、175、200、225、250、300、350%、mixed DPI、High Contrast、monitor hot-plugの最終matrixはIssue #43で確認する。

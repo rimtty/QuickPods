@@ -7,7 +7,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
-using System.Windows.Media;
 using System.Windows.Threading;
 using QuickPods.Contracts;
 using QuickPods.Core;
@@ -297,10 +296,8 @@ public partial class MainWindow : Window
         double preferredTop = workArea.Bottom - height - 8;
         if (anchor is not null)
         {
-            DpiScale dpi = VisualTreeHelper.GetDpi(this);
-            double anchorCenter = ((anchor.Left + anchor.Right) / 2d) / dpi.DpiScaleX;
-            preferredLeft = anchorCenter - (width / 2d);
-            preferredTop = (anchor.Top / dpi.DpiScaleY) - height - 2d;
+            preferredLeft = anchor.CenterXDip - (width / 2d);
+            preferredTop = anchor.TopDip - height - 2d;
         }
 
         Left = Math.Clamp(

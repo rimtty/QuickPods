@@ -4,7 +4,7 @@ namespace QuickPods.Contracts;
 
 public static class QuickPodsProtocol
 {
-    public const int Version = 1;
+    public const int Version = 2;
 
     public const int MaximumMessageCharacters = 16 * 1024;
 }
@@ -53,7 +53,9 @@ public sealed record TaskbarDeviceView(
 
 public sealed record TaskbarSurfaceAnchor
 {
-    public TaskbarSurfaceAnchor(int left, int top, int right, int bottom)
+    private const double DefaultDpi = 96d;
+
+    public TaskbarSurfaceAnchor(int left, int top, int right, int bottom, uint dpi)
     {
         if (right <= left || bottom <= top)
         {
@@ -62,10 +64,18 @@ public sealed record TaskbarSurfaceAnchor
                 "The taskbar surface anchor must have positive width and height.");
         }
 
+        if (dpi == 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(dpi),
+                "The taskbar surface anchor DPI must be positive.");
+        }
+
         Left = left;
         Top = top;
         Right = right;
         Bottom = bottom;
+        Dpi = dpi;
     }
 
     public int Left { get; }
@@ -75,6 +85,12 @@ public sealed record TaskbarSurfaceAnchor
     public int Right { get; }
 
     public int Bottom { get; }
+
+    public uint Dpi { get; }
+
+    public double CenterXDip => (((double)Left + Right) / 2d) * DefaultDpi / Dpi;
+
+    public double TopDip => Top * DefaultDpi / Dpi;
 }
 
 public sealed record TaskbarStateSnapshot(
