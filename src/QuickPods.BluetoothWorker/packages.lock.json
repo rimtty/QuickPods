@@ -8,7 +8,7 @@
       "quickpods.windows": {
         "type": "Project",
         "dependencies": {
-          "QuickPods.Core": "[1.0.0, )"
+          "QuickPods.Core": "[0.1.0, )"
         }
       }
     }

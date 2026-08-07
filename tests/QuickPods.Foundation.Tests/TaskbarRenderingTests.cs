@@ -20,6 +20,12 @@ public sealed class TaskbarRenderingTests
         Assert.InRange(SliderGeometry.FractionFromPointerX(layout, midpoint), 0.49d, 0.51d);
         Assert.True(SliderGeometry.ContainsPointer(layout, midpoint, layout.CenterY));
         Assert.False(SliderGeometry.ContainsPointer(layout, layout.TrackLeft - 1, layout.CenterY));
+        int speakerCenter = layout.IconLeft + (layout.IconSize / 2);
+        Assert.True(SliderGeometry.ContainsSpeakerPointer(layout, speakerCenter, layout.CenterY));
+        Assert.False(SliderGeometry.ContainsSpeakerPointer(
+            layout,
+            layout.IconLeft + layout.IconSize,
+            layout.CenterY));
     }
 
     [Fact]
@@ -54,5 +60,9 @@ public sealed class TaskbarRenderingTests
         Assert.True(highMuted.HasSelectedDevice);
         Assert.Equal("AirPods Pro", connected.DeviceLabel);
         Assert.True(connected.HasActiveDeviceConnection);
+        Assert.Equal("\uE767", FluentAudioGlyphs.ForMuteState(isMuted: false));
+        Assert.Equal("\uE74F", FluentAudioGlyphs.ForMuteState(isMuted: true));
+        Assert.Equal("\uE7F6", FluentAudioGlyphs.Headphones);
+        Assert.Equal("Segoe Fluent Icons", FluentAudioGlyphs.FontFamily);
     }
 }

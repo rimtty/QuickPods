@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using QuickPods.Contracts;
 using QuickPods.Core.Models;
 
 namespace QuickPods.Presentation;
@@ -280,6 +281,6 @@ public static class BluetoothProductPresenter
         kind switch
         {
             BluetoothAudioKind.Speaker => "\uE767",
-            _ => "\uE7F6",
+            _ => FluentAudioGlyphs.Headphones,
         };
 }

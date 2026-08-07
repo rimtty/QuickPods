@@ -469,7 +469,7 @@ public partial class MainWindow : Window
             System.Windows.Automation.AutomationProperties.SetName(
                 MuteButton,
                 state.IsMuted ? "ミュートを解除" : "ミュートにする");
-            MuteGlyph.Text = state.IsMuted ? "\uE74F" : "\uE767";
+            MuteGlyph.Text = FluentAudioGlyphs.ForMuteState(state.IsMuted);
             AudioStatusText.Text = state.Capability switch
             {
                 AudioCapability.Available => state.IsMuted ? "ミュート中" : "利用可能",
