@@ -20,13 +20,13 @@ WiXの`Files` harvestingは固定per-user packageでICE64／ICE91を通過しな
 
 WiX v6のOpen Source Maintenance Fee条件はrelease前に配布主体が確認する。WiX v7はEULAの明示承諾が必要なため自動更新しない。
 
-コード署名証明書は後日用意する方針であり、通常CIのRC artifactはmanifestへ`NotSigned`を明示する。正式release専用workflowは保護された`release-signing` environmentからBase64 PFXとpasswordを受け取り、runner tempへだけ復元する。PowerShell certificate objectでSHA-256 Authenticode署名とHTTP timestampを付与するため、passwordを外部processのcommand lineへ渡さない。成功／失敗後はPFXを削除し、署名後のMSIが`Valid`かつ`-RequireSignature`検証済みになるまでartifactを公開しない。
+コード署名は2026-08-08のオーナー判断で現在の完成目標から延期した。通常CIのRC artifactはmanifestへ`NotSigned`を明示する。将来使う正式release専用workflowは保護された`release-signing` environmentからBase64 PFXとpasswordを受け取り、runner tempへだけ復元する。PowerShell certificate objectでSHA-256 Authenticode署名とHTTP timestampを付与するため、passwordを外部processのcommand lineへ渡さない。成功／失敗後はPFXを削除し、署名後のMSIが`Valid`かつ`-RequireSignature`検証済みになるまで署名済みartifactとして公開しない。
 
-## Remaining gates
+## Gate status
 
-- `build/Test-InstallerLifecycle.ps1`を使うclean standard-user環境でのinstall／launch／running update／running uninstall／auto-start残骸0件
-- code-signing証明書の準備、`release-signing` secret登録、署名済み正式artifactのworkflow実行
-- 非RDPの自動起動／theme／High Contrast：#43
-- 製品Explorer回復と世代別resource証拠：#34／#18
+- clean standard-user install／launch／running update／running uninstall／retention：2026-08-08に#50で合格
+- 非RDPの通常themeと実ログイン自動起動：#43で合格。High Contrast追加追試はオーナー判断で除外
+- 製品Explorer回復と世代別resource証拠：#34／#18で合格
+- code-signing証明書、`release-signing` secret、署名済み正式artifact：現在の非署名完成目標から意図的に延期
 
-短縮resource Gate D #48と物理Bluetooth catalog／operation #38／#41は合格済みであり、Phase 6Bの実装統合を阻害しない。
+短縮resource Gate D #48と物理Bluetooth catalog／operation #38／#41も合格済みであり、コード署名を除くPhase 6B受入は完了した。

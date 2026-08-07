@@ -1,44 +1,39 @@
 # Current work and GitHub state
 
-## Integrated work
+## Integrated and accepted work
 
-The following important branches are already integrated before the handoff:
+The following work is integrated into `main` or accepted against the current `main` candidate:
 
-- Phase 0–6A product and hardening work
-- Phase 5C production UI fidelity
-- Phase 6B self-contained RC and per-user WiX MSI implementation
-- PR #70 local-console/DPI/resource/settings evidence
-- PR #59 retained Start provenance and race hardening
-- visual.86 startup-before-hover taskbar anchor fix
+- Phase 0–6B product, hardening, self-contained RC, and per-user WiX MSI work
+- Phase 5C production UI fidelity and retained Start provenance/race hardening
+- local-console DPI, keyboard, tray, settings, explicit-exit, and normal Light/Dark/System theme checks
+- taskbar theme propagation and crisp opaque flyout composition fixes (#84/#86)
+- real sign-out/sign-in auto-start with no product window (#43)
+- bounded real Explorer restart, one-surface recovery, control usability, and generation/resource proof (#34/#18)
+- disposable standard-user install, resident major upgrade, resident uninstall, retention, and unrelated Run-value preservation (#50)
 
-Issue #15 completed with PR #59. The additional physical negative layout repetition is not required. Issue #19 was closed `not planned` because AC-005 already has real endpoint A→B→A evidence and deterministic guarded-restoration coverage.
+The [completion audit](../validation/release-0.1.0/completion-audit.md) is 27/27 Proven for the explicitly approved non-signing scope. Additional High Contrast visual testing was removed from the final Gate by the repository owner; the implemented system-color behavior remains intact and is not claimed as newly proven.
 
-## Remaining release work
+## GitHub state
 
-| Issue | Why it remains | Next acceptable evidence | RDP status |
-|---|---|---|---|
-| [#43](https://github.com/rimtty/QuickPods/issues/43) | final session/theme acceptance | local sign-out/in or reboot with auto-start ON and no product window; System/Dark/Light and High Contrast visual check | Leave open |
-| [#34](https://github.com/rimtty/QuickPods/issues/34) | AC-018 product Explorer recovery | bounded real Explorer restart, one surface, recovery within 10 seconds, controls usable, no residue/Warning/Error | Leave open |
-| [#18](https://github.com/rimtty/QuickPods/issues/18) | AC-021 Explorer-generation resource proof | combine with #34; verify old Observer exits and long-lived App/Host USER/GDI do not grow across bounded generations | Leave open |
-| [#50](https://github.com/rimtty/QuickPods/issues/50) | AC-022/027 distribution closure | disposable standard-user install/launch/upgrade/uninstall/residue run; provision certificate and validate signed final MSI | Leave open |
-| [#2](https://github.com/rimtty/QuickPods/issues/2) | 0.1.0 roll-up | close only after all AC rows are Proven and final release artifacts are accepted | Leave open |
+| Issue | Resolution |
+|---|---|
+| [#43](https://github.com/rimtty/QuickPods/issues/43) | Closed after real-login background auto-start and normal theme acceptance |
+| [#34](https://github.com/rimtty/QuickPods/issues/34) | Closed after 7.683-second product Explorer recovery and post-recovery interaction checks |
+| [#18](https://github.com/rimtty/QuickPods/issues/18) | Closed after Observer generation exchange and stable long-lived App/Host USER/GDI evidence |
+| [#50](https://github.com/rimtty/QuickPods/issues/50) | Non-signing lifecycle accepted; closes with the final documentation audit |
+| [#2](https://github.com/rimtty/QuickPods/issues/2) | Non-signing 0.1.0 roll-up closes after the final documentation audit is merged |
 
-The completion audit remains 23/27. The four partial rows map exactly to two work packages:
+## Deferred publication boundary
 
-- AC-018 and AC-021: Issues #34 and #18
-- AC-022 and AC-027: Issue #50
+Code-signing certificate provisioning, protected-environment secret registration, timestamped Authenticode `Valid`, and publication of a signed MSI are intentionally deferred by the repository owner. Existing signing tooling remains fail-closed and no private key belongs in the repository. If signed distribution is resumed, use the protected release workflow and verify the final manifest and checksum; do not reinterpret unsigned acceptance evidence as a signature result.
 
-Issue #43 is an explicit product acceptance gate even though its persistence/keyboard/DPI portions already support Proven AC rows.
+## Recommended next sequence
 
-## Recommended next local-console session
-
-1. Clone `main` on the physical Windows 11 development host and run the CI-equivalent baseline.
-2. Build a fresh self-contained candidate from that exact commit.
-3. Complete #43 theme/High Contrast and real-login auto-start checks; restore auto-start OFF afterward.
-4. Run one small, bounded Explorer batch that gathers both #34 functional recovery and #18 process/resource evidence. Do not repeat the former 10-cycle stress matrix.
-5. Use a disposable standard-user profile/VM for #50 MSI lifecycle. Preserve settings only where the uninstall contract requires it.
-6. When the certificate is available, run the protected signed-release workflow and verify Authenticode and hashes.
-7. Update the completion audit to 27/27, produce final RC notes/tag, then close #50 and Roadmap #2.
+1. Merge the final documentation audit after Release build, all tests, formatting, and documentation checks pass.
+2. Close #50 and Roadmap #2 for the approved non-signing scope.
+3. Produce a versioned unsigned RC only when the owner wants an installable test release, clearly labeling `NotSigned`.
+4. Treat any future signed production publication as a separately authorized Gate with a real certificate and timestamp.
 
 ## Already accepted; do not reopen without a defect
 

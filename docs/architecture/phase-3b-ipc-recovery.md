@@ -2,7 +2,7 @@
 
 ## Status
 
-In progress on `codex/phase-3b-ipc-recovery` under Issue #34. The app/host IPC, bounded process recovery, ADR-0001 Explorer-generation observer boundary, and complete Phase 3B host command path are implemented and live-tested. The physical Explorer-restart/resource gate remains pending. The dedicated center-aligned NoFit reproduction formerly tracked by Issue #33 was removed from the release gate by product decision on 2026-08-07; existing fail-closed routing and automated invariants remain unchanged.
+Complete on `main`. The app/host IPC, bounded process recovery, ADR-0001 Explorer-generation observer boundary, and complete Phase 3B host command path are implemented and live-tested. The product local-console Explorer-restart Gate recovered one native surface in 7.683 seconds, exchanged the Observer generation without duplicate surfaces, preserved the long-lived App/Host USER/GDI boundary, and passed post-recovery wheel/mute/flyout/slider operations. Issues #34 and #18 are closed. The dedicated center-aligned NoFit reproduction formerly tracked by Issue #33 was removed from the release gate by product decision on 2026-08-07; existing fail-closed routing and automated invariants remain unchanged.
 
 ## Process boundary
 

@@ -109,6 +109,22 @@ QuickPodsを終了せず、Windowsが提示する次の全拡大率でflyoutのt
 
 同じRDPセッションで通知領域の設定画面から`ログを開く`を実行し、QuickPodsログフォルダーが正常に開くことを確認した。`診断情報をコピー`の出力はversion、Audio capability、volume／mute、Bluetooth device count、selected device／status、display mode、theme、wheel step、startup stateだけを含み、生のContainer／Endpoint／PnP／MAC IDやアカウント識別子を含まなかった。補助操作とsanitizationを合格とする。
 
+## 最終local-console theme／real-login Gate（2026-08-08）
+
+Main `d6cb13a2def45300262ef39136b3dd3ef0102ad8`から生成したself-contained候補`0.1.0-gate.4302`を、Windows 11 Pro build 26200のlocal `console`セッションで検証した。利用者はWindowsの通常テーマを切り替えながら、QuickPodsの`Windowsに合わせる`、明示`ライト`、明示`ダーク`について、設定画面、flyout、taskbar surfaceの背景・文字・accentが一貫することを目視承認した。taskbarだけ旧themeに残る欠陥はPR #85、flyout文字の滲みと枠崩れはPR #87で修正し、操作、行境界、角丸、単一device boxを再承認した。
+
+High Contrastの追加追試は、既存のsystem-color追従実装を削除せず、2026-08-08のオーナー判断で今回の最終受入Gateから除外した。したがって通常Light／Dark／Systemの合格証拠だけを最終theme判定に用い、High Contrastを新たに合格したとは主張しない。
+
+続いて`StartWithWindows=true`と、候補EXEを二重引用符で囲んだ完全な`--background` Run値を設定し、実際にWindowsからサインアウトして同じユーザーへ再ログインした。ログイン時刻01:47 JSTの新しいlocal `console` session 2で、約13秒後に次を確認した。
+
+- App／TaskbarHost／TaskbarObserver：各1process、すべて応答あり
+- Appのvisible／interactive product window：0／0
+- Native／Floating surface：1／0
+- Run値：期待値と完全一致
+- 4 executable：`0.1.0-gate.4302+d6cb13a2def45300262ef39136b3dd3ef0102ad8`
+
+これは単なる`--background`手動起動ではなく、Windowsの実ログイン経路から製品画面を出さずに常駐した証拠である。検証後は同じ候補の`--unregister-startup`を実行し、`StartWithWindows=false`とHKCU Run値の削除を確認した。App／Host／Observerの常駐treeは正常なまま維持された。sanitized raw evidenceはignored artifact `artifacts/gates/issue-43/real-login-autostart-main-d6cb13a.json`へ保存し、Issue #43を完了した。
+
 ## 初回検証時に合否を保留した項目
 
 2026-08-06の初回検証はRemote Desktopだったため、次をその時点のPhase 5A合格証拠として扱わなかった。DPI、通知領域、flyout入力は翌日のローカルコンソール証拠で補完したが、mixed DPIと物理Bluetoothの別機器条件は個別Issueで引き続き追跡する。
@@ -118,4 +134,4 @@ QuickPodsを終了せず、Windowsが提示する次の全拡大率でflyoutのt
 - 通知領域アイコンとメニューの目視・キーボード操作
 - 実Bluetoothオーディオの列挙、接続、切断、既定出力化
 
-通知領域／製品画面の残項目は[#43](https://github.com/rimtty/QuickPods/issues/43)で管理する。実Bluetooth列挙と物理操作は[#38](https://github.com/rimtty/QuickPods/issues/38)／[#41](https://github.com/rimtty/QuickPods/issues/41)で完了済みである。RDP安全縮退を物理成立性の代替にしない。
+通知領域／製品画面の残項目は後続のlocal-console Gateで補完し、[#43](https://github.com/rimtty/QuickPods/issues/43)を完了した。実Bluetooth列挙と物理操作は[#38](https://github.com/rimtty/QuickPods/issues/38)／[#41](https://github.com/rimtty/QuickPods/issues/41)で完了済みである。RDP安全縮退を物理成立性の代替にしない。

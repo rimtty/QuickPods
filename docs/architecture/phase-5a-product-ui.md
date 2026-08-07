@@ -55,10 +55,11 @@ WPFの`ShutdownMode`は`OnExplicitShutdown`である。通常のウィンドウC
 
 構造化ログは`%LocalAppData%\QuickPods\logs\quickpods-YYYYMMDD.jsonl`へ追記する。通常ログは件数、generation、分類済み状態、設定値だけを記録し、Container／Endpoint／PnP／MAC／アカウント識別子を記録しない。画面からログフォルダーを開き、同じ制約の診断概要をクリップボードへコピーできる。
 
-## 保留Gate
+## Validation status
 
-- 実Bluetooth列挙：Issue #38
-- 実AirPods接続／切断／既定出力：Issue #41
-- RDPでは証明できない通知領域、製品画面、DPI、配置、クリック座標、ホイール：Issue #43（既存のtaskbar continuity／Explorer復旧は#34。#33の専用NoFit再現は2026-08-07に不要と判断）
+- 実Bluetooth列挙：Issue #38で合格
+- 実AirPods接続／切断／既定出力：Issue #41で合格
+- 通知領域、製品画面、DPI、配置、クリック／ホイール、通常theme、実ログイン自動起動：Issue #43で合格
+- Explorer recovery：Issues #34／#18で合格。#33の専用NoFit再現は2026-08-07に不要と判断
 
-これらの未実施をPhase 5Aの自動テスト結果で代替しない。
+これらは自動テストへ読み替えず、それぞれのlocal-console／実機証拠で判定した。High Contrast追加追試は2026-08-08のオーナー判断で最終Gateから除外した。

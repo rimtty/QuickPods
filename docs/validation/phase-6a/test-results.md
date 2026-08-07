@@ -84,9 +84,10 @@ growth signalはreview補助であり、自動的なleak判定ではない。共
 この短いseriesには段階的allocationと終盤の緩やかな増加があるため、24時間相当の「leakなし」を証明するものではない。一方、Handle／GDI／USERの継続増加、process treeの崩壊、App／Hostの再起動、stderr、OS crash記録、アプリWarning／Errorはなく、利用者が短縮範囲で重大なresource異常なしと判定した。Issue #48のresource観測はこの証跡で完了とする。
 
 Observer世代交代の履歴原因は旧protocolでは記録されず断定不能だったため、Issue #77でprotocol version 3のsanitized lifecycle診断を追加した。`visual.85`では正常な`TaskbarCreated`がInformation／generation 0、Observer単体停止がWarningの`Disconnected`／generation 1として記録され、どちらもApp／TaskbarHostを維持してObserver一体へ回復した。詳細は[observer-lifecycle-diagnostics.md](observer-lifecycle-diagnostics.md)を参照する。
-## Gate依存関係
+## 後続Gateの解決
 
-- local-console表示／DPI／電源：[#43](https://github.com/rimtty/QuickPods/issues/43)
-- Explorer実再起動後の回復：[#34](https://github.com/rimtty/QuickPods/issues/34)
+- local-console表示／DPI／通常theme／real-login：[#43](https://github.com/rimtty/QuickPods/issues/43)で完了
+- Explorer実再起動後の回復／generation resource：[#34](https://github.com/rimtty/QuickPods/issues/34)／[#18](https://github.com/rimtty/QuickPods/issues/18)で完了
+- clean standard-user MSI lifecycle：[#50](https://github.com/rimtty/QuickPods/issues/50)で合格
 
-Phase 6AのCIをこれらの代替にしない。
+Phase 6AのCIをこれらの代替にせず、各local-console証拠で判定した。High Contrast追加追試とコード署名はオーナー判断で現在の最終Gateから除外した。

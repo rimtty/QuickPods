@@ -30,8 +30,8 @@ Taskbarからflyoutへpointerを移動できるよう、exitから420 msは閉�
 
 一覧選択、接続、切断、既定出力化、音量、mute、refresh、keyboard、automation nameの意味はPhase 5Aから変更しない。空一覧のdisabled主操作labelはモックどおり`接続`とする。詳細なQuickPods設定はflyoutへ含めず、tray iconの右クリックメニューから独立した設定windowを開く。
 
-## 非対象と保留
+## 非対象とvalidation status
 
 - 左揃えタスクバーは非対応policyを維持する。
-- 実Bluetooth一覧と接続／切断は[#38](https://github.com/rimtty/QuickPods/issues/38)／[#41](https://github.com/rimtty/QuickPods/issues/41)で確認する。
-- RDPで信頼できないDPI／解像度差の最終判定は[#43](https://github.com/rimtty/QuickPods/issues/43)へ残す。
+- 実Bluetooth一覧と接続／切断は[#38](https://github.com/rimtty/QuickPods/issues/38)／[#41](https://github.com/rimtty/QuickPods/issues/41)で合格した。
+- RDPで判定しなかった100～350% DPI／通常theme／keyboard／real-loginは[#43](https://github.com/rimtty/QuickPods/issues/43)のlocal-console Gateで合格した。High Contrast追加追試は除外した。

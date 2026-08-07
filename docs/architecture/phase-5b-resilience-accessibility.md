@@ -22,13 +22,13 @@ Core Audio、Bluetooth catalog／mutation、設定、Windows設定launcherは既
 
 Bluetooth一覧は名前付き単一選択listとして公開し、各項目は機器名、選択、接続、既定出力、能力を含む`AccessibleName`を持つ。上下矢印は選択だけを変更し、Enter／Spaceはフォーカス中のbutton、Escapeは画面の非表示、音量sliderの矢印／Home／End／Page keyはCore Audioへの確定まで行う。主操作とmuteのAutomation nameは現在の状態に合わせて更新し、診断状態はlive regionで通知する。色に加えてradio形状、状態文、icon、focus borderを使用する。
 
-WPFはHigh Contrast中にWindowsのWindow、WindowText、Control、Highlight、GrayText色へ追従する。native taskbar rendererも描画時に`SPI_GETHIGHCONTRAST`を確認し、同じsystem colorsへ切り替える。視覚上の最終合否はRDP画像で判定せず、Issue #43のlocal-console gateに残す。
+WPFはHigh Contrast中にWindowsのWindow、WindowText、Control、Highlight、GrayText色へ追従する。native taskbar rendererも描画時に`SPI_GETHIGHCONTRAST`を確認し、同じsystem colorsへ切り替える。追加のHigh Contrast目視追試は2026-08-08のオーナー判断で最終Gateから除外したため、通常themeのlocal-console合格と区別し、High Contrastを新たに実機合格したとは主張しない。
 
-## 保留Gate
+## Validation status
 
-- 200%以上／mixed DPI、高コントラスト、sleep／resume、RDP接続解除、monitor hot-plugの目視と入力：Issue #43
-- 実Bluetooth列挙：Issue #38
-- 実Bluetooth接続／切断／既定出力：Issue #41
-- 承認された期間のresource試験（AC-025）：Phase 6
+- 100～350% DPI、keyboard、通常theme、real-login auto-start：Issue #43で合格
+- 実Bluetooth列挙／接続／切断／既定出力：Issues #38／#41で合格
+- 承認されたresource期間（AC-025）：Issue #48で2.01時間、1,391 sampleを受入
+- High Contrast追加追試：最終Gateから除外。mixed-DPI monitor移動とmonitor hot-plugの包括的matrixも本受入では主張しない
 
-自動試験とRDPでの安全縮退は、これらの物理成立性の代替にしない。
+自動試験とRDPでの安全縮退を物理成立性へ読み替えず、合格項目はlocal-console／実機証拠で判定した。

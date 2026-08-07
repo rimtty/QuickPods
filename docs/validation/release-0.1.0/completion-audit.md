@@ -37,32 +37,36 @@
 | AC-019 | 終了後に残骸ウィンドウなし | Proven | [Phase 3A](../phase-3a/display-host/test-results.md)、[Phase 3B](../phase-3b/ipc-recovery/test-results.md)、[Phase 5A](../phase-5a/test-results.md)で残留0 | なし |
 | AC-020 | native失敗時も音量・Bluetoothを利用可能 | Proven | [Phase 3B](../phase-3b/ipc-recovery/test-results.md)のHost失敗時App生存、通知領域／Hidden policy、製品画面からの音量／Bluetooth操作を確認。2026-08-07に専用のcenter-aligned NoFit再現Gateを不要と判断 | なし |
 | AC-021 | Explorerをクラッシュ／ハングさせない | Proven | 別process境界、Phase 0の10 restart、Issue #77のObserver診断に加え、[Phase 3B](../phase-3b/ipc-recovery/test-results.md)の製品版実restartでApp GDI／USER=`-3/0`、Host=`0/0`、世代通知1、Warning／Error 0、Explorer正常復帰 | なし |
-| AC-022 | 管理者権限を要求しない | Partial / Gate pending | 通常権限のAudio／Bluetooth／policy実績、PR #51のper-user／non-elevated MSI静的検査 | clean standard-user MSI lifecycle：[Issue #50](https://github.com/rimtty/QuickPods/issues/50) |
+| AC-022 | 管理者権限を要求しない | Proven | [Phase 6B](../phase-6b/test-results.md)の標準ユーザーlocal-console Gateで、per-user／`requiresElevation=false` MSIの旧版install、常駐中major upgrade、常駐中uninstallをUAC昇格なしで完走 | なし |
 | AC-023 | 設定を再起動後も保持 | Proven | [Phase 5A](../phase-5a/test-results.md)の全設定JSON round-trip、破損時はPhase 5Bで隔離再生成 | なし |
 | AC-024 | 主要API失敗を分類済みログへ記録 | Proven | [Phase 5A](../phase-5a/test-results.md)のsanitized JSONL、[Phase 5B](../phase-5b/test-results.md)のlifecycle／interaction例外境界 | なし |
 | AC-025 | 承認されたエージング期間で重大な継続的resource増加なし | Proven | [Phase 6A](../phase-6a/test-results.md)のlocal-console `visual.84`を2.01時間、1,391 sample観測。App／Host継続、process tree崩壊・stderr・OS crash記録・アプリWarning／Errorなし。利用者が短縮範囲で重大なresource異常なしと承認 | なし |
 | AC-026 | フライアウトの主要操作をkeyboardで実行 | Proven | [Phase 5B](../phase-5b/test-results.md)のAutomation metadata／keyboard確定経路、[Phase 5C](../phase-5c/test-results.md)の統合UI・目視合格、[Phase 5A](../phase-5a/test-results.md)の150% local-console `Tab`／矢印キー／`Space`／`Escape`実操作 | なし |
-| AC-027 | Ceiling由来コードがあればMIT同梱 | Partial / Gate pending | PR #51（Main `645b3a8`）で`ThirdPartyNotices.txt`と配布payload静的検査を実装 | 署名済み最終配布物での同梱確認：[Issue #50](https://github.com/rimtty/QuickPods/issues/50) |
+| AC-027 | Ceiling由来コードがあればMIT同梱 | Proven | [Phase 6B](../phase-6b/test-results.md)の受入MSI `0.1.0-ci.4302`でFile table 495件とpayload manifestを検査し、`ThirdPartyNotices.txt`、Ceiling参照、MIT全文の同梱を確認 | なし |
 
 ## 集計
 
 | 状態 | 件数 | AC |
 |---|---:|---|
-| Proven | 25 | 001～021、023～026 |
-| Partial / Gate pending | 2 | 022、027 |
+| Proven | 27 | 001～027 |
+| Partial / Gate pending | 0 | なし |
 | Pending | 0 | なし |
 
-`25 / 27 Proven`は現時点の完成率を表す数値ではなく、同じ範囲の証拠が揃った受入項目数である。実装済み行を自動的に`Proven`へ昇格しない。2026-08-07の製品判断により、Issue #33の専用NoFit Floating再現とIssue #48のBluetooth 50-cycle耐久は追加Gateから除外し、resource観測は2.01時間、1,391 sampleの短縮範囲で重大な異常なしとして承認した。既存の安全なfallback実装とBluetoothの実機機能証拠は維持する。
+`27 / 27 Proven`は、コード署名を明示的に除外した現在の製品受入範囲について、各ACと同じ範囲の証拠が揃ったことを表す。2026-08-07の製品判断によりIssue #33の専用NoFit Floating再現とBluetooth 50-cycle耐久を追加Gateから除外し、resource観測は2.01時間、1,391 sampleの短縮範囲で承認した。2026-08-08にはHigh Contrastの追加追試をオーナー判断で最終Gateから除外した。既存のfail-closed fallback、Bluetooth実機証拠、High Contrast対応実装は維持する。
 
-## 残作業の最小Gateセット
+## 完了した最終Gate
 
-| Gate | 閉じるAC | 実施内容 |
+| Gate | 閉じたAC | 実施内容 |
 |---|---|---|
-| #50 | 022、027 | clean standard-user MSI lifecycle、法務payload、署名済み最終成果物（実装PR #51はMain統合済み） |
+| #50 | 022、027 | disposable標準ユーザーで旧版install／起動／常駐中upgrade／常駐中uninstall／残骸境界を完走し、受入MSIの法務payloadを確認。コード署名はオーナー判断で別スコープへ延期 |
 
 ## P2整理（2026-08-07）
 
 - [#15](https://github.com/rimtty/QuickPods/issues/15)のretained Start provenance／race hardeningはPR #59で実装し、Taskbar Host 183／183、全398／398、Release build、format、再基底後CIを合格して完了した。追加の物理negative repetitionは既存local-console Start／Search証拠と決定論的fail-closed試験で代替した。
 - [#19](https://github.com/rimtty/QuickPods/issues/19)のguarded-mutation中の複数出力物理追試は、AC-005がPhase 2の実Endpoint A→B→Aと決定論的restoration試験でProvenであるため、0.1.0 Gateでは不要と判断して`not planned`で閉じた。
 
-すべてのAC行が`Proven`となるまでRoadmap #2のcompletion auditとRelease branch B16を完了扱いにしない。
+すべてのAC行は`Proven`である。Roadmap #2は本監査を統合した時点で非署名スコープを完了できる。署名証明書、timestamp付きAuthenticode、署名済み公開artifactは将来のpublication Gateとして別に扱う。
+
+## 最終自動監査
+
+2026-08-08、Main `d6cb13a`を基点とする最終文書ブランチでformat verification、Release `-warnaserror` build、全415 testを実行し、差分なし、warning 0／error 0、415／415 Passを確認した。内訳はFoundation 115、Taskbar Host 183、Bluetooth KS 65、Core Audio 44、Default Endpoint Policy 7、Smoke 1である。

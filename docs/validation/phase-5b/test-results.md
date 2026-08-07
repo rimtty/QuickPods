@@ -35,13 +35,13 @@ Releaseの`QuickPods.exe`をRDPセッションで`--background`起動した。pr
 - WPFとnative taskbarのhigh-contrast system color経路
 - list／button／slider／live statusのAutomation metadataとkeyboard確定経路
 
-## 現環境で合否を出さない項目
+## 2026-08-06のRDP環境で合否を出さなかった項目
 
-現在はRemote Desktopであるため、次はIssue [#43](https://github.com/rimtty/QuickPods/issues/43)で別日のlocal-console試験に残す。
+この時点ではRemote Desktopだったため、次をIssue [#43](https://github.com/rimtty/QuickPods/issues/43)の別日local-console試験へ残した。
 
 - 200%以上およびmixed DPIの見た目、hit position、wheel
 - High Contrastの色、focus、screen reader読み上げ
 - sleep／hibernate復帰、RDP接続解除、monitor抜き差し
 - native／floatingの配置とrenderer
 
-この時点で未完了だった物理Bluetooth列挙[#38](https://github.com/rimtty/QuickPods/issues/38)と接続／切断／既定出力[#41](https://github.com/rimtty/QuickPods/issues/41)は後続の実機試験で完了した。resource試験（AC-025）はPhase 6で2.01時間、1,391 sampleの短縮Gate Dとして承認された。
+この時点で未完了だった物理Bluetooth列挙[#38](https://github.com/rimtty/QuickPods/issues/38)と接続／切断／既定出力[#41](https://github.com/rimtty/QuickPods/issues/41)は後続の実機試験で完了した。resource試験（AC-025）はPhase 6で2.01時間、1,391 sampleの短縮Gate Dとして承認された。100～350% DPI、主要keyboard、通常theme、real-login自動起動は#43で完了し、High Contrast追加追試は2026-08-08のオーナー判断で最終Gateから除外した。mixed-DPI monitor移動、sleep／hibernate、monitor hot-plugの包括的matrixを新たに合格したとは主張しない。
