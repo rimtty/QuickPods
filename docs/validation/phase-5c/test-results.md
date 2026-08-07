@@ -56,8 +56,8 @@ Release solution buildは警告0／error 0、Windows settings launcher／dismiss
 
 変更後はprotocol契約を含む全回帰398／398 Pass、format verification、`git diff --check`、self-contained payload検証に成功した。Taskbar anchorはHostが取得したDPI付きphysical座標をそのまま使用し、App側でmonitor中央や固定倍率から推測しない。
 
-## 後続Gate
+## 後続Gateの解決
 
-- local-consoleでtray右クリックの`QuickPods 設定...`から独立settings windowを開き、保存操作ができること（Issue #43）
-- 実Bluetooth 1台／複数台でのrow密度、long-name ellipsis、接続状態
-- local-consoleでの100／125／150／200%最終描画、keyboard、screen reader、High Contrast（Issue #43）
+- local-consoleでtray右クリックから独立settings windowを開き、設定保存、明示終了、再起動後保持を確認した（Issue #43）。
+- 実Bluetooth 2台のrow密度、接続／未接続状態、選択、接続／切断を確認した（Issues #38／#41）。
+- 100～350%のlive DPI切替と主要keyboard操作を確認した。screen reader向けAutomation metadataは自動契約を維持し、High Contrast追加追試はオーナー判断で最終Gateから除外した（Issue #43）。

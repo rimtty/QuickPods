@@ -65,10 +65,10 @@ Expected test totals:
 | Smoke | 1 |
 | Default Endpoint Policy | 7 |
 | Core Audio | 44 |
-| Foundation | 98 |
+| Foundation | 115 |
 | Taskbar Host | 183 |
 | Bluetooth KS | 65 |
-| Total | 398 |
+| Total | 415 |
 
 ## Build a self-contained RC and MSI
 

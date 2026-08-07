@@ -4,21 +4,21 @@ This directory is the entry point for continuing QuickPods development from anot
 
 ## Snapshot
 
-- Date: 2026-08-07
+- Date: 2026-08-08
 - Product: QuickPods 0.1.0
 - Source of truth: `main`
 - Platform: Windows 11 x64, .NET 10, WPF + Win32
-- Automated baseline: 398 tests, Release build with 0 warnings and 0 errors
-- Acceptance audit: 23/27 Proven
+- Automated baseline: 415 tests, Release build with 0 warnings and 0 errors
+- Acceptance audit: 27/27 Proven for the explicitly approved non-signing scope
 - Distribution: self-contained portable ZIP and elevation-free per-user WiX 6.0.2 MSI
-- Final artifacts: unsigned until the code-signing certificate is provisioned
+- Final artifacts: unsigned; certificate provisioning and signed-artifact validation are intentionally deferred
 
-All implemented source through Phase 6B, Phase 5C UI fidelity, local-console evidence, visual.86 taskbar anchoring, and retained Start hardening is integrated into `main`. Merging implementation does not mark QuickPods 0.1.0 released; the remaining physical/session/distribution gates stay in GitHub Issues.
+All implemented source through Phase 6B, UI fidelity, taskbar theme propagation, crisp flyout composition, retained Start hardening, Explorer recovery, real-login auto-start, and clean standard-user MSI lifecycle evidence is integrated or accepted against `main`. The remaining code-signing certificate and signed-artifact work is outside the current completion goal and must be treated as a future publication decision, not as an untracked product Gate.
 
 ## Read in this order
 
 1. [Development environment](development-environment.md) — clone, restore, build, test, run, and package.
-2. [Current work and GitHub state](current-work.md) — remaining Issues and the next safe sequence.
+2. [Current work and GitHub state](current-work.md) — completed Gates, deferred signing boundary, and the next publication sequence.
 3. [Implementation history and architecture](implementation-history.md) — why the current process and OS boundaries exist.
 4. [Assets and evidence index](assets-and-evidence.md) — authoritative mockups, branding, specifications, and validation records.
 5. [Completion audit](../validation/release-0.1.0/completion-audit.md) — AC-001 through AC-027.

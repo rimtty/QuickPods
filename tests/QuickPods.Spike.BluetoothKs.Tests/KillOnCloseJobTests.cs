@@ -21,7 +21,8 @@ public sealed class KillOnCloseJobTests
     [Fact]
     public async Task NamedJobRemainsPoisonedUntilItsDescendantTreeIsEmpty()
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var startupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var operationTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         string jobName = $@"Global\QuickPods.BluetoothKs.Tests.{Guid.NewGuid():N}";
         var job = KillOnCloseJob.Create(jobName);
         using Process parent = StartPausedParent();
@@ -29,17 +30,23 @@ public sealed class KillOnCloseJobTests
         try
         {
             job.Assign(parent);
-            await parent.StandardInput.WriteLineAsync("spawn".AsMemory(), timeout.Token);
+            string? readyLine = await parent.StandardOutput.ReadLineAsync(
+                startupTimeout.Token);
+            Assert.Equal("ready", readyLine);
+
+            await parent.StandardInput.WriteLineAsync(
+                "spawn".AsMemory(),
+                operationTimeout.Token);
             parent.StandardInput.Close();
             string? processIdLine = await parent.StandardOutput.ReadLineAsync(
-                timeout.Token);
+                operationTimeout.Token);
             Assert.True(int.TryParse(
                 processIdLine,
                 NumberStyles.None,
                 CultureInfo.InvariantCulture,
                 out int parsedProcessId));
             descendantProcessId = parsedProcessId;
-            await parent.WaitForExitAsync(timeout.Token);
+            await parent.WaitForExitAsync(operationTimeout.Token);
             Assert.True(IsProcessRunning(parsedProcessId));
 
             JobRecoveryStatus recovered = await KillOnCloseJob.RecoverNamedAsync(
@@ -75,6 +82,7 @@ public sealed class KillOnCloseJobTests
     private static Process StartPausedParent()
     {
         const string command =
+            "[Console]::Out.WriteLine('ready'); " +
             "$null = [Console]::In.ReadLine(); " +
             "$child = Start-Process -FilePath 'ping.exe' -ArgumentList '-t','127.0.0.1' -PassThru; " +
             "[Console]::Out.WriteLine($child.Id)";

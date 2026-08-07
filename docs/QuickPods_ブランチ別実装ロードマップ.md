@@ -9,7 +9,7 @@
 | 作成日 | 2026-08-05 |
 | 対象環境 | Windows 11 x64 / .NET 10 / WPF + Win32 |
 | 基本文書 | `QuickPods_実装計画書.md` |
-| ステータス | Phase 0～6B実装済み。Phase 5C、local-console証拠、retained Start hardeningはPhase 6Bへ統合済み。最終リリースはExplorer、local-consoleセッション、clean MSI、署名Gate待ち |
+| ステータス | Phase 0～6B実装済み。非署名スコープのlocal-console、Explorer、clean standard-user MSIを含むAC-001～027は受入完了。コード署名と署名済み公開artifactはオーナー判断で延期 |
 
 ## 1. 目的
 
@@ -19,12 +19,12 @@
 
 ## 2. 現在の進捗と開始条件
 
-2026-08-06時点のリポジトリ状態は次のとおりである。
+2026-08-08時点のリポジトリ状態は次のとおりである。
 
 | 項目 | 状態 |
 |---|---|
-| Git | `main`はPhase 6Bまで統合済み（PR #51、merge `645b3a8`）。Phase 5C PR #54、Bluetooth状態修正PR #64、local-console証拠PR #70、retained Start hardening PR #59も同じMainへ統合済み |
-| Remote | 全体進捗はIssue #2、残存Gateは#18／#34／#43／#50で管理。#15はPR #59で完了、#19は既存実機・決定論的証拠を受理して追加試験不要、物理Bluetooth #38／#41、resource観測 #48、Observer診断 #77、Phase 5C #53は完了済み。#33の専用NoFit再現は不要と判断 |
+| Git | `main`はPhase 6B、Phase 5C、Bluetooth状態修正、local-console証拠、retained Start hardening、theme/flyout修正、Explorer回復まで統合済み（head `d6cb13a`） |
+| Remote | #18／#34／#43は完了。#50はclean standard-user lifecycleを受理し、最終監査PRで完了する。Roadmap #2も同PR後に非署名スコープを完了する。コード署名は明示的に延期 |
 | 追跡対象 | 計画資料、ブランド資産、製品コード、インストーラー、検証証跡、既知の制限 |
 | ソース／テスト／CI | .NET 10製品solution、Windows CI、RC／MSI生成、focused regressionを運用中 |
 | AGENTS.md | なし |
@@ -362,7 +362,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 本体、Core Audio、表示ホストを結合し、表示の復旧とフォールバックを完成させる |
-| 状態 | **実装完了（2026-08-06）** — Issue #34／PR #35。CurrentUserOnly IPC、完全スナップショット、実音量往復、Host復旧、Explorer世代Observer、`TaskbarCreated`、Job Objectを統合。local-console製品版Explorer復旧GateはIssue #34で未完了。center-aligned NoFitの専用再現は2026-08-07に不要と判断 |
+| 状態 | **実装・local-console Gate完了（2026-08-08）** — Issue #34／PR #35／#83。CurrentUserOnly IPC、完全スナップショット、実音量往復、Host復旧、Explorer世代Observer、`TaskbarCreated`、Job Objectを統合。製品版Explorer実restartは7.683秒で単一面へ復旧し、controlsとgeneration resourceを再確認。center-aligned NoFitの専用再現は2026-08-07に不要と判断 |
 | IPC | 同一ユーザーSID限定の名前付きパイプ、ProtocolVersion、Sequence、再接続時の完全スナップショット |
 | 入力 | 音量暫定値／最終値、ミュート、フライアウト要求、コンテキストメニュー要求 |
 | 復旧 | `TaskbarCreated`、Watchdog、Explorer世代、ホスト再起動、連続失敗時のセッション無効化 |
@@ -404,7 +404,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | v2モックアップに沿った日常利用可能な製品シェルを完成させる |
-| 状態 | **実装完了（2026-08-06）** — Issue #42／PR #44。Tray／display／DPIのlocal-console最終GateはIssue #43 |
+| 状態 | **実装・local-console Gate完了（2026-08-08）** — Issue #42／PR #44、最終Gate #43。Tray／display／DPI／通常theme／real-login自動起動を受入済み |
 | UI | Bluetooth単一選択リスト、読み取り専用更新、状態別主ボタン、音量、設定、Tray、エラーと再試行 |
 | 設定 | 表示モード、選択機器、接続後の既定出力化、ホイール刻み、テーマ、切断確認、自動起動 |
 | 常駐 | 単一インスタンス、トレイ常駐、Windowsログイン時のユーザー単位自動起動 |
@@ -420,7 +420,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | OSライフサイクルとアクセシビリティを完成させる |
-| 状態 | **実装完了（2026-08-06）** — Issue #45／PR #46。local-console表示・DPI項目はIssue #43へ継続 |
+| 状態 | **実装・受入完了（2026-08-08）** — Issue #45／PR #46。local-console表示／DPI／keyboard／通常themeを確認。High Contrast追加追試はオーナー判断で最終Gateから除外 |
 | 復旧 | スリープ／休止、RDP、表示変更、テーマ、高コントラスト、モニター抜き差し |
 | A11y | AutomationProperties、Tab、矢印、Space、Enter、Esc、色以外の状態表現 |
 | 信頼性 | 設定破損隔離、段階的再試行、ホスト連続失敗制限、例外境界 |
@@ -432,9 +432,9 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 承認済みモックに沿ってタスクバー常設面、hover flyout、Bluetooth空／一覧状態の視覚・操作忠実度を完成させる |
-| 状態 | **実装・UI手動Gate完了（2026-08-07）** — PR #54をPhase 6BへSquash統合。実pointer anchor、hover dismiss、tray-first起動、Start 10秒超continuity、Release build、380件回帰、ユーザー目視に合格。実Bluetooth #38／#41は合格し、local-console DPI／keyboard #43へ継続 |
+| 状態 | **実装・UI手動Gate完了（2026-08-08）** — PR #54をPhase 6BへSquash統合。実pointer anchor、hover dismiss、tray-first起動、Start 10秒超continuityに加え、PR #85のtaskbar theme propagationとPR #87のcrisp flyout compositionをユーザー目視・操作で承認。実Bluetooth #38／#41とlocal-console #43も完了 |
 | 実装 | タスクバー内volume／device表示、non-activating hover、surface anchor、borderless flyout、空一覧、device rows、主操作、設定導線 |
-| 境界 | 左揃え非対応policyを維持。物理Bluetooth #38／#41は合格済み、local-console DPIはIssue #43で判定 |
+| 境界 | 左揃え非対応policyを維持。物理Bluetooth #38／#41、local-console DPI／keyboard／通常theme #43は合格済み |
 | 完了条件 | **達成** — ユーザー目視とPR #54 CIに合格し、物理機器／DPIの明示的な後続Gateを閉じずにPhase 6Bへ統合 |
 
 ### Phase 6：Release Candidateと配布
@@ -456,7 +456,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 再現可能で導入・削除できる配布物を作る |
-| 状態 | **実装・Main統合完了（2026-08-07）** — Issue #50／PR #51、merge `645b3a8`。ユーザー単位WiX MSI、法務、決定論性、静的検証、CI生成、短縮Gate Dは合格。clean standard-user lifecycleと署名済み最終artifactだけをIssue #50で継続 |
+| 状態 | **実装・非署名受入完了（2026-08-08）** — Issue #50／PR #51。ユーザー単位WiX MSI、法務、決定論性、CI生成に加え、disposable標準ユーザーのinstall／常駐中upgrade／常駐中uninstall／retention Gateに合格。コード署名は延期 |
 | 発行 | `win-x64` self-contained、Release、再現可能ビルド、SHA-256 |
 | 配布 | 決定したインストーラー形式、ポータブル診断版、更新方針 |
 | ブランド | ICO、実行ファイル情報、バージョン、アンインストール表示 |
@@ -464,14 +464,14 @@ docs/validation/phase-0/
 | テスト | クリーン環境でインストール、起動、更新、アンインストール、自動起動残骸確認 |
 | 完了条件 | 管理者権限なしで通常実行でき、配布物とチェックサムをCIから再生成可能 |
 
-B15の実装はB14の短縮Gate D通過後、PR #51としてMainへ統合した。Main統合は正式releaseを意味せず、clean standard-user lifecycleと署名済み最終artifactが完了するまでIssue #50とB16を閉じない。
+B15の実装はB14の短縮Gate D通過後、PR #51としてMainへ統合した。2026-08-08にclean standard-user lifecycleと実MSI法務payloadを受け入れ、非署名範囲のB15を完了した。署名証明書、timestamp付きAuthenticode、署名済み公開artifactは将来のpublication Gateへ延期する。
 
 #### B16：`codex/release-0.1.0-rc1`
 
 | 項目 | 内容 |
 |---|---|
 | 目的 | RC固有のバージョン、リリースノート、最終スモーク試験だけを行う |
-| 状態 | **Gate待ち** — Phase 6B実装とGate Dは完了。#18／#34のExplorer回復、#43の非RDPセッション／テーマ、#50のclean MSI／署名後に最終RCを確定 |
+| 状態 | **非署名Gate完了（2026-08-08）** — AC-001～027、Explorer回復、非RDPセッション／通常theme、clean MSIを受入済み。署名と実際のtag／公開はオーナーが別途開始するpublication作業 |
 | バージョン | `0.1.0-rc.1` |
 | 完了条件 | RC配布物が再生成でき、重大な既知不具合がなく、最終承認後に`v0.1.0`タグを作成可能 |
 

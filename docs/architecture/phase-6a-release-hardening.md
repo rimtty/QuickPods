@@ -22,13 +22,13 @@
 
 `build/Measure-QuickPodsResources.ps1`は指定した本体PIDと開始時刻を実行全体のidentityとして固定し、その時点で所有する全descendant processを一定間隔で集計する。本体の早期終了またはPID再利用は、途中までCSVが存在してもGate失敗とする。supervisor配下のchildがCIM snapshotとmetric取得の間に正常終了した場合だけそのsampleから除外し、replacementは次sampleで再発見する。CSVへUTC時刻、sample番号、process数、累積CPU秒、Working Set、Private Memory、handle、GDI object、USER objectだけを保存する。command line、path、window title、Bluetooth／audio identifierは収集しない。
 
-短時間のtooling smokeは計測器の成立性しか示さない。resource傾向はIssue #48のlocal-console Gate Dで2.01時間、1,391 sampleを観測し、2026-08-07にリリース判断者が短縮範囲で重大な異常なしとして承認した。Explorer実再起動はIssue #34、sleep／RDP transitionはIssue #43で分離して確認する。Bluetooth 50-cycle耐久は、接続／切断／既定化／実音声／外部状態追従の既存実機証拠を十分とする同日の製品判断により追加Gateから除外した。fail-closed、選択外影響、実状態確認の製品契約は維持する。
+短時間のtooling smokeは計測器の成立性しか示さない。resource傾向はIssue #48のlocal-console Gate Dで2.01時間、1,391 sampleを観測し、2026-08-07にリリース判断者が短縮範囲で重大な異常なしとして承認した。Explorer実再起動はIssues #34／#18、session／通常themeはIssue #43で後続確認を完了した。Bluetooth 50-cycle耐久は、接続／切断／既定化／実音声／外部状態追従の既存実機証拠を十分とする同日の製品判断により追加Gateから除外した。fail-closed、選択外影響、実状態確認の製品契約は維持する。
 
-## Gateの分離
+## Gate status
 
-- 実Bluetooth列挙：Issue #38
-- 実Bluetooth接続／切断／既定出力：Issue #41
-- DPI／High Contrast／sleep／RDP／monitor／trayのlocal-console確認：Issue #43
-- Explorer実再起動後の回復：Issue #34
+- 実Bluetooth列挙／操作：Issues #38／#41で合格
+- DPI／tray／通常theme／real-login：Issue #43で合格。High Contrast追加追試は除外
+- Explorer実再起動後の回復／generation resource：Issues #34／#18で合格
+- clean standard-user MSI lifecycle：Issue #50で合格
 
-CI artifactの生成成功を、これらの物理受入れ結果へ読み替えない。
+CI artifactの生成成功をこれらの物理受入れ結果へ読み替えず、それぞれの実機証拠で完了した。

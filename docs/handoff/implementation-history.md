@@ -9,12 +9,12 @@
 | 0C–0E | taskbar placement, native host, Start/Search continuity | PopupPreserved, fail-closed fallback, Explorer spike, retained Start proof |
 | 1 | production solution and OS boundary separation | App/Core/Windows/Contracts/Infrastructure projects |
 | 2 | real Audio MVP | default endpoint, volume, mute, external change, endpoint A→B→A |
-| 3A/3B | taskbar product host, IPC, supervision, recovery | versioned named pipe, sequence/generation rejection, helper lifetime |
+| 3A/3B | taskbar product host, IPC, supervision, recovery | versioned named pipe, sequence/generation rejection, 7.683-second real Explorer recovery, stable generation resources |
 | 4A/4B | Bluetooth product catalog and mutation/default output | physical AirPods aggregation, connect/disconnect/default, external-state following |
 | 5A/5B | tray lifetime, settings, startup, resilience/accessibility | explicit exit, JSON/HKCU persistence, lifecycle recovery, sanitized diagnostics |
 | 5C | final Fluent taskbar/flyout/settings UI | user-approved visual.75–86 sequence and DPI 100–350% |
 | 6A | release hardening | deterministic RC, dependency audit, resource/Observer diagnostics |
-| 6B | distribution | self-contained ZIP, per-user WiX MSI, uninstall/update/signing contracts |
+| 6B | distribution | self-contained ZIP, per-user WiX MSI, clean standard-user lifecycle, legal payload, uninstall/update/signing contracts |
 
 ## Production process boundaries
 
@@ -74,7 +74,7 @@ Only the App owns startup, settings, logs, and child lifetime. Helper executable
 - Shipped binaries are x64 and self-contained; users do not install .NET separately.
 - MSI installs per user under `PerUserProgramFilesFolder\QuickPods`, creates current-user integration only, and requires no elevation.
 - Major upgrade preserves user settings/startup intent. Complete uninstall removes the owned startup value and product files but keeps settings/logs.
-- Normal CI artifacts remain unsigned. Final publication requires a protected signing workflow, timestamp, Authenticode `Valid`, and matching manifests/hashes.
+- Normal CI artifacts remain unsigned. The non-signing acceptance scope is complete; signed publication is intentionally deferred and, if resumed, requires the protected workflow, timestamp, Authenticode `Valid`, and matching manifests/hashes.
 
 ## Design and evidence authority
 

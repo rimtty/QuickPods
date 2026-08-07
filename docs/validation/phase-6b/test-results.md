@@ -95,11 +95,35 @@ Phase 5C PR #54をSquash commit `cc6b99b`としてPhase 6Bへ統合し、同一c
 
 GitHub Actions run 31118567631もrestore、toolchain、audit、format、build、test、RC／MSI生成、artifact uploadまで成功した。後続の文書同期commitに対するCIはGitHub Actionsのpartial outageによりrunner割当待ちであり、コード失敗とは判定しない。
 
-## 未実施
+## 2026-08-06時点で未実施だったGate
 
-clean local-console環境でのinstall／launch／update／uninstall／startup残骸確認と、署名証明書を用いた署名検証は実施していない。`build/Test-InstallerLifecycle.ps1`は既存user stateを拒否した上で旧版install、常駐中upgrade、常駐中uninstall、startup／user-data境界を一回で検証するが、現ホストにはWindows Sandboxが導入されておらず、通常user環境を変更して結果を代用していない。短縮Gate D [#48](https://github.com/rimtty/QuickPods/issues/48)完了後、Phase 6B実装はPR #51（Main `645b3a8`）として統合した。正式releaseとIssue #50の完了はclean lifecycleと署名済みartifactまで保留する。
+Phase 6B実装をPR #51（Main `645b3a8`）へ統合した時点では、clean local-console環境でのinstall／launch／update／uninstall／startup残骸確認をまだ実施していなかった。`build/Test-InstallerLifecycle.ps1`は既存user stateを拒否するため、通常の開発profileを代用せず、後述のdisposable標準ユーザーGateまで保留した。この段落は当時の判断履歴であり、現在の未完了一覧ではない。
 
-実Bluetooth catalog [#38](https://github.com/rimtty/QuickPods/issues/38)と物理接続／切断／既定出力 [#41](https://github.com/rimtty/QuickPods/issues/41)は合格した。local-console証拠[#43](https://github.com/rimtty/QuickPods/issues/43)はDPI、keyboard、tray、設定保存、明示終了、診断操作まで合格し、非RDPの実ログイン自動起動とtheme／High Contrast最終描画だけを残す。Explorer回復は[#18](https://github.com/rimtty/QuickPods/issues/18)／[#34](https://github.com/rimtty/QuickPods/issues/34)へ分離する。
+実Bluetooth catalog [#38](https://github.com/rimtty/QuickPods/issues/38)、物理接続／切断／既定出力 [#41](https://github.com/rimtty/QuickPods/issues/41)、local-console session／通常theme／real-login [#43](https://github.com/rimtty/QuickPods/issues/43)、Explorer回復／generation resource [#18](https://github.com/rimtty/QuickPods/issues/18)／[#34](https://github.com/rimtty/QuickPods/issues/34)は後続Gateで完了した。High Contrast追加追試はオーナー判断で今回の最終Gateから除外した。
+
+## 2026-08-08 clean standard-user MSI lifecycle
+
+Main `d6cb13a2def45300262ef39136b3dd3ef0102ad8`から、同じx64／per-user／`requiresElevation=false`／495-file構造を持つ二つの未署名MSIを生成した。WiX warning／errorは両方0件だった。
+
+| 役割 | artifact／MSI version | ProductCode | SHA-256 |
+|---|---|---|---|
+| previous | `0.1.0-ci.4301`／`0.0.4301` | `379C6F15-9BD6-60FB-3888-E087CC4EEE38` | `a4ea4925094e29c15b4d1da8c000ad54579ccbe107c063b277adc2efd070de92` |
+| current | `0.1.0-ci.4302`／`0.0.4302` | `37881A31-07AE-E0F7-D0E0-9DC2BDBAE63F` | `6a88c454f6ddc3aa9264cccccb49e6c257eec800db5023c3dbe490163fa00203` |
+
+versionは昇順でProductCodeは異なる。current MSIの生成済みFile tableとpayload manifestには`ThirdPartyNotices.txt`が含まれ、その本文にCeiling参照とMIT全文がある。したがってAC-027の法務同梱は、署名状態とは独立して実際の受入MSIで成立する。
+
+検証専用のdisposable local標準ユーザーを作成し、Administrators非所属、interactive local `console`、Explorer 1件でrunnerを実行した。開始16:58:28 UTC、完了16:58:51 UTCで、結果は次のすべてがtrueだった。
+
+- previous install／launch
+- previous常駐中のcurrent major upgrade／current launch
+- current常駐中のuninstall
+- QuickPods user data保持
+- unrelated HKCU Run value保持
+- `failedStage=null`、`failureType=null`
+
+runner自体も`StandardUser=true`、`UserInteractive=true`、`Status=pass`を記録した。install／upgrade／uninstallのverbose MSI logを保存した。試験後は切断状態で残った対象sessionだけをlogoffし、テストユーザー、profile、scheduled task、一時passwordを削除した。ユーザー、session、profile directory、password fileはいずれも残っておらず、証跡だけをignored `artifacts/gates/issue-50/lifecycle-output/`へ保持する。
+
+以上により、clean standard-user lifecycleとAC-022を合格とする。code-signing certificate、timestamp付きAuthenticode、署名済みartifactは2026-08-08のオーナー判断で今回の完了目標から除外した。署名toolingのfail-closed契約は維持するが、`NotSigned`を`Valid`と読み替えない。
 
 ## 2026-08-07 cross-host handoff再現性確認
 
