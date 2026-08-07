@@ -132,22 +132,25 @@ public sealed class FloatingPlacementCalculatorTests
         AssertUnavailable(result, FloatingPlacementUnavailableReason.UnsupportedDpi);
     }
 
-    [Theory]
-    [InlineData(240u, 750, 100, 20)]
-    public void Calculate_AcceptsSupportedDpiBoundaries(
-        uint dpi,
-        int width,
-        int height,
-        int margin)
+    [Fact]
+    public void Calculate_AcceptsEveryWindowsScaleVariantWhenTheWorkAreaFits()
     {
-        var workArea = new PixelRect(0, 0, width + (2 * margin), height + margin);
+        uint[] dpis = [96, 120, 144, 168, 192, 216, 240, 288, 336];
 
-        FloatingPlacementResult result = FloatingPlacementCalculator.Calculate(
-            new(workArea, dpi));
+        foreach (uint dpi in dpis)
+        {
+            int width = checked((int)(300 * dpi / 96));
+            int height = checked((int)(40 * dpi / 96));
+            int margin = checked((int)(8 * dpi / 96));
+            var workArea = new PixelRect(0, 0, width + (2 * margin), height + margin);
 
-        Assert.Equal(
-            new PixelRect(margin, 0, margin + width, height),
-            AssertAvailable(result));
+            FloatingPlacementResult result = FloatingPlacementCalculator.Calculate(
+                new(workArea, dpi));
+
+            Assert.Equal(
+                new PixelRect(margin, 0, margin + width, height),
+                AssertAvailable(result));
+        }
     }
 
     [Fact]

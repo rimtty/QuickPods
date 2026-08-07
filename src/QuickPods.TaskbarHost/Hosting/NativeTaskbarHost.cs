@@ -552,7 +552,8 @@ internal sealed class NativeTaskbarHost : IDisposable
                     expectedBounds.Left,
                     expectedBounds.Top,
                     expectedBounds.Right,
-                    expectedBounds.Bottom));
+                    expectedBounds.Bottom,
+                    expectedDpi));
         }
 
         pendingInteractions.Enqueue(envelope);
