@@ -3,7 +3,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:contracts="clr-namespace:QuickPods.Contracts;assembly=QuickPods.Contracts"
         xmlns:local="clr-namespace:QuickPods.App"
-        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="QuickPods"
         Width="382"
         MinWidth="382"
@@ -11,7 +10,7 @@
         MaxHeight="760"
         SizeToContent="WidthAndHeight"
         WindowStartupLocation="Manual"
-        WindowStyle="SingleBorderWindow"
+        WindowStyle="None"
         ResizeMode="NoResize"
         AllowsTransparency="False"
         ShowInTaskbar="False"
@@ -33,14 +32,6 @@
         PreviewKeyDown="OnWindowPreviewKeyDown"
         Closing="OnClosing"
         Closed="OnClosed">
-    <shell:WindowChrome.WindowChrome>
-        <shell:WindowChrome CaptionHeight="0"
-                            ResizeBorderThickness="0"
-                            GlassFrameThickness="0"
-                            CornerRadius="0"
-                            UseAeroCaptionButtons="False" />
-    </shell:WindowChrome.WindowChrome>
-
     <Window.Resources>
         <local:ImmutableBytesToImageSourceConverter x:Key="DeviceIconSourceConverter" />
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
@@ -98,7 +89,7 @@
                                 Padding="11,8"
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{DynamicResource PanelBorderBrush}"
-                                BorderThickness="0,0,0,1"
+                                BorderThickness="0"
                                 CornerRadius="0">
                             <ContentPresenter />
                         </Border>
