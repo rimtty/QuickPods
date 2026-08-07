@@ -162,6 +162,73 @@ public sealed class BluetoothProductPresenterTests
         Assert.Equal(ProductPrimaryActionKind.Connect, view.PrimaryAction);
     }
 
+    [Fact]
+    public void LateConnectedStateClearsTimedOutConnectError()
+    {
+        BluetoothAudioCatalogSnapshot catalog = Catalog(
+            generation: 10,
+            Device(DeviceA, "AirPods Pro", isSelected: true) with
+            {
+                ConnectionState = BluetoothConnectionState.Connected,
+                DefaultOutputState = DefaultOutputState.Default,
+            });
+        BluetoothOperationSnapshot timedOut = TimedOutOperation(
+            targetGeneration: 9,
+            BluetoothRequestedAction.Connect,
+            BluetoothConnectionState.Disconnected);
+
+        BluetoothProductPresentation view = BluetoothProductPresenter.Project(
+            catalog,
+            timedOut,
+            isRefreshing: false);
+
+        Assert.Equal("接続済み・既定", Assert.Single(view.Devices).StatusText);
+        Assert.Equal(ProductPrimaryActionKind.Disconnect, view.PrimaryAction);
+        Assert.Null(view.ErrorMessage);
+    }
+
+    [Fact]
+    public void TimedOutConnectErrorRemainsWhileRefreshedStateIsDisconnected()
+    {
+        BluetoothAudioCatalogSnapshot catalog = Catalog(
+            generation: 10,
+            Device(DeviceA, "AirPods Pro", isSelected: true));
+        BluetoothOperationSnapshot timedOut = TimedOutOperation(
+            targetGeneration: 9,
+            BluetoothRequestedAction.Connect,
+            BluetoothConnectionState.Disconnected);
+
+        BluetoothProductPresentation view = BluetoothProductPresenter.Project(
+            catalog,
+            timedOut,
+            isRefreshing: false);
+
+        Assert.Equal("未接続", Assert.Single(view.Devices).StatusText);
+        Assert.Equal(ProductPrimaryActionKind.Connect, view.PrimaryAction);
+        Assert.Contains("期限内", view.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LateDisconnectedStateClearsTimedOutDisconnectError()
+    {
+        BluetoothAudioCatalogSnapshot catalog = Catalog(
+            generation: 12,
+            Device(DeviceA, "AirPods Pro", isSelected: true));
+        BluetoothOperationSnapshot timedOut = TimedOutOperation(
+            targetGeneration: 11,
+            BluetoothRequestedAction.Disconnect,
+            BluetoothConnectionState.Connected);
+
+        BluetoothProductPresentation view = BluetoothProductPresenter.Project(
+            catalog,
+            timedOut,
+            isRefreshing: false);
+
+        Assert.Equal("未接続", Assert.Single(view.Devices).StatusText);
+        Assert.Equal(ProductPrimaryActionKind.Connect, view.PrimaryAction);
+        Assert.Null(view.ErrorMessage);
+    }
+
     private static BluetoothAudioCatalogSnapshot Catalog(
         long generation,
         params BluetoothAudioDeviceDescriptor[] devices)
@@ -188,4 +255,18 @@ public sealed class BluetoothProductPresenterTests
             BluetoothDeviceCapability.DirectControl,
             [BluetoothAudioProfile.Stereo],
             isSelected);
+
+    private static BluetoothOperationSnapshot TimedOutOperation(
+        long targetGeneration,
+        BluetoothRequestedAction requestedAction,
+        BluetoothConnectionState connectionState) =>
+        new(
+            Revision: targetGeneration,
+            new BluetoothOperationTarget(DeviceA, targetGeneration),
+            requestedAction,
+            QuickPodsOperation.None,
+            BluetoothOperationOutcome.TimedOut,
+            connectionState,
+            DefaultOutputState.NotApplicable,
+            QuickPodsErrorCode.BluetoothTimeout);
 }
