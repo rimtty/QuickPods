@@ -4,7 +4,7 @@ namespace QuickPods.Contracts;
 
 public static class QuickPodsProtocol
 {
-    public const int Version = 2;
+    public const int Version = 3;
 
     public const int MaximumMessageCharacters = 16 * 1024;
 }
@@ -25,6 +25,10 @@ public enum HostInteractionKind
     OpenContextMenu,
     PreviewAudioFlyout,
     TaskbarPointerExited,
+    TaskbarObserverTaskbarCreated,
+    TaskbarObserverGenerationChanged,
+    TaskbarObserverFaulted,
+    TaskbarObserverDisconnected,
 }
 
 [Flags]
@@ -134,7 +138,8 @@ public sealed record HostInteractionEnvelope
         long sequence,
         HostInteractionKind kind,
         int? volumePercent = null,
-        TaskbarSurfaceAnchor? anchor = null)
+        TaskbarSurfaceAnchor? anchor = null,
+        long? observerGenerationOrdinal = null)
     {
         if (protocolVersion != QuickPodsProtocol.Version)
         {
@@ -170,11 +175,25 @@ public sealed record HostInteractionEnvelope
                 nameof(anchor));
         }
 
+        bool observerLifecycleNotification = IsObserverLifecycleNotification(kind);
+        if (observerLifecycleNotification != observerGenerationOrdinal.HasValue)
+        {
+            throw new ArgumentException(
+                "Observer lifecycle notifications require a generation ordinal and other interactions forbid it.",
+                nameof(observerGenerationOrdinal));
+        }
+
+        if (observerGenerationOrdinal is { } ordinal)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(ordinal, nameof(observerGenerationOrdinal));
+        }
+
         ProtocolVersion = protocolVersion;
         Sequence = sequence;
         Kind = kind;
         VolumePercent = volumePercent;
         Anchor = anchor;
+        ObserverGenerationOrdinal = observerGenerationOrdinal;
     }
 
     public int ProtocolVersion { get; }
@@ -186,6 +205,15 @@ public sealed record HostInteractionEnvelope
     public int? VolumePercent { get; }
 
     public TaskbarSurfaceAnchor? Anchor { get; }
+
+    public long? ObserverGenerationOrdinal { get; }
+
+    public static bool IsObserverLifecycleNotification(HostInteractionKind kind) =>
+        kind is
+            HostInteractionKind.TaskbarObserverTaskbarCreated or
+            HostInteractionKind.TaskbarObserverGenerationChanged or
+            HostInteractionKind.TaskbarObserverFaulted or
+            HostInteractionKind.TaskbarObserverDisconnected;
 }
 
 public sealed record ObserverSessionRequest

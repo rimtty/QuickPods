@@ -146,6 +146,7 @@ internal sealed class TaskbarHostRuntime : IDisposable
             _ = floatingHost?.PumpMessages();
             if (notificationWindow.TryConsumeTaskbarCreated() && IsSurfaceRequested)
             {
+                ReportObserverLifecycle(HostInteractionKind.TaskbarObserverTaskbarCreated);
                 DestroySurface();
                 DisposeObserver();
                 InvalidateLayout();
@@ -344,8 +345,23 @@ internal sealed class TaskbarHostRuntime : IDisposable
             nextInteractionSequence++,
             interaction.Kind,
             interaction.VolumePercent,
-            interaction.Anchor);
+            interaction.Anchor,
+            interaction.ObserverGenerationOrdinal);
         writer.WriteLine(QuickPodsProtocolJson.Serialize(normalized));
+    }
+
+    private void ReportObserverLifecycle(HostInteractionKind kind)
+    {
+        if (observer is null)
+        {
+            return;
+        }
+
+        ForwardInteraction(new HostInteractionEnvelope(
+            QuickPodsProtocol.Version,
+            0,
+            kind,
+            observerGenerationOrdinal: observer.GenerationOrdinal));
     }
 
     private void OnLayoutInvalidated(NativeLayoutInvalidationReason reason)
@@ -361,7 +377,9 @@ internal sealed class TaskbarHostRuntime : IDisposable
             return;
         }
 
-        bool observerUnavailable = observer.Failure is not null || observer.IsDisconnected;
+        bool hasTransportFailure = observer.Failure is not null;
+        bool observerUnavailable = hasTransportFailure || observer.IsDisconnected;
+        ObserverInvalidationKind terminalKinds = ObserverInvalidationKind.None;
         bool invalidate = observerUnavailable;
         while (observer.TryDequeue(out ObserverInvalidationBatch? batch))
         {
@@ -371,8 +389,13 @@ internal sealed class TaskbarHostRuntime : IDisposable
             }
 
             ObserverInvalidationKind actionable = batch.Kinds & ~ObserverInvalidationKind.Ready;
+            terminalKinds |= actionable &
+                (ObserverInvalidationKind.ExplorerGenerationChanged |
+                 ObserverInvalidationKind.ObserverFaulted);
             invalidate |= actionable != ObserverInvalidationKind.None;
         }
+
+        observerUnavailable |= terminalKinds != ObserverInvalidationKind.None;
 
         if (!invalidate)
         {
@@ -381,6 +404,9 @@ internal sealed class TaskbarHostRuntime : IDisposable
 
         if (observerUnavailable)
         {
+            ReportObserverLifecycle(ObserverLifecycleNotificationPolicy.ClassifyRetirement(
+                terminalKinds,
+                hasTransportFailure));
             DisposeObserver();
         }
 
