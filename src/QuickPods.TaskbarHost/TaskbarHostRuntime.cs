@@ -470,6 +470,14 @@ internal sealed class TaskbarHostRuntime : IDisposable
             return;
         }
 
+        if (observer is not null)
+        {
+            ReportObserverLifecycle(ObserverLifecycleNotificationPolicy.ClassifyReplacement(
+                observerExplorerProcessId,
+                explorerProcessId,
+                observer.Failure is not null));
+        }
+
         DisposeObserver();
         if (nextObserverSubscriptionEpoch == long.MaxValue ||
             nextObserverGenerationOrdinal == long.MaxValue)

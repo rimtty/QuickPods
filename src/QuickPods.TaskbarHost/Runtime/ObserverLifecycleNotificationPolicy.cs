@@ -18,4 +18,21 @@ internal static class ObserverLifecycleNotificationPolicy
             ? HostInteractionKind.TaskbarObserverGenerationChanged
             : HostInteractionKind.TaskbarObserverDisconnected;
     }
+
+    internal static HostInteractionKind ClassifyReplacement(
+        uint observerExplorerProcessId,
+        uint discoveredExplorerProcessId,
+        bool hasTransportFailure)
+    {
+        if (observerExplorerProcessId != 0 &&
+            discoveredExplorerProcessId != 0 &&
+            observerExplorerProcessId != discoveredExplorerProcessId)
+        {
+            return HostInteractionKind.TaskbarObserverGenerationChanged;
+        }
+
+        return hasTransportFailure
+            ? HostInteractionKind.TaskbarObserverFaulted
+            : HostInteractionKind.TaskbarObserverDisconnected;
+    }
 }

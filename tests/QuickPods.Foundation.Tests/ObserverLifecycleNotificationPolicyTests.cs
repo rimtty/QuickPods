@@ -22,4 +22,23 @@ public sealed class ObserverLifecycleNotificationPolicyTests
                 terminalKinds,
                 hasTransportFailure));
     }
+
+    [Theory]
+    [InlineData(41u, 42u, false, HostInteractionKind.TaskbarObserverGenerationChanged)]
+    [InlineData(41u, 42u, true, HostInteractionKind.TaskbarObserverGenerationChanged)]
+    [InlineData(41u, 41u, true, HostInteractionKind.TaskbarObserverFaulted)]
+    [InlineData(41u, 41u, false, HostInteractionKind.TaskbarObserverDisconnected)]
+    public void ReplacementReasonPrioritizesAChangedExplorerGeneration(
+        uint observerExplorerProcessId,
+        uint discoveredExplorerProcessId,
+        bool hasTransportFailure,
+        HostInteractionKind expected)
+    {
+        Assert.Equal(
+            expected,
+            ObserverLifecycleNotificationPolicy.ClassifyReplacement(
+                observerExplorerProcessId,
+                discoveredExplorerProcessId,
+                hasTransportFailure));
+    }
 }
