@@ -107,6 +107,8 @@ QuickPodsを終了せず、Windowsが提示する次の全拡大率でflyoutのt
 
 以上により、実ユーザー領域での即時保存、明示終了、背景再起動後の保持、Run登録／削除は合格とする。RDPではWindowsへの再ログインそのものとテーマの最終描画を証明できないため、その視覚・セッション項目は[#43](https://github.com/rimtty/QuickPods/issues/43)へ残す。
 
+同じRDPセッションで通知領域の設定画面から`ログを開く`を実行し、QuickPodsログフォルダーが正常に開くことを確認した。`診断情報をコピー`の出力はversion、Audio capability、volume／mute、Bluetooth device count、selected device／status、display mode、theme、wheel step、startup stateだけを含み、生のContainer／Endpoint／PnP／MAC IDやアカウント識別子を含まなかった。補助操作とsanitizationを合格とする。
+
 ## 初回検証時に合否を保留した項目
 
 2026-08-06の初回検証はRemote Desktopだったため、次をその時点のPhase 5A合格証拠として扱わなかった。DPI、通知領域、flyout入力は翌日のローカルコンソール証拠で補完したが、mixed DPIと物理Bluetoothの別機器条件は個別Issueで引き続き追跡する。

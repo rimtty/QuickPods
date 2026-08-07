@@ -2,7 +2,7 @@
 
 ## 対象
 
-2026-08-07、`codex/p2-retained-start-provenance`（最新検証base `2294b80`）で Issue [#15](https://github.com/rimtty/QuickPods/issues/15) の保持した Start landmark の証拠化、verified factoryの出所検証、順序付きcontinuity attemptのfail-closed境界を実装した。
+2026-08-07、`codex/p2-retained-start-provenance`（最終検証base `313be22`）で Issue [#15](https://github.com/rimtty/QuickPods/issues/15) の保持した Start landmark の証拠化、verified factoryの出所検証、順序付きcontinuity attemptのfail-closed境界を実装した。
 
 - 完全観測済み `TaskbarContinuityAnchor` からだけ private proof を生成する
 - `DirectExpected`、同一taskbar geometry、`StartButtonMissing`だけの不完全観測、fresh Start不在を生成時に要求する
@@ -16,7 +16,7 @@
 - Settings／Display／DPIを含むscan中invalidationは、結果を待たずnative surfaceを即時hideしてscanをcancelする
 - discovery結果、障害物安全性、identity／bounds、native attachment、race fenceを`TaskbarContinuityAttemptPolicy`へ集約し、Runnerが同じ決定境界を実使用する
 
-自動化可能なIssue #15の契約は完了した。Startを開いたままtaskbar／Search／Widgetsレイアウトを変更する物理negative Gateだけは同Issueに残す。
+自動化可能なIssue #15の契約は完了した。Startを開いたままtaskbar／Search／Widgetsレイアウトを変更する追加の物理negative repetitionは、既存local-console Start／Search証拠と決定論的fail-closed試験を十分とする2026-08-07の製品判断により0.1.0 Gateから除外した。
 
 ## 自動検証
 
@@ -39,8 +39,8 @@
 
 テスト実行数は183件のまま増やしていない。既存のadapter／watchdogテストへ代表シナリオを統合し、retained Start＋notification area、過去障害物、新規障害物、fresh完全復旧、watcher generation race、Settings／Display／DPI in-flight invalidationを検証する。非Direct route、追加fault、duplicate、timeout、property／bounds failure、route変化は既存のcontinuity discovery契約で検証する。
 
-全体回帰は今回変更したTaskbar Host projectをReleaseで再buildした後の`--no-build`実行である。PR CIではsolution全体をclean buildして再検証する。
+全体回帰は今回変更したTaskbar Host projectをReleaseで再buildした後の`--no-build`実行である。PR #59はPR #70統合後のPhase 6Bへ再基底し、solution全体のclean build、RC、per-user MSIを含むGitHub Actionsにも合格してSquash Mergeされた。
 
 ## 判定境界
 
-自動検証は、不正な呼び出し元が任意のStart snapshotやbooleanを渡してverified結果を成立させられず、順序付きscanの途中状態がvisible継続へ入れないコード境界を確認する。Explorer切替中の実際のタイミング、Start/Search表示中の合成描画、物理taskbarでのnegative caseの合否には代用しない。
+自動検証は、不正な呼び出し元が任意のStart snapshotやbooleanを渡してverified結果を成立させられず、順序付きscanの途中状態がvisible継続へ入れないコード境界を確認する。実Start／Search中の合成描画と入力は既存local-console証拠を用い、Explorer切替中の製品回復は[#18](https://github.com/rimtty/QuickPods/issues/18)／[#34](https://github.com/rimtty/QuickPods/issues/34)で別に確認する。

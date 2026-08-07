@@ -97,6 +97,20 @@ GitHub Actions run 31118567631もrestore、toolchain、audit、format、build、
 
 ## 未実施
 
-clean local-console環境でのinstall／launch／update／uninstall／startup残骸確認と、署名証明書を用いた署名検証は実施していない。`build/Test-InstallerLifecycle.ps1`は既存user stateを拒否した上で旧版install、常駐中upgrade、常駐中uninstall、startup／user-data境界を一回で検証するが、現ホストにはWindows Sandboxが導入されておらず、通常user環境を変更して結果を代用していない。Phase 6Bの最終mergeはロードマップどおりGate D [#48](https://github.com/rimtty/QuickPods/issues/48)通過後とする。
+clean local-console環境でのinstall／launch／update／uninstall／startup残骸確認と、署名証明書を用いた署名検証は実施していない。`build/Test-InstallerLifecycle.ps1`は既存user stateを拒否した上で旧版install、常駐中upgrade、常駐中uninstall、startup／user-data境界を一回で検証するが、現ホストにはWindows Sandboxが導入されておらず、通常user環境を変更して結果を代用していない。短縮Gate D [#48](https://github.com/rimtty/QuickPods/issues/48)は完了済みであるため、Phase 6Bの実装はMainへ統合できる。正式releaseとIssue #50の完了はclean lifecycleと署名済みartifactまで保留する。
 
-実Bluetooth catalog [#38](https://github.com/rimtty/QuickPods/issues/38)と物理接続／切断／既定出力 [#41](https://github.com/rimtty/QuickPods/issues/41)は合格した。local-console表示／電源 [#43](https://github.com/rimtty/QuickPods/issues/43)は未完了である。
+実Bluetooth catalog [#38](https://github.com/rimtty/QuickPods/issues/38)と物理接続／切断／既定出力 [#41](https://github.com/rimtty/QuickPods/issues/41)は合格した。local-console証拠[#43](https://github.com/rimtty/QuickPods/issues/43)はDPI、keyboard、tray、設定保存、明示終了、診断操作まで合格し、非RDPの実ログイン自動起動とtheme／High Contrast最終描画だけを残す。Explorer回復は[#18](https://github.com/rimtty/QuickPods/issues/18)／[#34](https://github.com/rimtty/QuickPods/issues/34)へ分離する。
+
+## 2026-08-07 cross-host handoff再現性確認
+
+Phase 5C、local-console証拠、retained Start hardeningを統合したPhase 6B headで、別PCへ引き継ぐ直前のCI相当検証を再実行した。
+
+- format verification：差分なし
+- Release `-warnaserror` build：警告0、error 0
+- 全回帰：398／398 Pass
+- cross-process KS gate：10回反復、10／10 Pass
+- self-contained RC：`0.1.0-handoff.1`、manifest entries 494、ZIP 83,592,565 bytes
+- per-user MSI：`0.1.0-handoff.1`、63,913,984 bytes、x64、昇格不要、`NotSigned`
+- MSI SHA-256：`8265b298b37c7b23c8b686ec991b663c1f43abf759a2c5110d313176e0573ba1`
+
+PR #51の先行CI run 31174241336では、固定名KS gate ownerの3秒holdが高負荷runner上でcontender開始前に終了し、1件だけ失敗した。製品動作ではなくテスト同期の競合である。ownerをテストtimeoutより十分長く保持し、contender判定後にcleanupするよう変更した。上記10回反復と全398件で再現しないことを確認した。生成物は`artifacts/`配下のignored検証物であり、repositoryへは含めない。

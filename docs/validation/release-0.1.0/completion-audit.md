@@ -61,13 +61,9 @@
 | #18／#34 | 018、021 | 製品版Explorer restart、重複0、10秒以内、長寿命processのUSER／GDI非増加 |
 | #50／PR #51 | 022、027 | clean standard-user MSI lifecycle、法務payload、署名済み最終成果物 |
 
-## 追加P2証拠
+## P2整理（2026-08-07）
 
-次はAC本体の現在判定を降格させる既知欠陥ではないが、開発計画全体を完遂するまで閉じずに追跡する。
+- [#15](https://github.com/rimtty/QuickPods/issues/15)のretained Start provenance／race hardeningはPR #59で実装し、Taskbar Host 183／183、全398／398、Release build、format、再基底後CIを合格して完了した。追加の物理negative repetitionは既存local-console Start／Search証拠と決定論的fail-closed試験で代替した。
+- [#19](https://github.com/rimtty/QuickPods/issues/19)のguarded-mutation中の複数出力物理追試は、AC-005がPhase 2の実Endpoint A→B→Aと決定論的restoration試験でProvenであるため、0.1.0 Gateでは不要と判断して`not planned`で閉じた。
 
-| Issue | 位置づけ | 残作業 |
-|---|---|---|
-| [#15](https://github.com/rimtty/QuickPods/issues/15) | Start continuityのfail-closed hardening | Start表示中にtaskbar／Search／Widgets layoutを変更し、古いStart geometryを再利用しないことをlocal-consoleで確認 |
-| [#19](https://github.com/rimtty/QuickPods/issues/19) | AC-005の追加hardware corroboration | 2つ以上のactive render endpointでguarded mutation中のA→B→Aを再確認。製品版の通常A→B→AはPhase 2で合格済み |
-
-すべてのAC行が`Proven`となり、追加P2証拠Issueも完了するまでRoadmap #2のcompletion auditとRelease branch B16を完了扱いにしない。
+すべてのAC行が`Proven`となるまでRoadmap #2のcompletion auditとRelease branch B16を完了扱いにしない。

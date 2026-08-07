@@ -26,4 +26,7 @@ WiX v6のOpen Source Maintenance Fee条件はrelease前に配布主体が確認�
 
 - `build/Test-InstallerLifecycle.ps1`を使うclean standard-user環境でのinstall／launch／running update／running uninstall／auto-start残骸0件
 - code-signing証明書の準備、`release-signing` secret登録、署名済み正式artifactのworkflow実行
-- #43、#48（物理Bluetooth catalog／operation #38／#41は合格済み）
+- 非RDPの自動起動／theme／High Contrast：#43
+- 製品Explorer回復と世代別resource証拠：#34／#18
+
+短縮resource Gate D #48と物理Bluetooth catalog／operation #38／#41は合格済みであり、Phase 6Bの実装統合を阻害しない。
