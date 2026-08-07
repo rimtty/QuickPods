@@ -19,7 +19,7 @@ internal static class TaskbarContinuityPolicy
                 nextRoute.Reason == TaskbarPresentationReason.TransientUnknownHidden);
     }
 
-    internal static bool ShouldEnsureObserverAfterRetention(
+    internal static bool ShouldEnsureObserverAfterDiscovery(
         TaskbarPresentationRoute nextRoute)
     {
         ArgumentNullException.ThrowIfNull(nextRoute);

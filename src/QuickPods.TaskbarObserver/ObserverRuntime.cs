@@ -85,8 +85,25 @@ internal sealed class ObserverRuntime : IDisposable
         WriteBatch(
             ObserverInvalidationKind.Ready,
             ObserverSourceClassification.Unknown);
-        while (!parentProcess.HasExited && subscription.IsAlive)
+        while (!parentProcess.HasExited)
         {
+            if (subscription.TryTake(out ObserverSignal first, TimeSpan.FromMilliseconds(250)))
+            {
+                ObserverInvalidationKind kinds = first.Kind;
+                ObserverSourceClassification source = first.Source;
+                while (subscription.TryTake(out ObserverSignal next, TimeSpan.Zero))
+                {
+                    kinds |= next.Kind;
+                    source = Stronger(source, next.Source);
+                }
+
+                WriteBatch(kinds, source);
+                if ((kinds & ObserverInvalidationKind.ExplorerGenerationChanged) != 0)
+                {
+                    return 7;
+                }
+            }
+
             if (subscription.Failure is { } failure)
             {
                 _ = failure;
@@ -96,23 +113,12 @@ internal sealed class ObserverRuntime : IDisposable
                 return 6;
             }
 
-            if (!subscription.TryTake(out ObserverSignal first, TimeSpan.FromMilliseconds(250)))
+            // The worker can enqueue a terminal generation signal and exit before
+            // this loop is scheduled again. Only classify a clean worker exit after
+            // draining that queue and checking its captured failure.
+            if (!subscription.IsAlive)
             {
-                continue;
-            }
-
-            ObserverInvalidationKind kinds = first.Kind;
-            ObserverSourceClassification source = first.Source;
-            while (subscription.TryTake(out ObserverSignal next, TimeSpan.Zero))
-            {
-                kinds |= next.Kind;
-                source = Stronger(source, next.Source);
-            }
-
-            WriteBatch(kinds, source);
-            if ((kinds & ObserverInvalidationKind.ExplorerGenerationChanged) != 0)
-            {
-                return 7;
+                return 6;
             }
         }
 

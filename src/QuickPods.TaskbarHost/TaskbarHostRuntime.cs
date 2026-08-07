@@ -40,6 +40,9 @@ internal sealed class TaskbarHostRuntime : IDisposable
     private long nextObserverSubscriptionEpoch;
     private long discoveryEpoch;
     private uint observerExplorerProcessId;
+    private uint retiredObserverExplorerProcessId;
+    private long retiredObserverGenerationOrdinal = -1;
+    private long lastReportedObserverGenerationOrdinal = -1;
     private TaskbarSurfaceAnchor? reportedSurfaceAnchor;
     private bool hasReportedSurfaceAnchor;
     private bool layoutInvalidated;
@@ -197,18 +200,21 @@ internal sealed class TaskbarHostRuntime : IDisposable
                             placement.Identity == currentPlacement,
                             continuityStable))
                     {
-                        if (TaskbarContinuityPolicy.ShouldEnsureObserverAfterRetention(
-                                placement.Route))
-                        {
-                            EnsureObserver(currentPlacement.ExplorerProcessId);
-                        }
-
                         ReportSurfaceAnchor(CreateSurfaceAnchor(currentPlacement));
                     }
                     else
                     {
                         ApplyPlacement(placement);
                     }
+                }
+
+                // A transient discovery can retain the native surface after an observer
+                // session is retired. The next complete watchdog discovery may have the
+                // same placement identity, so it must still restore the missing observer.
+                if (TaskbarContinuityPolicy.ShouldEnsureObserverAfterDiscovery(
+                        placement.Route))
+                {
+                    EnsureObserver(placement.Identity.ExplorerProcessId);
                 }
 
                 layoutInvalidated = false;
@@ -366,11 +372,19 @@ internal sealed class TaskbarHostRuntime : IDisposable
             return;
         }
 
+        ReportObserverLifecycle(kind, observer.GenerationOrdinal);
+    }
+
+    private void ReportObserverLifecycle(HostInteractionKind kind, long generationOrdinal)
+    {
         ForwardInteraction(new HostInteractionEnvelope(
             QuickPodsProtocol.Version,
             0,
             kind,
-            observerGenerationOrdinal: observer.GenerationOrdinal));
+            observerGenerationOrdinal: generationOrdinal));
+        lastReportedObserverGenerationOrdinal = Math.Max(
+            lastReportedObserverGenerationOrdinal,
+            generationOrdinal);
     }
 
     private void ReportSurfaceAnchor(TaskbarSurfaceAnchor? anchor)
@@ -446,7 +460,8 @@ internal sealed class TaskbarHostRuntime : IDisposable
         {
             ReportObserverLifecycle(ObserverLifecycleNotificationPolicy.ClassifyRetirement(
                 terminalKinds,
-                hasTransportFailure));
+                hasTransportFailure,
+                HasExplorerGenerationExited(observerExplorerProcessId)));
             DisposeObserver();
         }
 
@@ -467,6 +482,27 @@ internal sealed class TaskbarHostRuntime : IDisposable
             return;
         }
 
+        uint previousExplorerProcessId = observer is null
+            ? retiredObserverExplorerProcessId
+            : observerExplorerProcessId;
+        long previousGenerationOrdinal = observer is null
+            ? retiredObserverGenerationOrdinal
+            : observer.GenerationOrdinal;
+        HostInteractionKind? replacementKind = null;
+        if (observer is not null)
+        {
+            replacementKind = ObserverLifecycleNotificationPolicy.ClassifyReplacement(
+                observerExplorerProcessId,
+                explorerProcessId,
+                observer.Failure is not null);
+        }
+        else if (previousGenerationOrdinal > lastReportedObserverGenerationOrdinal &&
+            previousExplorerProcessId != 0 &&
+            previousExplorerProcessId != explorerProcessId)
+        {
+            replacementKind = HostInteractionKind.TaskbarObserverGenerationChanged;
+        }
+
         DisposeObserver();
         if (nextObserverSubscriptionEpoch == long.MaxValue ||
             nextObserverGenerationOrdinal == long.MaxValue)
@@ -479,13 +515,47 @@ internal sealed class TaskbarHostRuntime : IDisposable
             nextObserverSubscriptionEpoch++,
             nextObserverGenerationOrdinal++);
         observerExplorerProcessId = explorerProcessId;
+        if (replacementKind is { } kind &&
+            previousGenerationOrdinal > lastReportedObserverGenerationOrdinal)
+        {
+            ReportObserverLifecycle(kind, previousGenerationOrdinal);
+        }
     }
 
     private void DisposeObserver()
     {
+        if (observer is not null)
+        {
+            retiredObserverExplorerProcessId = observerExplorerProcessId;
+            retiredObserverGenerationOrdinal = observer.GenerationOrdinal;
+        }
+
         observer?.Dispose();
         observer = null;
         observerExplorerProcessId = 0;
+    }
+
+    private static bool HasExplorerGenerationExited(uint explorerProcessId)
+    {
+        if (explorerProcessId == 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            using Process explorer = Process.GetProcessById((int)explorerProcessId);
+            return explorer.HasExited ||
+                !string.Equals(explorer.ProcessName, "explorer", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (ArgumentException)
+        {
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return true;
+        }
     }
 
     private void StartDiscoveryIfNeeded()
