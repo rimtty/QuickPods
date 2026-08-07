@@ -23,4 +23,4 @@ Windows 11の「Bluetoothとデバイス」へペアリング済みAirPods Pro�
 
 自己完結型`visual.72`では、ポップアップを表示する直前に読み取り専用のカタログ更新を行う。さらにCore Audioのデバイス追加・削除・状態・既定出力変更通知を450 msで集約して再取得するため、Windows設定から行った接続／切断も次回表示時には最新状態へ収束する。通知起点の更新はデバイス識別子を含めず`BluetoothTopologyRefreshRequested`として記録する。
 
-正式画像伝播、処理対象行、通知burst集約を含む対象テスト7件、Release solution build（警告0／エラー0）、format、diff check、自己完結payloadの4 EXE／4 managed DLL／4 dependency manifest検査は合格した。AirPods Proの単一列挙は成立したが、A2DP／Hands-FreeのContainer集約証拠、外部接続／切断後の表示追従、および処理中animationの最終目視が未完了のためIssue #38はopenのまま維持する。
+正式画像伝播、処理対象行、通知burst集約を含む対象テスト7件、Release solution build（警告0／エラー0）、format、diff check、自己完結payloadの4 EXE／4 managed DLL／4 dependency manifest検査は合格した。操作者がWindows設定から接続／切断した際も、QuickPodsを開き直すと選択行と主操作が現行状態へ追従することを`visual.72`で目視確認した。AirPods Proの単一列挙と外部状態追従は成立したが、A2DP／Hands-FreeのContainer集約を示すsanitized profile証拠、および第二Bluetoothオーディオ機器を用いるfault isolationの物理確認が未完了のためIssue #38はopenのまま維持する。

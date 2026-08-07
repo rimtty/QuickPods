@@ -35,6 +35,12 @@ public sealed class TaskbarRenderingTests
                 101,
                 true,
                 new TaskbarDeviceView("device", "AirPods Pro", "未接続")));
+        TaskbarRenderState connected = TaskbarRenderState.FromSnapshot(
+            new(
+                TaskbarSurfaceMode.Native,
+                42,
+                false,
+                new TaskbarDeviceView("device", "AirPods Pro", "接続済み・既定")));
 
         Assert.Equal(0d, low.VolumeFraction);
         Assert.Equal(1d, highMuted.VolumeFraction);
@@ -43,6 +49,10 @@ public sealed class TaskbarRenderingTests
         Assert.False(low.HasSelectedDevice);
         Assert.Equal("AirPods Pro", highMuted.DeviceDisplayName);
         Assert.Equal("未接続", highMuted.DeviceStatusText);
+        Assert.Equal("未接続 · AirPods Pro", highMuted.DeviceLabel);
+        Assert.False(highMuted.HasActiveDeviceConnection);
         Assert.True(highMuted.HasSelectedDevice);
+        Assert.Equal("AirPods Pro", connected.DeviceLabel);
+        Assert.True(connected.HasActiveDeviceConnection);
     }
 }

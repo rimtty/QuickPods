@@ -38,3 +38,5 @@ Default Submitted=False Failure=OwnershipUnknown State=Failed Capability=Verific
 `visual.72`の目視では白い無効面と外部状態追従は解消した一方、Boolean値を汎用`Tag` triggerで比較したため回転indicatorがCollapsedのままとなる不具合を検出した。`visual.73`ではBooleanを直接visibilityへ変換し、読み込み時にrepeat storyboardを開始する。また、接続処理はStereo Render endpointのActiveだけを成立条件としCapture／マイクを待っていないことを再確認した。一覧生成時に同じinventory generationでDirectControlを判定済みにもかかわらず、操作直前に全KS Basic Support probeを重複実行していたためこれを除去した。adapter所有権、実mutation worker、Stereo Active観測、Console／Multimedia既定出力の通知とread-backは維持する。
 
 `visual.73`の実機ログでは接続2回が13.936秒／14.401秒、切断2回が5.646秒／5.555秒ですべて成功した。接続中の最初のCore Audio topology通知は開始から2.226秒／7.103秒だった一方、Stereo Render Active後の`SettingDefault → Succeeded`は0.053秒／0.020秒だった。重複probe除去後も接続全体は短縮せず、WindowsがAirPodsのStereo Render endpointをActiveにする区間が支配的である。QuickPodsの固定待機やマイク取得待ちを短縮して解決できる遅延ではなく、Stereoが利用可能になる前に既定出力成功を返すことも行わない。
+
+同じ`visual.73`で、操作者が接続中／切断中の対象行と主操作ボタンにシアンのindicatorが回転表示されることを目視確認した。白い無効面を再発させず、状態文字列とanimationを同時に表示できたため処理中表示の視覚Gateは合格とする。Issue #41は所定の接続5回／切断5回、選択外機器への影響0、idempotent操作、adapter／driver情報を同一証跡へ揃えるまでopenのまま維持する。
