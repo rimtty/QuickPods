@@ -545,6 +545,12 @@ public partial class App : WpfApplication, IDisposable
 
     private async Task HandleHostInteractionAsync(HostInteractionEnvelope interaction)
     {
+        if (HostInteractionEnvelope.IsObserverLifecycleNotification(interaction.Kind))
+        {
+            LogObserverLifecycle(interaction);
+            return;
+        }
+
         if (controller is null)
         {
             return;
@@ -572,6 +578,28 @@ public partial class App : WpfApplication, IDisposable
                 ScheduleFlyoutDismiss();
                 break;
         }
+    }
+
+    private void LogObserverLifecycle(HostInteractionEnvelope interaction)
+    {
+        bool fault = interaction.Kind is
+            HostInteractionKind.TaskbarObserverFaulted or
+            HostInteractionKind.TaskbarObserverDisconnected;
+        Log(
+            fault ? QuickPodsLogLevel.Warning : QuickPodsLogLevel.Information,
+            "TaskbarObserverRetired",
+            "A supervised taskbar observer generation was retired.",
+            new Dictionary<string, object?>
+            {
+                ["Reason"] = interaction.Kind switch
+                {
+                    HostInteractionKind.TaskbarObserverTaskbarCreated => "TaskbarCreated",
+                    HostInteractionKind.TaskbarObserverGenerationChanged => "ExplorerGenerationChanged",
+                    HostInteractionKind.TaskbarObserverFaulted => "ObserverFaulted",
+                    _ => "Disconnected",
+                },
+                ["GenerationOrdinal"] = interaction.ObserverGenerationOrdinal,
+            });
     }
 
     private async Task HandleHostInteractionSafelyAsync(HostInteractionEnvelope interaction)

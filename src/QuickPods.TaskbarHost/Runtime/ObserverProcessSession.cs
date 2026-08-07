@@ -87,6 +87,8 @@ internal sealed class ObserverProcessSession : IDisposable
 
     internal Exception? Failure => Volatile.Read(ref failure);
 
+    internal long GenerationOrdinal => generationOrdinal;
+
     internal static ObserverProcessSession Start(
         string executablePath,
         long subscriptionEpoch,

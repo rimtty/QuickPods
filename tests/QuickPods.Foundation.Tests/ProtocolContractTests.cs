@@ -68,6 +68,33 @@ public sealed class ProtocolContractTests
     }
 
     [Fact]
+    public void ObserverLifecycleNotificationRequiresOnlySanitizedGenerationOrdinal()
+    {
+        var notification = new HostInteractionEnvelope(
+            QuickPodsProtocol.Version,
+            9,
+            HostInteractionKind.TaskbarObserverGenerationChanged,
+            observerGenerationOrdinal: 4);
+
+        HostInteractionEnvelope restored = QuickPodsProtocolJson.DeserializeInteraction(
+            QuickPodsProtocolJson.Serialize(notification));
+
+        Assert.True(HostInteractionEnvelope.IsObserverLifecycleNotification(restored.Kind));
+        Assert.Equal(4, restored.ObserverGenerationOrdinal);
+        Assert.Null(restored.VolumePercent);
+        Assert.Null(restored.Anchor);
+        Assert.Throws<ArgumentException>(() => new HostInteractionEnvelope(
+            QuickPodsProtocol.Version,
+            10,
+            HostInteractionKind.TaskbarObserverFaulted));
+        Assert.Throws<ArgumentException>(() => new HostInteractionEnvelope(
+            QuickPodsProtocol.Version,
+            11,
+            HostInteractionKind.ToggleMute,
+            observerGenerationOrdinal: 1));
+    }
+
+    [Fact]
     public void TaskbarAnchorUsesCapturedDpiAcrossEveryWindowsScaleVariant()
     {
         uint[] dpis = [96, 120, 144, 168, 192, 216, 240, 288, 336];
