@@ -23,7 +23,7 @@
 
 | 項目 | 状態 |
 |---|---|
-| Git | `main`はPhase 6A（PR #49）まで統合済み。Phase 6BはPR #51でMain統合準備中。Phase 5C PR #54、local-console証拠PR #70、retained Start hardening PR #59はPhase 6Bへ統合済み |
+| Git | `main`はPhase 6Bまで統合済み（PR #51、merge `645b3a8`）。Phase 5C PR #54、Bluetooth状態修正PR #64、local-console証拠PR #70、retained Start hardening PR #59も同じMainへ統合済み |
 | Remote | 全体進捗はIssue #2、残存Gateは#18／#34／#43／#50で管理。#15はPR #59で完了、#19は既存実機・決定論的証拠を受理して追加試験不要、物理Bluetooth #38／#41、resource観測 #48、Observer診断 #77、Phase 5C #53は完了済み。#33の専用NoFit再現は不要と判断 |
 | 追跡対象 | 計画資料、ブランド資産、製品コード、インストーラー、検証証跡、既知の制限 |
 | ソース／テスト／CI | .NET 10製品solution、Windows CI、RC／MSI生成、focused regressionを運用中 |
@@ -378,7 +378,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 複数Bluetoothオーディオの列挙、集約、選択、能力をUIから独立して完成させる |
-| 状態 | **実装・local-console Gate完了（2026-08-07）** — Issue #36／PR #37、物理列挙・profile集約Gate #38。現行修正はPR #64で統合待ち |
+| 状態 | **実装・local-console Gate・Main統合完了（2026-08-07）** — Issue #36／PR #37、物理列挙・profile集約Gate #38。状態忠実度修正PR #64もPR #51経由でMainへ統合済み |
 | 実装 | Container ID集約、A2DP/HFP統合、単一選択、永続化、読み取り専用更新、カタログ世代、機器単位Capability |
 | Gate AがNo-Go | 非対応機器だけ`BluetoothDriverUnsupported`とし、一覧とWindows設定導線は維持 |
 | テスト | 0／1／複数／同名、選択復元、再ペアリング、選択・更新の無操作、古い世代、無関係Endpoint障害の非波及 |
@@ -389,7 +389,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 選択機器の接続、既定出力設定、切断を複合操作として本体と表示ホストへ統合する |
-| 状態 | **実装・local-console Gate完了（2026-08-07）** — Issue #39／PR #40、実機接続・切断・既定出力Gate #41。現行修正はPR #64で統合待ち |
+| 状態 | **実装・local-console Gate・Main統合完了（2026-08-07）** — Issue #39／PR #40、実機接続・切断・既定出力Gate #41。状態忠実度修正PR #64もPR #51経由でMainへ統合済み |
 | 実装 | KS操作、実状態確認、Console／Multimedia既定出力設定、部分成功、連打防止、StateSnapshot、設定導線 |
 | Gate A2がNo-Go | 接続済み・非既定を表示し、サウンド設定ランチャーを提供 |
 | 実機試験 | 参照機器接続→既定出力、切断、A→B→A、圏外、ケース内、他端末、無線OFF、再ペアリング、選択外影響 |
@@ -456,7 +456,7 @@ docs/validation/phase-0/
 | 項目 | 内容 |
 |---|---|
 | 目的 | 再現可能で導入・削除できる配布物を作る |
-| 状態 | **実装完了・Main統合準備（2026-08-07）** — Issue #50／PR #51。ユーザー単位WiX MSI、法務、決定論性、静的検証、CI生成、短縮Gate Dは合格。clean standard-user lifecycleと署名済み最終artifactはIssue #50で継続 |
+| 状態 | **実装・Main統合完了（2026-08-07）** — Issue #50／PR #51、merge `645b3a8`。ユーザー単位WiX MSI、法務、決定論性、静的検証、CI生成、短縮Gate Dは合格。clean standard-user lifecycleと署名済み最終artifactだけをIssue #50で継続 |
 | 発行 | `win-x64` self-contained、Release、再現可能ビルド、SHA-256 |
 | 配布 | 決定したインストーラー形式、ポータブル診断版、更新方針 |
 | ブランド | ICO、実行ファイル情報、バージョン、アンインストール表示 |
@@ -464,7 +464,7 @@ docs/validation/phase-0/
 | テスト | クリーン環境でインストール、起動、更新、アンインストール、自動起動残骸確認 |
 | 完了条件 | 管理者権限なしで通常実行でき、配布物とチェックサムをCIから再生成可能 |
 
-B15の実装はB14の短縮Gate D通過後にMainへ統合できる。Main統合は正式releaseを意味せず、clean standard-user lifecycleと署名済み最終artifactが完了するまでIssue #50とB16を閉じない。
+B15の実装はB14の短縮Gate D通過後、PR #51としてMainへ統合した。Main統合は正式releaseを意味せず、clean standard-user lifecycleと署名済み最終artifactが完了するまでIssue #50とB16を閉じない。
 
 #### B16：`codex/release-0.1.0-rc1`
 
