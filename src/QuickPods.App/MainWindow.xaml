@@ -201,6 +201,10 @@
                                  SelectionChanged="OnBluetoothSelectionChanged"
                                  SelectionMode="Single"
                                  SelectedValuePath="DeviceKey">
+                            <ListBox.Resources>
+                                <Style TargetType="ScrollBar"
+                                       BasedOn="{StaticResource QuickPodsModernVerticalScrollBarStyle}" />
+                            </ListBox.Resources>
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <Grid>
