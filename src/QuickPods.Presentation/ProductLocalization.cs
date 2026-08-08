@@ -1,0 +1,362 @@
+using System.Collections.Frozen;
+using System.Globalization;
+using QuickPods.Core.Models;
+
+namespace QuickPods.Presentation;
+
+public enum ProductLanguage
+{
+    English,
+    Japanese,
+}
+
+public static class ProductLanguageResolver
+{
+    public static ProductLanguage Resolve(
+        QuickPodsLanguageMode mode,
+        CultureInfo? operatingSystemLanguage = null) =>
+        mode switch
+        {
+            QuickPodsLanguageMode.English => ProductLanguage.English,
+            QuickPodsLanguageMode.Japanese => ProductLanguage.Japanese,
+            QuickPodsLanguageMode.System => IsJapanese(
+                operatingSystemLanguage ?? CultureInfo.CurrentUICulture)
+                    ? ProductLanguage.Japanese
+                    : ProductLanguage.English,
+            _ => ProductLanguage.English,
+        };
+
+    private static bool IsJapanese(CultureInfo culture) =>
+        string.Equals(culture.TwoLetterISOLanguageName, "ja", StringComparison.OrdinalIgnoreCase);
+}
+
+public sealed class ProductLocalizer
+{
+    private static readonly FrozenDictionary<string, string> English = CreateEnglish();
+    private static readonly FrozenDictionary<string, string> Japanese = CreateJapanese();
+
+    public ProductLocalizer(ProductLanguage language)
+    {
+        Language = language;
+    }
+
+    public ProductLanguage Language { get; set; }
+
+    public static IReadOnlyCollection<string> Keys => English.Keys;
+
+    public string this[string key]
+    {
+        get
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(key);
+            FrozenDictionary<string, string> selected = Language == ProductLanguage.Japanese
+                ? Japanese
+                : English;
+            return selected.TryGetValue(key, out string? value)
+                ? value
+                : English.TryGetValue(key, out value)
+                    ? value
+                    : key;
+        }
+    }
+
+    public string Format(string key, params object?[] arguments) =>
+        string.Format(CultureInfo.CurrentCulture, this[key], arguments);
+
+    public static bool HasMatchingLanguageKeys => English.Keys.ToHashSet(StringComparer.Ordinal)
+        .SetEquals(Japanese.Keys);
+
+    private static FrozenDictionary<string, string> CreateEnglish() =>
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["AudioTitle"] = "Audio",
+            ["CheckingDefaultOutput"] = "Checking the default output device…",
+            ["OpenQuickPodsSettings"] = "Open QuickPods settings",
+            ["RefreshAudioAndBluetooth"] = "Refresh audio and Bluetooth devices",
+            ["SelectBluetoothAudio"] = "Select Bluetooth audio",
+            ["BluetoothAudio"] = "Bluetooth audio",
+            ["BluetoothAudioListName"] = "Paired Bluetooth audio devices",
+            ["BluetoothAudioListHelp"] = "Use the Up and Down arrow keys to select a device",
+            ["Paired"] = "Paired",
+            ["DevicesNotFound"] = "No devices found",
+            ["NoPairedBluetoothAudio"] = "No paired Bluetooth audio devices",
+            ["SearchingDevices"] = "Searching for devices…",
+            ["CheckingPairedBluetooth"] = "Checking paired Bluetooth audio devices",
+            ["RescanBluetoothAudio"] = "Scan for Bluetooth audio devices again",
+            ["Rescan"] = "Scan again",
+            ["Volume"] = "Volume",
+            ["VolumeSliderName"] = "Default output device volume",
+            ["VolumeSliderHelp"] = "Use the Left and Right arrow keys to change the volume",
+            ["ToggleMute"] = "Toggle mute",
+            ["Initializing"] = "Initializing",
+            ["Connect"] = "Connect",
+            ["OpenSoundSettingsName"] = "Open Windows sound settings",
+            ["OpenSoundSettings"] = "Open sound settings",
+            ["OpenBluetoothSettingsName"] = "Open Windows Bluetooth settings",
+            ["OpenBluetoothSettings"] = "Open Bluetooth settings",
+            ["SettingsWindowTitle"] = "QuickPods Settings",
+            ["SettingsHeading"] = "QuickPods Settings",
+            ["SettingsSubtitle"] = "Change appearance, behavior, and startup options.",
+            ["AutoSaveNotice"] = "Changes are saved automatically",
+            ["DisplaySection"] = "Display",
+            ["TaskbarDisplay"] = "Taskbar display",
+            ["SelectDisplayMethod"] = "Choose how QuickPods is shown",
+            ["TaskbarDisplayAutomation"] = "Taskbar display mode",
+            ["Theme"] = "Theme",
+            ["AppAppearance"] = "App appearance",
+            ["ThemeAutomation"] = "QuickPods theme",
+            ["Language"] = "Language",
+            ["AppLanguage"] = "App display language",
+            ["LanguageAutomation"] = "QuickPods display language",
+            ["VolumeStep"] = "Volume adjustment step",
+            ["PerWheelAction"] = "For each mouse wheel step",
+            ["VolumeStepAutomation"] = "Mouse wheel volume adjustment step",
+            ["BehaviorSection"] = "Behavior",
+            ["SetConnectedDefault"] = "Set connected device as the default audio device",
+            ["ConfirmDisconnect"] = "Confirm before disconnecting Bluetooth",
+            ["StartWithWindows"] = "Start QuickPods when signing in to Windows",
+            ["SupportSection"] = "Support",
+            ["OpenLogsName"] = "Open the QuickPods log folder",
+            ["OpenLogs"] = "Open logs",
+            ["CopyDiagnosticsName"] = "Copy QuickPods diagnostics to the clipboard",
+            ["CopyDiagnostics"] = "Copy diagnostics",
+            ["ResetSettingsName"] = "Reset QuickPods settings to defaults",
+            ["ResetSettings"] = "Reset to defaults",
+            ["RestartName"] = "Restart QuickPods",
+            ["Restart"] = "Restart",
+            ["CloseSettingsName"] = "Close QuickPods settings",
+            ["Close"] = "Close",
+            ["ChoiceAuto"] = "Automatic",
+            ["ChoiceTrayOnly"] = "Notification area only",
+            ["ChoiceSystemTheme"] = "Use Windows setting",
+            ["ChoiceDark"] = "Dark",
+            ["ChoiceLight"] = "Light",
+            ["ChoiceSystemLanguage"] = "Use system language",
+            ["ChoiceEnglish"] = "English",
+            ["ChoiceJapanese"] = "Japanese",
+            ["PairedAccessible"] = "{0}, paired, {1}",
+            ["ConnectingEllipsis"] = "Connecting…",
+            ["SettingDefaultEllipsis"] = "Setting as default output…",
+            ["DisconnectingOthersEllipsis"] = "Disconnecting the previous device…",
+            ["DisconnectingEllipsis"] = "Disconnecting…",
+            ["WorkingEllipsis"] = "Working…",
+            ["RefreshingEllipsis"] = "Refreshing…",
+            ["CurrentlyUnavailable"] = "Currently unavailable",
+            ["Disconnect"] = "Disconnect",
+            ["MakeDefault"] = "Set as default output",
+            ["RefreshState"] = "Refresh the device status",
+            ["Connecting"] = "Connecting",
+            ["SettingDefault"] = "Setting as default output",
+            ["DisconnectingOthers"] = "Disconnecting the previous device",
+            ["Disconnecting"] = "Disconnecting",
+            ["ConnectedUnsupported"] = "Connected · direct control unavailable",
+            ["Unsupported"] = "Direct control unavailable",
+            ["TemporarilyUnavailable"] = "Temporarily unavailable",
+            ["ConnectedDefault"] = "Connected · default",
+            ["ConnectedNotDefault"] = "Connected · not default",
+            ["Connected"] = "Connected",
+            ["Disconnected"] = "Not connected",
+            ["Unavailable"] = "Unavailable",
+            ["UnknownStatus"] = "Status unknown",
+            ["Checking"] = "Checking",
+            ["DirectControlUnavailable"] = "QuickPods cannot control this device directly.",
+            ["BluetoothTimeout"] = "The connection status could not be confirmed in time. Check the device range and whether it is connected to another device, refresh the status, and try again.",
+            ["SelectionStale"] = "The device list changed. Check the selected device.",
+            ["DeviceUnavailable"] = "The selected device is unavailable. Check its range and whether it is ready to use.",
+            ["ContainmentFailed"] = "The operation was stopped because QuickPods could not confirm that the Bluetooth operation ended safely.",
+            ["DefaultSwitchFailed"] = "Bluetooth connected, but the Windows default output could not be changed.",
+            ["OtherDevicesStillConnected"] = "The new device is ready, but another Bluetooth audio device could not be disconnected.",
+            ["OperationRejected"] = "The Bluetooth operation could not be completed. Refresh the status and try again.",
+            ["BluetoothServiceInitFailed"] = "The Bluetooth service could not be initialized.",
+            ["CatalogRefreshFailed"] = "The Bluetooth device list could not be refreshed.",
+            ["CatalogRefreshFailedWithDetail"] = "The Bluetooth device list could not be refreshed: {0}",
+            ["DisconnectConfirmMessage"] = "Disconnect the selected Bluetooth audio device?",
+            ["DisconnectConfirmTitle"] = "QuickPods confirmation",
+            ["SoundSettingsOpenFailed"] = "Windows sound settings could not be opened.",
+            ["BluetoothSettingsOpenFailed"] = "Windows Bluetooth settings could not be opened.",
+            ["NoOutputDevice"] = "No output device is available",
+            ["Unmute"] = "Unmute",
+            ["Mute"] = "Mute",
+            ["UnmuteName"] = "Unmute audio",
+            ["MuteName"] = "Mute audio",
+            ["Muted"] = "Muted",
+            ["Available"] = "Available",
+            ["AudioServiceUnavailable"] = "Audio service unavailable",
+            ["NoOutputDeviceShort"] = "No output device",
+            ["DeviceListHelpDetailed"] = "Use the Up and Down arrow keys to select a device. Selecting a device does not change its connection.",
+            ["CorruptSettingsRecovered"] = "Corrupt settings were moved to {0}, and QuickPods started with safe defaults.",
+            ["SettingsLoadFailed"] = "Settings could not be loaded: {0}",
+            ["StartupVerifyFailed"] = "The startup setting could not be verified.",
+            ["StartupVerifyFailedWithDetail"] = "The startup setting could not be verified: {0}",
+            ["SettingsSaveFailed"] = "Settings could not be saved: {0}",
+            ["SettingsSaveActionFailed"] = "Settings could not be saved",
+            ["StartupChangeFailed"] = "The startup setting could not be changed",
+            ["LogOpenFailed"] = "The log folder could not be opened: {0}",
+            ["DiagnosticsCopied"] = "Diagnostics were copied to the clipboard.",
+            ["DiagnosticsCopyFailed"] = "Diagnostics could not be copied: {0}",
+            ["ResetFailed"] = "Settings could not be reset to defaults",
+            ["RestartFailed"] = "QuickPods could not be restarted: {0}",
+            ["CoreAudioInitFailed"] = "Core Audio could not be initialized: {0}",
+            ["TrayInitFailed"] = "The notification area icon could not be initialized: {0}",
+            ["TaskbarDisabled"] = "Taskbar display was disabled for this session. QuickPods is still available from the notification area.",
+            ["TaskbarOperationFailed"] = "The taskbar action failed. Try again from the notification area or the QuickPods window.",
+            ["EnvironmentRefreshFailed"] = "The status could not be refreshed after the Windows environment changed. Use Refresh to try again.",
+            ["RestartLaunchFailed"] = "QuickPods could not be restarted.\n\n{0}",
+            ["RestartExecutableMissing"] = "QuickPods could not be restarted because its executable was not found ({0})",
+            ["TrayOpen"] = "Open QuickPods",
+            ["TrayRefresh"] = "Refresh",
+            ["TraySettings"] = "QuickPods Settings...",
+            ["TrayTaskbarBar"] = "Show taskbar control bar",
+            ["TraySoundSettings"] = "Sound settings",
+            ["TrayBluetoothSettings"] = "Bluetooth settings",
+            ["TrayExit"] = "Exit",
+            ["DefaultOutputDevice"] = "Default output device",
+        }.ToFrozenDictionary(StringComparer.Ordinal);
+
+    private static FrozenDictionary<string, string> CreateJapanese() =>
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["AudioTitle"] = "オーディオ",
+            ["CheckingDefaultOutput"] = "既定の出力を確認しています…",
+            ["OpenQuickPodsSettings"] = "QuickPodsの設定を開く",
+            ["RefreshAudioAndBluetooth"] = "オーディオとBluetoothデバイスを更新",
+            ["SelectBluetoothAudio"] = "Bluetoothオーディオを選択",
+            ["BluetoothAudio"] = "Bluetoothオーディオ",
+            ["BluetoothAudioListName"] = "ペアリング済みBluetoothオーディオ一覧",
+            ["BluetoothAudioListHelp"] = "上下矢印でデバイスを選択します",
+            ["Paired"] = "ペアリング済み",
+            ["DevicesNotFound"] = "デバイスが見つかりません",
+            ["NoPairedBluetoothAudio"] = "ペアリング済みのBluetoothオーディオがありません",
+            ["SearchingDevices"] = "デバイスを検索しています…",
+            ["CheckingPairedBluetooth"] = "ペアリング済みのBluetoothオーディオを確認しています",
+            ["RescanBluetoothAudio"] = "Bluetoothオーディオを再検索",
+            ["Rescan"] = "再検索",
+            ["Volume"] = "音量",
+            ["VolumeSliderName"] = "既定の出力デバイスの音量",
+            ["VolumeSliderHelp"] = "左右矢印で音量を変更します",
+            ["ToggleMute"] = "ミュート切り替え",
+            ["Initializing"] = "初期化中",
+            ["Connect"] = "接続",
+            ["OpenSoundSettingsName"] = "Windowsのサウンド設定を開く",
+            ["OpenSoundSettings"] = "サウンド設定を開く",
+            ["OpenBluetoothSettingsName"] = "WindowsのBluetooth設定を開く",
+            ["OpenBluetoothSettings"] = "Bluetooth設定を開く",
+            ["SettingsWindowTitle"] = "QuickPods 設定",
+            ["SettingsHeading"] = "QuickPods 設定",
+            ["SettingsSubtitle"] = "表示、操作、起動方法を変更します。",
+            ["AutoSaveNotice"] = "変更は自動的に保存されます",
+            ["DisplaySection"] = "表示",
+            ["TaskbarDisplay"] = "タスクバー表示",
+            ["SelectDisplayMethod"] = "表示方法を選択",
+            ["TaskbarDisplayAutomation"] = "タスクバー表示モード",
+            ["Theme"] = "テーマ",
+            ["AppAppearance"] = "アプリの外観",
+            ["ThemeAutomation"] = "QuickPodsのテーマ",
+            ["Language"] = "言語",
+            ["AppLanguage"] = "アプリの表示言語",
+            ["LanguageAutomation"] = "QuickPodsの表示言語",
+            ["VolumeStep"] = "音量調整ステップ",
+            ["PerWheelAction"] = "ホイール操作1回あたり",
+            ["VolumeStepAutomation"] = "音量ホイール変更幅",
+            ["BehaviorSection"] = "動作",
+            ["SetConnectedDefault"] = "接続後に既定の音声デバイスへ設定",
+            ["ConfirmDisconnect"] = "Bluetooth切断前に確認",
+            ["StartWithWindows"] = "Windowsログイン時にQuickPodsを自動起動",
+            ["SupportSection"] = "サポート",
+            ["OpenLogsName"] = "QuickPodsのログフォルダーを開く",
+            ["OpenLogs"] = "ログを開く",
+            ["CopyDiagnosticsName"] = "QuickPodsの診断情報をクリップボードへコピー",
+            ["CopyDiagnostics"] = "診断情報をコピー",
+            ["ResetSettingsName"] = "QuickPodsの設定を既定値に戻す",
+            ["ResetSettings"] = "既定値に戻す",
+            ["RestartName"] = "QuickPodsを再起動する",
+            ["Restart"] = "再起動",
+            ["CloseSettingsName"] = "QuickPods設定を閉じる",
+            ["Close"] = "閉じる",
+            ["ChoiceAuto"] = "自動",
+            ["ChoiceTrayOnly"] = "通知領域のみ",
+            ["ChoiceSystemTheme"] = "Windowsに合わせる",
+            ["ChoiceDark"] = "ダーク",
+            ["ChoiceLight"] = "ライト",
+            ["ChoiceSystemLanguage"] = "システム言語を使用",
+            ["ChoiceEnglish"] = "英語",
+            ["ChoiceJapanese"] = "日本語",
+            ["PairedAccessible"] = "{0}、ペアリング済み、{1}",
+            ["ConnectingEllipsis"] = "接続中…",
+            ["SettingDefaultEllipsis"] = "既定の出力へ切替中…",
+            ["DisconnectingOthersEllipsis"] = "前の機器を切断中…",
+            ["DisconnectingEllipsis"] = "切断中…",
+            ["WorkingEllipsis"] = "処理中…",
+            ["RefreshingEllipsis"] = "更新中…",
+            ["CurrentlyUnavailable"] = "現在は操作できません",
+            ["Disconnect"] = "切断",
+            ["MakeDefault"] = "既定の出力に設定",
+            ["RefreshState"] = "状態を更新してください",
+            ["Connecting"] = "接続中",
+            ["SettingDefault"] = "既定の出力へ切替中",
+            ["DisconnectingOthers"] = "前の機器を切断中",
+            ["Disconnecting"] = "切断中",
+            ["ConnectedUnsupported"] = "接続済み・直接操作は未対応",
+            ["Unsupported"] = "直接操作は未対応",
+            ["TemporarilyUnavailable"] = "一時的に利用不可",
+            ["ConnectedDefault"] = "接続済み・既定",
+            ["ConnectedNotDefault"] = "接続済み・非既定",
+            ["Connected"] = "接続済み",
+            ["Disconnected"] = "未接続",
+            ["Unavailable"] = "利用不可",
+            ["UnknownStatus"] = "状態不明",
+            ["Checking"] = "確認中",
+            ["DirectControlUnavailable"] = "このデバイスはQuickPodsから直接操作できません。",
+            ["BluetoothTimeout"] = "接続状態を期限内に確認できませんでした。別の端末への接続や距離を確認し、状態を更新して再試行してください。",
+            ["SelectionStale"] = "デバイス一覧が更新されました。選択状態を確認してください。",
+            ["DeviceUnavailable"] = "選択したデバイスを利用できません。距離や装着状態を確認してください。",
+            ["ContainmentFailed"] = "Bluetooth操作の安全な終了を確認できないため、操作を停止しました。",
+            ["DefaultSwitchFailed"] = "Bluetooth接続は完了しましたが、Windowsの既定出力を変更できませんでした。",
+            ["OtherDevicesStillConnected"] = "新しい機器への切り替えは完了しましたが、ほかのBluetoothオーディオを切断できませんでした。",
+            ["OperationRejected"] = "Bluetooth操作を完了できませんでした。状態を更新してから再試行してください。",
+            ["BluetoothServiceInitFailed"] = "Bluetoothサービスを初期化できませんでした。",
+            ["CatalogRefreshFailed"] = "Bluetoothデバイス一覧を更新できませんでした。",
+            ["CatalogRefreshFailedWithDetail"] = "Bluetoothデバイス一覧を更新できませんでした: {0}",
+            ["DisconnectConfirmMessage"] = "選択したBluetoothオーディオを切断しますか？",
+            ["DisconnectConfirmTitle"] = "QuickPods 確認",
+            ["SoundSettingsOpenFailed"] = "Windowsのサウンド設定を開けませんでした。",
+            ["BluetoothSettingsOpenFailed"] = "WindowsのBluetooth設定を開けませんでした。",
+            ["NoOutputDevice"] = "利用可能な出力デバイスがありません",
+            ["Unmute"] = "ミュート解除",
+            ["Mute"] = "ミュート",
+            ["UnmuteName"] = "ミュートを解除",
+            ["MuteName"] = "ミュートにする",
+            ["Muted"] = "ミュート中",
+            ["Available"] = "利用可能",
+            ["AudioServiceUnavailable"] = "Audio service利用不可",
+            ["NoOutputDeviceShort"] = "出力デバイスなし",
+            ["DeviceListHelpDetailed"] = "上下矢印でデバイスを選択します。選択だけでは接続状態を変更しません。",
+            ["CorruptSettingsRecovered"] = "破損した設定を {0} へ隔離し、安全な初期値で起動しました。",
+            ["SettingsLoadFailed"] = "設定を読み込めませんでした: {0}",
+            ["StartupVerifyFailed"] = "自動起動設定を確認できませんでした。",
+            ["StartupVerifyFailedWithDetail"] = "自動起動設定を確認できませんでした: {0}",
+            ["SettingsSaveFailed"] = "設定を保存できませんでした: {0}",
+            ["SettingsSaveActionFailed"] = "設定を保存できませんでした",
+            ["StartupChangeFailed"] = "自動起動設定を変更できませんでした",
+            ["LogOpenFailed"] = "ログフォルダーを開けませんでした: {0}",
+            ["DiagnosticsCopied"] = "診断情報をクリップボードへコピーしました。",
+            ["DiagnosticsCopyFailed"] = "診断情報をコピーできませんでした: {0}",
+            ["ResetFailed"] = "設定を既定値に戻せませんでした",
+            ["RestartFailed"] = "QuickPodsを再起動できませんでした: {0}",
+            ["CoreAudioInitFailed"] = "Core Audioを初期化できませんでした: {0}",
+            ["TrayInitFailed"] = "通知領域アイコンを初期化できませんでした: {0}",
+            ["TaskbarDisabled"] = "タスクバー表示をこのセッションでは停止しました。通知領域から操作できます。",
+            ["TaskbarOperationFailed"] = "タスクバーからの操作に失敗しました。通知領域または製品画面から再試行してください。",
+            ["EnvironmentRefreshFailed"] = "Windows環境の変更後に状態を更新できませんでした。更新ボタンで再試行できます。",
+            ["RestartLaunchFailed"] = "QuickPodsを再起動できませんでした。\n\n{0}",
+            ["RestartExecutableMissing"] = "QuickPodsを再起動できませんでした: 実行ファイルが見つかりません ({0})",
+            ["TrayOpen"] = "QuickPods を開く",
+            ["TrayRefresh"] = "更新",
+            ["TraySettings"] = "QuickPods 設定...",
+            ["TrayTaskbarBar"] = "タスクバー操作バーを表示",
+            ["TraySoundSettings"] = "サウンド設定",
+            ["TrayBluetoothSettings"] = "Bluetooth設定",
+            ["TrayExit"] = "終了",
+            ["DefaultOutputDevice"] = "既定の出力デバイス",
+        }.ToFrozenDictionary(StringComparer.Ordinal);
+}

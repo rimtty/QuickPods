@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Windows.Forms;
+using QuickPods.Presentation;
 
 namespace QuickPods.App;
 
@@ -8,7 +9,14 @@ internal sealed class TrayIconController : IDisposable
     private readonly ContextMenuStrip menu;
     private readonly Icon icon;
     private readonly NotifyIcon notifyIcon;
+    private readonly ProductLocalizer localizer;
+    private readonly ToolStripMenuItem openItem;
+    private readonly ToolStripMenuItem refreshItem;
+    private readonly ToolStripMenuItem settingsItem;
     private readonly ToolStripMenuItem taskbarSurfaceItem;
+    private readonly ToolStripMenuItem soundSettingsItem;
+    private readonly ToolStripMenuItem bluetoothSettingsItem;
+    private readonly ToolStripMenuItem exitItem;
     private bool applyingTaskbarSurfaceState;
     private bool disposed;
 
@@ -19,7 +27,8 @@ internal sealed class TrayIconController : IDisposable
         Action<bool> setTaskbarSurfaceVisible,
         Action openSoundSettings,
         Action openBluetoothSettings,
-        Action exit)
+        Action exit,
+        ProductLocalizer localizer)
     {
         ArgumentNullException.ThrowIfNull(open);
         ArgumentNullException.ThrowIfNull(refresh);
@@ -28,23 +37,23 @@ internal sealed class TrayIconController : IDisposable
         ArgumentNullException.ThrowIfNull(openSoundSettings);
         ArgumentNullException.ThrowIfNull(openBluetoothSettings);
         ArgumentNullException.ThrowIfNull(exit);
+        this.localizer = localizer ?? throw new ArgumentNullException(nameof(localizer));
 
         Icon sourceIcon = Icon.ExtractAssociatedIcon(Environment.ProcessPath ?? string.Empty) ??
             SystemIcons.Application;
         icon = (Icon)sourceIcon.Clone();
         menu = new ContextMenuStrip();
 
-        var openItem = new ToolStripMenuItem("QuickPods を開く");
+        openItem = new ToolStripMenuItem();
         openItem.Font = new Font(openItem.Font, FontStyle.Bold);
         openItem.Click += (_, _) => open();
         menu.Items.Add(openItem);
-        menu.Items.Add(new ToolStripMenuItem("更新", null, (_, _) => refresh()));
-        menu.Items.Add(new ToolStripMenuItem(
-            "QuickPods 設定...",
-            null,
-            (_, _) => openSettings()));
+        refreshItem = new ToolStripMenuItem(null, null, (_, _) => refresh());
+        menu.Items.Add(refreshItem);
+        settingsItem = new ToolStripMenuItem(null, null, (_, _) => openSettings());
+        menu.Items.Add(settingsItem);
         menu.Items.Add(new ToolStripSeparator());
-        taskbarSurfaceItem = new ToolStripMenuItem("タスクバー操作バーを表示")
+        taskbarSurfaceItem = new ToolStripMenuItem
         {
             CheckOnClick = true,
             Checked = true,
@@ -57,16 +66,16 @@ internal sealed class TrayIconController : IDisposable
             }
         };
         menu.Items.Add(taskbarSurfaceItem);
-        menu.Items.Add(new ToolStripMenuItem(
-            "サウンド設定",
+        soundSettingsItem = new ToolStripMenuItem(null, null, (_, _) => openSoundSettings());
+        menu.Items.Add(soundSettingsItem);
+        bluetoothSettingsItem = new ToolStripMenuItem(
             null,
-            (_, _) => openSoundSettings()));
-        menu.Items.Add(new ToolStripMenuItem(
-            "Bluetooth設定",
             null,
-            (_, _) => openBluetoothSettings()));
+            (_, _) => openBluetoothSettings());
+        menu.Items.Add(bluetoothSettingsItem);
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(new ToolStripMenuItem("終了", null, (_, _) => exit()));
+        exitItem = new ToolStripMenuItem(null, null, (_, _) => exit());
+        menu.Items.Add(exitItem);
 
         notifyIcon = new NotifyIcon
         {
@@ -76,6 +85,18 @@ internal sealed class TrayIconController : IDisposable
             Visible = true,
         };
         notifyIcon.DoubleClick += (_, _) => open();
+        ApplyLocalization();
+    }
+
+    internal void ApplyLocalization()
+    {
+        openItem.Text = localizer["TrayOpen"];
+        refreshItem.Text = localizer["TrayRefresh"];
+        settingsItem.Text = localizer["TraySettings"];
+        taskbarSurfaceItem.Text = localizer["TrayTaskbarBar"];
+        soundSettingsItem.Text = localizer["TraySoundSettings"];
+        bluetoothSettingsItem.Text = localizer["TrayBluetoothSettings"];
+        exitItem.Text = localizer["TrayExit"];
     }
 
     internal void SetTaskbarSurfaceVisible(bool visible)

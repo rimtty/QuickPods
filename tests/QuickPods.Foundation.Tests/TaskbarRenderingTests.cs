@@ -41,22 +41,22 @@ public sealed class TaskbarRenderingTests
                 TaskbarSurfaceMode.Native,
                 101,
                 true,
-                new TaskbarDeviceView("device", "AirPods Pro", "未接続")));
+                new TaskbarDeviceView("device", "AirPods Pro", "Not connected")));
         TaskbarRenderState connected = TaskbarRenderState.FromSnapshot(
             new(
                 TaskbarSurfaceMode.Native,
                 42,
                 false,
-                new TaskbarDeviceView("device", "AirPods Pro", "接続済み・既定")));
+                new TaskbarDeviceView("device", "AirPods Pro", "Connected · default", true)));
 
         Assert.Equal(0d, low.VolumeFraction);
         Assert.Equal(1d, highMuted.VolumeFraction);
         Assert.True(highMuted.IsMuted);
-        Assert.Equal("BTデバイスなし", low.DeviceDisplayName);
+        Assert.Equal("No Bluetooth device", low.DeviceDisplayName);
         Assert.False(low.HasSelectedDevice);
         Assert.Equal("AirPods Pro", highMuted.DeviceDisplayName);
-        Assert.Equal("未接続", highMuted.DeviceStatusText);
-        Assert.Equal("未接続 · AirPods Pro", highMuted.DeviceLabel);
+        Assert.Equal("Not connected", highMuted.DeviceStatusText);
+        Assert.Equal("Not connected · AirPods Pro", highMuted.DeviceLabel);
         Assert.False(highMuted.HasActiveDeviceConnection);
         Assert.True(highMuted.HasSelectedDevice);
         Assert.Equal("AirPods Pro", connected.DeviceLabel);
@@ -64,6 +64,16 @@ public sealed class TaskbarRenderingTests
         Assert.Equal("\uE767", FluentAudioGlyphs.ForMuteState(isMuted: false));
         Assert.Equal("\uE74F", FluentAudioGlyphs.ForMuteState(isMuted: true));
         Assert.Equal("\uE7F6", FluentAudioGlyphs.Headphones);
+
+        TaskbarRenderState japaneseMissingDevice = TaskbarRenderState.FromSnapshot(
+            new(
+                TaskbarSurfaceMode.Native,
+                42,
+                false,
+                null,
+                TaskbarThemeMode.Dark,
+                TaskbarLanguage.Japanese));
+        Assert.Equal("BTデバイスなし", japaneseMissingDevice.DeviceDisplayName);
         Assert.Equal("Segoe Fluent Icons", FluentAudioGlyphs.FontFamily);
     }
 

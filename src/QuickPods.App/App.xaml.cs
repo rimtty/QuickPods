@@ -45,6 +45,8 @@ public partial class App : WpfApplication, IDisposable
     private JsonLineLogger? logger;
     private string logsDirectory = string.Empty;
     private string? restartExecutable;
+    private readonly ProductLocalizer localizer = new(
+        ProductLanguageResolver.Resolve(QuickPodsLanguageMode.System));
     private readonly ProductLifetimePolicy lifetimePolicy = new();
     private readonly HashSet<string> pendingLifecycleReasons = new(StringComparer.Ordinal);
     private QuickPodsSettings productSettings = QuickPodsSettings.Default;
@@ -63,6 +65,7 @@ public partial class App : WpfApplication, IDisposable
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        ApplyLocalizationResources();
 
         if (e.Args.Length == 1 && string.Equals(
             e.Args[0],
@@ -92,13 +95,14 @@ public partial class App : WpfApplication, IDisposable
         string? startupDiagnostic = null;
         try
         {
-            windowsAudio = new WindowsCoreAudioEndpointPort();
+            windowsAudio = new WindowsCoreAudioEndpointPort(
+                () => localizer["DefaultOutputDevice"]);
             audioPort = windowsAudio;
         }
         catch (Exception exception)
         {
             audioPort = new UnavailableAudioEndpointPort();
-            startupDiagnostic = $"Core Audioを初期化できませんでした: {exception.Message}";
+            startupDiagnostic = localizer.Format("CoreAudioInitFailed", exception.Message);
         }
 
         controller = new AudioController(audioPort);
@@ -116,6 +120,7 @@ public partial class App : WpfApplication, IDisposable
             startupRegistration,
             lifetimePolicy,
             RestartApplication,
+            localizer,
             logsDirectory,
             startupDiagnostic);
         window.SettingsChanged += OnProductSettingsChanged;
@@ -153,13 +158,14 @@ public partial class App : WpfApplication, IDisposable
                 visible => _ = window.SetTaskbarSurfaceVisibleAsync(visible),
                 () => settingsLauncher.TryOpenSoundSettings(),
                 () => settingsLauncher.TryOpenBluetoothSettings(),
-                ExitApplication);
+                ExitApplication,
+                localizer);
             trayIconAvailable = true;
         }
         catch (Exception exception)
         {
             window.ReportSettingsFailure(
-                $"通知領域アイコンを初期化できませんでした: {exception.Message}");
+                localizer.Format("TrayInitFailed", exception.Message));
         }
 
         _ = window.InitializeAsync();
@@ -202,7 +208,7 @@ public partial class App : WpfApplication, IDisposable
             catch (Exception exception)
             {
                 _ = WpfMessageBox.Show(
-                    $"QuickPodsを再起動できませんでした。\n\n{exception.Message}",
+                    localizer.Format("RestartLaunchFailed", exception.Message),
                     "QuickPods",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
@@ -395,7 +401,7 @@ public partial class App : WpfApplication, IDisposable
                 if (MainWindow is MainWindow window)
                 {
                     window.ReportSettingsFailure(
-                        "タスクバー表示をこのセッションでは停止しました。通知領域から操作できます。");
+                        localizer["TaskbarDisabled"]);
                 }
             });
         }
@@ -411,6 +417,18 @@ public partial class App : WpfApplication, IDisposable
 
         productSettings = normalized;
         productSettingsInitialized = true;
+        ProductLanguage resolvedLanguage = ProductLanguageResolver.Resolve(
+            productSettings.Language);
+        if (localizer.Language != resolvedLanguage)
+        {
+            localizer.Language = resolvedLanguage;
+            ApplyLocalizationResources();
+            trayIcon?.ApplyLocalization();
+            if (MainWindow is MainWindow localizedWindow)
+            {
+                localizedWindow.ApplyLocalization();
+            }
+        }
         Log(
             QuickPodsLogLevel.Information,
             "SettingsApplied",
@@ -419,6 +437,7 @@ public partial class App : WpfApplication, IDisposable
             {
                 ["DisplayMode"] = productSettings.DisplayMode.ToString(),
                 ["Theme"] = productSettings.Theme.ToString(),
+                ["Language"] = productSettings.Language.ToString(),
                 ["MouseWheelStepPercent"] = productSettings.MouseWheelStepPercent,
                 ["SetConnectedDeviceAsDefault"] =
                     productSettings.SetConnectedDeviceAsDefault,
@@ -673,7 +692,7 @@ public partial class App : WpfApplication, IDisposable
             if (MainWindow is MainWindow window)
             {
                 window.ReportSettingsFailure(
-                    "タスクバーからの操作に失敗しました。通知領域または製品画面から再試行してください。");
+                    localizer["TaskbarOperationFailed"]);
             }
         }
     }
@@ -894,7 +913,7 @@ public partial class App : WpfApplication, IDisposable
             if (MainWindow is MainWindow window)
             {
                 window.ReportSettingsFailure(
-                    "Windows環境の変更後に状態を更新できませんでした。更新ボタンで再試行できます。");
+                    localizer["EnvironmentRefreshFailed"]);
             }
         }
         finally
@@ -1070,7 +1089,7 @@ public partial class App : WpfApplication, IDisposable
             if (MainWindow is MainWindow window)
             {
                 window.ReportSettingsFailure(
-                    $"QuickPodsを再起動できませんでした: 実行ファイルが見つかりません ({executable})");
+                    localizer.Format("RestartExecutableMissing", executable));
             }
 
             return;
@@ -1099,7 +1118,11 @@ public partial class App : WpfApplication, IDisposable
                 CreateBluetoothStatus(
                     selected,
                     currentCatalog.InventoryGeneration,
-                    currentOperation));
+                    currentOperation),
+                ResolveBluetoothConnection(
+                    selected,
+                    currentCatalog.InventoryGeneration,
+                    currentOperation) == BluetoothConnectionState.Connected);
         return new(
             productSettings.DisplayMode == QuickPodsDisplayMode.TrayOnly
                 ? TaskbarSurfaceMode.Hidden
@@ -1107,7 +1130,10 @@ public partial class App : WpfApplication, IDisposable
             Math.Clamp(audio.VolumePercent, 0, 100),
             audio.IsMuted,
             selectedView,
-            resolvedTaskbarTheme);
+            resolvedTaskbarTheme,
+            localizer.Language == ProductLanguage.Japanese
+                ? TaskbarLanguage.Japanese
+                : TaskbarLanguage.English);
     }
 
     private void ApplyTheme(QuickPodsThemeMode theme)
@@ -1192,7 +1218,7 @@ public partial class App : WpfApplication, IDisposable
         }
     }
 
-    private static string CreateBluetoothStatus(
+    private string CreateBluetoothStatus(
         BluetoothAudioDeviceDescriptor selected,
         long inventoryGeneration,
         BluetoothOperationSnapshot operation)
@@ -1203,54 +1229,73 @@ public partial class App : WpfApplication, IDisposable
         {
             if (operation.Operation == QuickPodsOperation.Connecting)
             {
-                return "接続中";
+                return localizer["Connecting"];
             }
 
             if (operation.Operation == QuickPodsOperation.SettingDefault)
             {
-                return "既定出力へ切替中";
+                return localizer["SettingDefault"];
             }
 
             if (operation.Operation == QuickPodsOperation.DisconnectingOtherDevices)
             {
-                return "前の機器を切断中";
+                return localizer["DisconnectingOthers"];
             }
 
             if (operation.Operation == QuickPodsOperation.Disconnecting)
             {
-                return "切断中";
+                return localizer["Disconnecting"];
             }
 
             if (operation.Outcome == BluetoothOperationOutcome.ConnectedNotDefault)
             {
-                return "接続済み・非既定";
+                return localizer["ConnectedNotDefault"];
             }
 
             if (operation.ConnectionState == BluetoothConnectionState.Connected)
             {
                 return operation.DefaultOutputState == DefaultOutputState.Default
-                    ? "接続済み・既定"
-                    : "接続済み";
+                    ? localizer["ConnectedDefault"]
+                    : localizer["Connected"];
             }
 
             if (operation.ConnectionState == BluetoothConnectionState.Disconnected)
             {
-                return "未接続";
+                return localizer["Disconnected"];
             }
 
             if (operation.Outcome == BluetoothOperationOutcome.Unsupported)
             {
-                return "直接操作は未対応";
+                return localizer["Unsupported"];
             }
         }
 
         return selected.ConnectionState switch
         {
-            BluetoothConnectionState.Connected => "接続済み",
-            BluetoothConnectionState.Disconnected => "未接続",
-            BluetoothConnectionState.Unavailable => "利用不可",
-            _ => "確認中",
+            BluetoothConnectionState.Connected => localizer["Connected"],
+            BluetoothConnectionState.Disconnected => localizer["Disconnected"],
+            BluetoothConnectionState.Unavailable => localizer["Unavailable"],
+            _ => localizer["Checking"],
         };
+    }
+
+    private static BluetoothConnectionState ResolveBluetoothConnection(
+        BluetoothAudioDeviceDescriptor selected,
+        long inventoryGeneration,
+        BluetoothOperationSnapshot operation) =>
+        operation.Target is { } target &&
+        target.DeviceKey == selected.DeviceKey &&
+        target.InventoryGeneration == inventoryGeneration &&
+        operation.ConnectionState != BluetoothConnectionState.Unknown
+            ? operation.ConnectionState
+            : selected.ConnectionState;
+
+    private void ApplyLocalizationResources()
+    {
+        foreach (string key in ProductLocalizer.Keys)
+        {
+            Resources[key] = localizer[key];
+        }
     }
 
     private sealed class UnavailableAudioEndpointPort : IAudioEndpointPort
