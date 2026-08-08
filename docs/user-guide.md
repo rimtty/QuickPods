@@ -4,7 +4,7 @@
 
 Extract the official portable ZIP to a permanent folder and launch the root `QuickPods.exe` from the extracted `QuickPods` folder. The internal `app` directory contains runtime files and helper processes; do not launch or move them manually. License and third-party notice files are collected under `licenses`. QuickPods stays in the notification area after its flyout closes.
 
-The taskbar surface appears only when QuickPods can verify a safe empty region on a center-aligned Windows 11 taskbar. If it cannot, use the QuickPods notification-area icon instead.
+The taskbar surface appears immediately left of the notification area by default and supports center- and left-aligned taskbar buttons. Settings can switch to the previous taskbar-left placement behavior. QuickPods shows the surface only when it can verify a safe empty region; otherwise, use the notification-area icon.
 
 ## Open the audio flyout
 
@@ -49,6 +49,7 @@ When Windows changes the default output, QuickPods rebinds to the new endpoint a
 Open Settings from the flyout gear button or the notification-area menu.
 
 - **Taskbar display** — automatic safe placement or notification-area-only mode.
+- **Taskbar placement** — left of the notification area by default, or the previous taskbar-left position.
 - **Theme** — follow Windows, dark, or light.
 - **Language** — follow the Windows UI language, English, or Japanese. System mode uses Japanese only for Japanese Windows and falls back to English for every other language.
 - **Volume adjustment step** — percentage changed by each mouse-wheel step.

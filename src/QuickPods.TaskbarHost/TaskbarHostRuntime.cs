@@ -271,6 +271,7 @@ internal sealed class TaskbarHostRuntime : IDisposable
         }
 
         bool wasSurfaceRequested = IsSurfaceRequested;
+        TaskbarPlacementMode previousPlacementMode = currentState.PlacementMode;
         currentState = accepted;
         if (!IsSurfaceRequested)
         {
@@ -283,6 +284,12 @@ internal sealed class TaskbarHostRuntime : IDisposable
         }
 
         if (!wasSurfaceRequested)
+        {
+            InvalidateLayout();
+            return;
+        }
+
+        if (previousPlacementMode != currentState.PlacementMode)
         {
             InvalidateLayout();
             return;
@@ -583,7 +590,8 @@ internal sealed class TaskbarHostRuntime : IDisposable
         TaskbarLayoutObservation? observation = TaskbarObservationAdapter.Create(discovery);
         TaskbarPlacementResult placement = SafeRegionPlanner.Calculate(
             observation,
-            TaskbarPlacementOptions.Default);
+            TaskbarPlacementOptions.Default,
+            currentState.PlacementMode);
         TaskbarPresentationRoute route = TaskbarPresentationRouter.Select(
             discovery,
             placement,

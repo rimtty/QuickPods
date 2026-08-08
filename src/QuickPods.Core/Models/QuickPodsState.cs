@@ -52,6 +52,12 @@ public enum QuickPodsDisplayMode
     TrayOnly,
 }
 
+public enum QuickPodsTaskbarPlacement
+{
+    NotificationAreaLeft,
+    TaskbarLeft,
+}
+
 public enum QuickPodsThemeMode
 {
     System,
@@ -112,18 +118,22 @@ public sealed record QuickPodsSettings(
     QuickPodsThemeMode Theme = QuickPodsThemeMode.System,
     QuickPodsLanguageMode Language = QuickPodsLanguageMode.System,
     bool ConfirmBluetoothDisconnect = false,
+    QuickPodsTaskbarPlacement TaskbarPlacement = QuickPodsTaskbarPlacement.NotificationAreaLeft,
     bool CheckForUpdatesAtStartup = false,
     DateTimeOffset? LastUpdateCheckUtc = null,
     string? LastKnownLatestVersion = null,
     string? LastKnownReleasePage = null,
-    int SchemaVersion = 1)
+    int SchemaVersion = 2)
 {
     public static QuickPodsSettings Default { get; } = new(null, false, true);
 
     public QuickPodsSettings Normalize() => this with
     {
-        SchemaVersion = 1,
+        SchemaVersion = 2,
         DisplayMode = Enum.IsDefined(DisplayMode) ? DisplayMode : QuickPodsDisplayMode.Auto,
+        TaskbarPlacement = Enum.IsDefined(TaskbarPlacement)
+            ? TaskbarPlacement
+            : QuickPodsTaskbarPlacement.NotificationAreaLeft,
         MouseWheelStepPercent = MouseWheelStepPercent is 1 or 2 or 5 or 10
             ? MouseWheelStepPercent
             : Default.MouseWheelStepPercent,

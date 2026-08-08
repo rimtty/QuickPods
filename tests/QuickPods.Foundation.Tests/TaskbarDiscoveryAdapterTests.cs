@@ -26,6 +26,7 @@ public sealed class TaskbarDiscoveryAdapterTests
         Assert.NotNull(observation);
         Assert.True(observation.IsComplete);
         Assert.Equal(TaskbarOrientation.Horizontal, observation.Orientation);
+        Assert.Equal(new PixelRect(1600, 0, 1920, 48), observation.NotificationAreaBounds);
         Assert.Equal(3, observation.Obstacles.Count);
     }
 
@@ -45,6 +46,25 @@ public sealed class TaskbarDiscoveryAdapterTests
         Assert.NotNull(observation);
         Assert.False(observation.IsComplete);
         Assert.Null(observation.StartButtonBounds);
+        Assert.Equal(
+            PlacementDecision.TransientUnknown,
+            SafeRegionPlanner.Calculate(observation, TaskbarPlacementOptions.Default).Decision);
+    }
+
+    [Fact]
+    public void MissingNotificationAreaCannotBecomeACompleteObservation()
+    {
+        TaskbarDiscoveryResult discovery = Result(
+            buttons:
+            [
+                new AutomationButtonSnapshot("StartButton", new PixelRect(900, 0, 945, 48)),
+            ]);
+
+        TaskbarLayoutObservation? observation = TaskbarObservationAdapter.Create(discovery);
+
+        Assert.NotNull(observation);
+        Assert.False(observation.IsComplete);
+        Assert.Null(observation.NotificationAreaBounds);
         Assert.Equal(
             PlacementDecision.TransientUnknown,
             SafeRegionPlanner.Calculate(observation, TaskbarPlacementOptions.Default).Decision);

@@ -1,6 +1,6 @@
 # Known limitations
 
-- The embedded taskbar surface supports the center-aligned Windows 11 taskbar only. Left alignment uses the notification-area fallback.
+- The notification-area-adjacent placement does not reserve shell space. If taskbar buttons leave no verified gap immediately left of the notification area, QuickPods uses the notification-area fallback.
 - Direct Bluetooth connect and disconnect depend on driver capability. Unsupported devices use Windows Settings.
 - QuickPods does not enumerate or mutate local Bluetooth devices while running through Remote Desktop.
 - Connecting a multi-host headset can time out while the device is attached to another phone or computer. QuickPods does not retry automatically.
