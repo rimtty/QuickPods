@@ -79,10 +79,6 @@ try {
     }
 }
 
-$selfContainedProof = & (Join-Path $PSScriptRoot "Test-SelfContainedPayload.ps1") `
-    -PayloadDirectory $payloadDirectory
-$requiredExecutables = @($selfContainedProof.Executables)
-
 $dotnetRoot = Split-Path -Parent (Get-Command dotnet).Source
 $legalFiles = [ordered]@{
     (Join-Path $repositoryRoot "LICENSE") = "LICENSE"
@@ -97,6 +93,10 @@ foreach ($legalFile in $legalFiles.GetEnumerator()) {
 
     Copy-Item -LiteralPath $legalFile.Key -Destination (Join-Path $payloadDirectory $legalFile.Value)
 }
+
+$selfContainedProof = & (Join-Path $PSScriptRoot "Test-SelfContainedPayload.ps1") `
+    -PayloadDirectory $payloadDirectory
+$requiredExecutables = @($selfContainedProof.Executables)
 
 $executables = foreach ($requiredFile in $requiredExecutables) {
     $versionInfo = (Get-Item -LiteralPath (Join-Path $payloadDirectory $requiredFile)).VersionInfo
