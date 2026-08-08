@@ -198,8 +198,7 @@ internal static class BluetoothAudioCatalogBuilder
         ImmutableArray<BluetoothAudioDeviceDescriptor> devices)
     {
         ImmutableArray<BluetoothAudioDeviceDescriptor> ordered = [.. devices
-            .OrderByDescending(device => device.IsSelected)
-            .ThenByDescending(device => device.ConnectionState == BluetoothConnectionState.Connected)
+            .OrderByDescending(device => device.ConnectionState == BluetoothConnectionState.Connected)
             .ThenBy(device => device.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(device => device.DeviceKey.Value, StringComparer.Ordinal)];
         bool selectedPresent = selectedDevice is not null && ordered.Any(device => device.IsSelected);

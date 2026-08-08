@@ -11,6 +11,104 @@ public sealed class BluetoothOperationControllerTests
     private static readonly BluetoothDeviceKey DeviceB = new("bt-operation-b");
 
     [Fact]
+    public async Task SuccessfulSwitchDisconnectsPreviouslyConnectedAudioDevice()
+    {
+        await using BluetoothCatalogController catalog = await CreateSwitchCatalogAsync(
+            BluetoothDeviceCapability.DirectControl);
+        var bluetooth = new FakeBluetoothOperationPort();
+        var defaultOutput = new FakeDefaultOutputOperationPort(
+            new(DefaultOutputState.Default, RequestSubmitted: true, BluetoothMutationFailure.None));
+        using var controller = CreateController(catalog, bluetooth, defaultOutput);
+        var operations = new List<QuickPodsOperation>();
+        controller.StateChanged += (_, state) => operations.Add(state.Operation);
+
+        BluetoothOperationSnapshot result = await controller.ConnectSelectedAsync();
+
+        Assert.Equal(BluetoothOperationOutcome.Succeeded, result.Outcome);
+        Assert.Equal(DefaultOutputState.Default, result.DefaultOutputState);
+        Assert.Equal([DeviceB], bluetooth.ConnectTargets);
+        Assert.Equal([DeviceA], bluetooth.DisconnectTargets);
+        Assert.Equal([DeviceB], defaultOutput.Targets);
+        Assert.Contains(QuickPodsOperation.DisconnectingOtherDevices, operations);
+    }
+
+    [Fact]
+    public async Task DefaultOutputFailureKeepsPreviouslyConnectedAudioDeviceConnected()
+    {
+        await using BluetoothCatalogController catalog = await CreateSwitchCatalogAsync(
+            BluetoothDeviceCapability.DirectControl);
+        var bluetooth = new FakeBluetoothOperationPort();
+        var defaultOutput = new FakeDefaultOutputOperationPort(
+            new(DefaultOutputState.Failed, RequestSubmitted: true, BluetoothMutationFailure.Rejected));
+        using var controller = CreateController(catalog, bluetooth, defaultOutput);
+
+        BluetoothOperationSnapshot result = await controller.ConnectSelectedAsync();
+
+        Assert.Equal(BluetoothOperationOutcome.ConnectedNotDefault, result.Outcome);
+        Assert.Empty(bluetooth.DisconnectTargets);
+    }
+
+    [Fact]
+    public async Task ConnectWithoutDefaultSwitchKeepsPreviouslyConnectedAudioDeviceConnected()
+    {
+        await using BluetoothCatalogController catalog = await CreateSwitchCatalogAsync(
+            BluetoothDeviceCapability.DirectControl);
+        var bluetooth = new FakeBluetoothOperationPort();
+        var defaultOutput = new FakeDefaultOutputOperationPort(
+            new(DefaultOutputState.Default, RequestSubmitted: true, BluetoothMutationFailure.None));
+        using var controller = CreateController(catalog, bluetooth, defaultOutput);
+
+        BluetoothOperationSnapshot result = await controller.ConnectSelectedAsync(
+            setConnectedDeviceAsDefault: false);
+
+        Assert.Equal(BluetoothOperationOutcome.Succeeded, result.Outcome);
+        Assert.Equal(DefaultOutputState.NotDefault, result.DefaultOutputState);
+        Assert.Empty(bluetooth.DisconnectTargets);
+        Assert.Empty(defaultOutput.Targets);
+    }
+
+    [Fact]
+    public async Task UnsupportedPreviousDeviceLeavesHonestSwitchWarning()
+    {
+        await using BluetoothCatalogController catalog = await CreateSwitchCatalogAsync(
+            BluetoothDeviceCapability.SettingsOnly);
+        var bluetooth = new FakeBluetoothOperationPort();
+        var defaultOutput = new FakeDefaultOutputOperationPort(
+            new(DefaultOutputState.Default, RequestSubmitted: true, BluetoothMutationFailure.None));
+        using var controller = CreateController(catalog, bluetooth, defaultOutput);
+
+        BluetoothOperationSnapshot result = await controller.ConnectSelectedAsync();
+
+        Assert.Equal(BluetoothOperationOutcome.Succeeded, result.Outcome);
+        Assert.Equal(QuickPodsErrorCode.OtherBluetoothDevicesStillConnected, result.Error);
+        Assert.Empty(bluetooth.DisconnectTargets);
+    }
+
+    [Fact]
+    public async Task PreviousDeviceDisconnectFailureLeavesHonestSwitchWarning()
+    {
+        await using BluetoothCatalogController catalog = await CreateSwitchCatalogAsync(
+            BluetoothDeviceCapability.DirectControl);
+        var bluetooth = new FakeBluetoothOperationPort
+        {
+            Disconnect = (_, _) => ValueTask.FromResult(new BluetoothDeviceOperationResult(
+                BluetoothConnectionState.Connected,
+                RequestSubmitted: true,
+                BluetoothMutationFailure.Rejected)),
+        };
+        var defaultOutput = new FakeDefaultOutputOperationPort(
+            new(DefaultOutputState.Default, RequestSubmitted: true, BluetoothMutationFailure.None));
+        using var controller = CreateController(catalog, bluetooth, defaultOutput);
+
+        BluetoothOperationSnapshot result = await controller.ConnectSelectedAsync();
+
+        Assert.Equal(BluetoothOperationOutcome.Succeeded, result.Outcome);
+        Assert.Equal(DefaultOutputState.Default, result.DefaultOutputState);
+        Assert.Equal(QuickPodsErrorCode.OtherBluetoothDevicesStillConnected, result.Error);
+        Assert.Equal([DeviceA], bluetooth.DisconnectTargets);
+    }
+
+    [Fact]
     public async Task DefaultFailurePreservesConfirmedConnectionWithoutRetry()
     {
         await using BluetoothCatalogController catalog = await CreateCatalogAsync(
@@ -179,6 +277,24 @@ public sealed class BluetoothOperationControllerTests
         return controller;
     }
 
+    private static async Task<BluetoothCatalogController> CreateSwitchCatalogAsync(
+        BluetoothDeviceCapability previousDeviceCapability)
+    {
+        var controller = new BluetoothCatalogController(
+            new FakeCatalogPort(
+            [
+                Endpoint(DeviceA, "Previous device", previousDeviceCapability),
+                Endpoint(
+                    DeviceB,
+                    "New device",
+                    BluetoothDeviceCapability.DirectControl,
+                    BluetoothEndpointAvailability.NotPresent),
+            ]),
+            new FakeSelectionStore(DeviceB));
+        await controller.InitializeAsync();
+        return controller;
+    }
+
     private static BluetoothOperationController CreateController(
         BluetoothCatalogController catalog,
         IBluetoothDeviceOperationPort bluetooth,
@@ -188,14 +304,15 @@ public sealed class BluetoothOperationControllerTests
     private static BluetoothAudioEndpointEvidence Endpoint(
         BluetoothDeviceKey key,
         string name,
-        BluetoothDeviceCapability capability) =>
+        BluetoothDeviceCapability capability,
+        BluetoothEndpointAvailability availability = BluetoothEndpointAvailability.Active) =>
         new(
             key,
             name,
             BluetoothAudioKind.Headphones,
             BluetoothAudioProfile.Stereo,
             BluetoothEndpointDirection.Render,
-            BluetoothEndpointAvailability.Active,
+            availability,
             capability,
             IsPaired: true,
             IsBluetooth: true);
@@ -248,11 +365,16 @@ public sealed class BluetoothOperationControllerTests
 
         public int MaximumConcurrentCalls => Volatile.Read(ref maximumConcurrentCalls);
 
+        public List<BluetoothDeviceKey> ConnectTargets { get; } = [];
+
+        public List<BluetoothDeviceKey> DisconnectTargets { get; } = [];
+
         public async ValueTask<BluetoothDeviceOperationResult> ConnectAsync(
             BluetoothOperationTarget target,
             CancellationToken cancellationToken)
         {
             ConnectCalls++;
+            ConnectTargets.Add(target.DeviceKey);
             return await InvokeAsync(Connect, target, cancellationToken);
         }
 
@@ -261,6 +383,7 @@ public sealed class BluetoothOperationControllerTests
             CancellationToken cancellationToken)
         {
             DisconnectCalls++;
+            DisconnectTargets.Add(target.DeviceKey);
             return await InvokeAsync(Disconnect, target, cancellationToken);
         }
 
@@ -289,11 +412,14 @@ public sealed class BluetoothOperationControllerTests
 
         public int Calls { get; private set; }
 
+        public List<BluetoothDeviceKey> Targets { get; } = [];
+
         public ValueTask<DefaultOutputOperationResult> MakeDefaultAsync(
             BluetoothOperationTarget target,
             CancellationToken cancellationToken)
         {
             Calls++;
+            Targets.Add(target.DeviceKey);
             return ValueTask.FromResult(result);
         }
     }

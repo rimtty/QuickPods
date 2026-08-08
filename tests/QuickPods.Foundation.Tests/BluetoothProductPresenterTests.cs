@@ -112,6 +112,69 @@ public sealed class BluetoothProductPresenterTests
     }
 
     [Fact]
+    public void PreviousDeviceCleanupHasAnExplicitBusyState()
+    {
+        BluetoothAudioCatalogSnapshot catalog = Catalog(
+            generation: 6,
+            Device(DeviceA, "Previous device", isSelected: false) with
+            {
+                ConnectionState = BluetoothConnectionState.Connected,
+            },
+            Device(DeviceB, "New device", isSelected: true) with
+            {
+                ConnectionState = BluetoothConnectionState.Connected,
+                DefaultOutputState = DefaultOutputState.Default,
+            });
+        var operation = new BluetoothOperationSnapshot(
+            Revision: 9,
+            new BluetoothOperationTarget(DeviceB, 6),
+            BluetoothRequestedAction.Connect,
+            QuickPodsOperation.DisconnectingOtherDevices,
+            BluetoothOperationOutcome.InProgress,
+            BluetoothConnectionState.Connected,
+            DefaultOutputState.Default,
+            null);
+
+        BluetoothProductPresentation view = BluetoothProductPresenter.Project(
+            catalog,
+            operation,
+            isRefreshing: false);
+
+        Assert.Equal("前の機器を切断中", view.Devices.Single(device => device.DeviceKey == DeviceB).StatusText);
+        Assert.Equal("前の機器を切断中…", view.PrimaryActionText);
+        Assert.True(view.IsBusy);
+    }
+
+    [Fact]
+    public void FailedPreviousDeviceCleanupRemainsVisibleAfterSuccessfulSwitch()
+    {
+        BluetoothAudioCatalogSnapshot catalog = Catalog(
+            generation: 7,
+            Device(DeviceB, "New device", isSelected: true) with
+            {
+                ConnectionState = BluetoothConnectionState.Connected,
+                DefaultOutputState = DefaultOutputState.Default,
+            });
+        var operation = new BluetoothOperationSnapshot(
+            Revision: 10,
+            new BluetoothOperationTarget(DeviceB, 6),
+            BluetoothRequestedAction.Connect,
+            QuickPodsOperation.None,
+            BluetoothOperationOutcome.Succeeded,
+            BluetoothConnectionState.Connected,
+            DefaultOutputState.Default,
+            QuickPodsErrorCode.OtherBluetoothDevicesStillConnected);
+
+        BluetoothProductPresentation view = BluetoothProductPresenter.Project(
+            catalog,
+            operation,
+            isRefreshing: false);
+
+        Assert.Equal(ProductPrimaryActionKind.Disconnect, view.PrimaryAction);
+        Assert.Contains("ほかのBluetoothオーディオを切断できませんでした", view.ErrorMessage);
+    }
+
+    [Fact]
     public void RefreshRetainsUnsupportedRowsButDisablesTheirFallbackAction()
     {
         BluetoothAudioCatalogSnapshot catalog = Catalog(

@@ -2,7 +2,7 @@
 
 ## Core境界
 
-`BluetoothOperationController`は、明示選択済みの物理デバイスに対する接続／切断と、接続確認後の既定出力変更を直列化する。OS固有のKS、MMDevice、PolicyConfig型はCoreへ公開しない。
+`BluetoothOperationController`は、明示選択済みの物理デバイスに対する接続／切断、接続確認後の既定出力変更、および切替成功後の旧Bluetoothオーディオ切断を直列化する。OS固有のKS、MMDevice、PolicyConfig型はCoreへ公開しない。
 
 操作開始時に次の値を固定する。
 
@@ -22,7 +22,7 @@ OS要求の直前と結果反映前に、選択キー、inventory generation、�
 
 ## 状態と部分成功
 
-接続確認と既定出力確認は別結果として保持する。Bluetoothが`Connected`になった後でPolicyConfigまたは検証が失敗した場合は`ConnectedNotDefault`とし、接続失敗へ読み替えない。
+接続確認と既定出力確認は別結果として保持する。Bluetoothが`Connected`になった後でPolicyConfigまたは検証が失敗した場合は`ConnectedNotDefault`とし、接続失敗へ読み替えず、旧機器も切断しない。接続と既定化が成功した後に限り、操作開始時に接続済みだった別のBluetoothオーディオをContainer単位で切断する。旧機器の切断に失敗しても新しい機器の成功状態を保持し、`OtherBluetoothDevicesStillConnected`の警告を返す。
 
 操作結果は`Succeeded`、`ConnectedNotDefault`、`Unsupported`、`SelectionStale`、`Superseded`、`TimedOut`、`Rejected`、`ContainmentFailed`、`Faulted`、`Cancelled`へ正規化する。一つの対象の失敗を別機器やマスター音量へ波及させない。
 

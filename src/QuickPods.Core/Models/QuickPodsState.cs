@@ -27,6 +27,7 @@ public enum QuickPodsOperation
     None,
     Connecting,
     SettingDefault,
+    DisconnectingOtherDevices,
     Disconnecting,
 }
 
@@ -40,6 +41,7 @@ public enum QuickPodsErrorCode
     BluetoothOperationRejected,
     BluetoothContainmentFailed,
     DefaultOutputSwitchFailed,
+    OtherBluetoothDevicesStillConnected,
     NativeHostUnavailable,
     ProtocolMismatch,
 }

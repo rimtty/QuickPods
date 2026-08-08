@@ -135,6 +135,7 @@ public static class BluetoothProductPresenter
             {
                 QuickPodsOperation.Connecting => "接続中…",
                 QuickPodsOperation.SettingDefault => "既定の出力へ切替中…",
+                QuickPodsOperation.DisconnectingOtherDevices => "前の機器を切断中…",
                 QuickPodsOperation.Disconnecting => "切断中…",
                 _ => "処理中…",
             };
@@ -191,6 +192,7 @@ public static class BluetoothProductPresenter
             {
                 QuickPodsOperation.Connecting => "接続中",
                 QuickPodsOperation.SettingDefault => "既定の出力へ切替中",
+                QuickPodsOperation.DisconnectingOtherDevices => "前の機器を切断中",
                 QuickPodsOperation.Disconnecting => "切断中",
                 _ => null,
             };
@@ -265,6 +267,11 @@ public static class BluetoothProductPresenter
             return false;
         }
 
+        if (operation.Error == QuickPodsErrorCode.OtherBluetoothDevicesStillConnected)
+        {
+            return true;
+        }
+
         bool requestedStateReached = operation.Error == QuickPodsErrorCode.DefaultOutputSwitchFailed
             ? selected.ConnectionState == BluetoothConnectionState.Connected &&
                 selected.DefaultOutputState == DefaultOutputState.Default
@@ -294,6 +301,8 @@ public static class BluetoothProductPresenter
                 "Bluetooth操作の安全な終了を確認できないため、操作を停止しました。",
             QuickPodsErrorCode.DefaultOutputSwitchFailed =>
                 "Bluetooth接続は完了しましたが、Windowsの既定出力を変更できませんでした。",
+            QuickPodsErrorCode.OtherBluetoothDevicesStillConnected =>
+                "新しい機器への切り替えは完了しましたが、ほかのBluetoothオーディオを切断できませんでした。",
             QuickPodsErrorCode.BluetoothOperationRejected =>
                 "Bluetooth操作を完了できませんでした。状態を更新してから再試行してください。",
             _ => null,

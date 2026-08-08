@@ -1161,6 +1161,11 @@ public partial class App : WpfApplication, IDisposable
                 return "既定出力へ切替中";
             }
 
+            if (operation.Operation == QuickPodsOperation.DisconnectingOtherDevices)
+            {
+                return "前の機器を切断中";
+            }
+
             if (operation.Operation == QuickPodsOperation.Disconnecting)
             {
                 return "切断中";
