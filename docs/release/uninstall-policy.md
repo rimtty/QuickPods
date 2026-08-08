@@ -1,11 +1,10 @@
 # Uninstall policy
 
-The per-user MSI removes:
+To remove the portable release:
 
-- installed QuickPods binaries;
-- the Start menu shortcut;
-- installer registration;
-- the current-user startup value owned by QuickPods.
+1. Turn off **Start QuickPods when signing in to Windows** in Settings.
+2. Exit QuickPods from the notification-area menu.
+3. Delete the extracted QuickPods application folder.
 
 Uninstall intentionally preserves:
 
@@ -13,4 +12,4 @@ Uninstall intentionally preserves:
 - quarantined settings recovery files;
 - `%LocalAppData%\QuickPods\logs`.
 
-This preserves user preferences across reinstall and supports post-uninstall diagnostics. To remove all local data, exit QuickPods, uninstall the application, and manually delete `%LocalAppData%\QuickPods`. Review the directory first because deletion cannot be undone.
+This preserves user preferences across reinstall and supports post-removal diagnostics. To remove all local data, delete `%LocalAppData%\QuickPods` separately after exiting the application. Review the directory first because deletion cannot be undone.

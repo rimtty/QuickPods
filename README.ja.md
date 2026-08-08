@@ -16,7 +16,7 @@
 </p>
 
 > [!IMPORTANT]
-> QuickPodsは開発中です。現時点では署名済みの一般公開版はありません。CIやローカルで生成した未署名インストーラーでは、Windowsの警告が表示される場合があります。
+> 一般公開するポータブルZIPは現在未署名で、Microsoft Defender SmartScreenの警告が表示される場合があります。このリポジトリのReleasesページからのみダウンロードし、公開されたSHA-256チェックサムを確認してください。コード署名を利用できるまではMSIを配布しません。
 
 ## 主な機能
 
@@ -37,19 +37,16 @@
 
 左揃えのタスクバーや、安全な配置を証明できない環境でも、QuickPodsは通知領域から利用できます。配布パッケージは自己完結型のため、利用者が.NETを別途導入する必要はありません。
 
-## ビルドして実行する
+## インストールと起動
 
-最初の署名済み公開版までは、ソースからビルドしてください。
+1. [最新のRelease](https://github.com/rimtty/QuickPods/releases/latest)から`QuickPods-<version>-win-x64.zip`と`SHA256SUMS.txt`をダウンロードします。
+2. ZIPのSHA-256チェックサムが`SHA256SUMS.txt`と一致することを確認します。
+3. ZIP内の`QuickPods`フォルダー全体を、自分のWindowsユーザーが所有する固定の場所へ展開します。
+4. 展開したフォルダーの`QuickPods.exe`を起動します。
 
-```powershell
-git clone https://github.com/rimtty/QuickPods.git
-Set-Location QuickPods
-dotnet restore QuickPods.sln --locked-mode
-dotnet build src/QuickPods.App/QuickPods.App.csproj -c Release --no-restore
-./src/QuickPods.App/bin/Release/net10.0-windows10.0.26100.0/QuickPods.exe
-```
+パッケージは自己完結型で、.NETを別途インストールする必要はありません。未署名のため、初回起動時にWindowsがSmartScreen警告を表示する場合があります。実行を判断する前に、ダウンロード元とチェックサムを確認してください。すべてのファイルを同じフォルダーに保ち、Windowsログイン時の自動起動を有効にした後はフォルダーを移動しないでください。
 
-パッケージ作成と署名要件は[リリースガイド](docs/release/README.md)を参照してください。
+ポータブル版の更新・削除、ソースからのビルド、パッケージ作成については[ユーザーガイド](docs/user-guide.md)、[更新ポリシー](docs/release/update-policy.md)、[リリースガイド](docs/release/README.md)を参照してください。
 
 ## プライバシーと安全性
 

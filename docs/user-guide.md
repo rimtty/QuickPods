@@ -2,7 +2,7 @@
 
 ## Start QuickPods
 
-Launch `QuickPods.exe` from the Start menu or the build output. QuickPods stays in the notification area after its flyout closes.
+Extract the official portable ZIP to a permanent folder and launch `QuickPods.exe` from the extracted `QuickPods` folder. QuickPods stays in the notification area after its flyout closes.
 
 The taskbar surface appears only when QuickPods can verify a safe empty region on a center-aligned Windows 11 taskbar. If it cannot, use the QuickPods notification-area icon instead.
 
@@ -64,4 +64,4 @@ Closing the flyout or Settings window does not terminate the app. Use **Exit Qui
 
 ## Stored data
 
-QuickPods stores settings and logs under `%LocalAppData%\QuickPods`. Uninstalling the MSI removes the application and its owned startup entry but intentionally preserves user settings and logs. See [Privacy](privacy.md) and the [uninstall policy](release/uninstall-policy.md).
+QuickPods stores settings and logs under `%LocalAppData%\QuickPods`. To remove the portable version, first disable start at sign-in, exit QuickPods, and delete the extracted application folder. Settings and logs are intentionally preserved unless `%LocalAppData%\QuickPods` is deleted separately. See [Privacy](privacy.md) and the [uninstall policy](release/uninstall-policy.md).
