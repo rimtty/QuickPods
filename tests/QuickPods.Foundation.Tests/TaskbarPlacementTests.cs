@@ -23,6 +23,9 @@ public sealed class TaskbarPlacementTests
         Assert.Equal(TaskbarStripMode.Standard, result.Mode);
         Assert.NotNull(result.Bounds);
         Assert.Equal(300, result.Bounds.Value.Width);
+        Assert.Equal(
+            observation.NotificationAreaBounds!.Value.Left - 8,
+            result.Bounds.Value.Right);
         Assert.Equal(0, result.Bounds.Value.IntersectionArea(observation.Obstacles[0]));
         Assert.True(SafeRegionPlanner.IsExistingPlacementSafe(
             observation,
@@ -31,7 +34,7 @@ public sealed class TaskbarPlacementTests
     }
 
     [Fact]
-    public void LeftAlignedStartIsKnownUnsupportedConfiguration()
+    public void LeftAlignedStartPlacesSurfaceImmediatelyBeforeNotificationArea()
     {
         TaskbarLayoutObservation observation = Observation(
             taskbar: new PixelRect(0, 0, 1920, 48),
@@ -41,9 +44,13 @@ public sealed class TaskbarPlacementTests
             observation,
             TaskbarPlacementOptions.Default);
 
-        Assert.Equal(PlacementDecision.UnsupportedConfiguration, result.Decision);
-        Assert.Equal(PlacementReason.UnsupportedAlignment, result.Reason);
-        Assert.Null(result.Bounds);
+        Assert.Equal(PlacementDecision.Place, result.Decision);
+        Assert.Equal(TaskbarStripMode.Standard, result.Mode);
+        Assert.Equal(1592, result.Bounds?.Right);
+        Assert.True(SafeRegionPlanner.IsExistingPlacementSafe(
+            observation,
+            TaskbarPlacementOptions.Default,
+            result.Bounds!.Value));
         Assert.False(SafeRegionPlanner.IsExistingPlacementSafe(
             observation,
             TaskbarPlacementOptions.Default,
@@ -56,7 +63,7 @@ public sealed class TaskbarPlacementTests
         TaskbarLayoutObservation observation = Observation(
             taskbar: new PixelRect(0, 0, 1920, 48),
             start: new PixelRect(1000, 0, 1045, 48),
-            obstacles: [new PixelRect(0, 0, 850, 48)]);
+            obstacles: [new PixelRect(0, 0, 1410, 48)]);
 
         TaskbarPlacementResult result = SafeRegionPlanner.Calculate(
             observation,
@@ -68,7 +75,7 @@ public sealed class TaskbarPlacementTests
     }
 
     [Fact]
-    public void IncompleteOrContradictoryEvidenceFailsClosed()
+    public void IncompleteOrInvalidNotificationAreaEvidenceFailsClosed()
     {
         TaskbarLayoutObservation incomplete = Observation(
             taskbar: new PixelRect(0, 0, 1920, 48),
@@ -76,17 +83,21 @@ public sealed class TaskbarPlacementTests
         {
             IsComplete = false,
         };
-        TaskbarLayoutObservation contradictory = Observation(
+        TaskbarLayoutObservation invalidNotificationArea = Observation(
             taskbar: new PixelRect(0, 0, 1920, 48),
-            start: new PixelRect(900, 0, 945, 48),
-            widgets: new PixelRect(850, 0, 930, 48));
+            start: new PixelRect(900, 0, 945, 48)) with
+        {
+            NotificationAreaBounds = new PixelRect(1900, 0, 2000, 48),
+        };
 
         Assert.Equal(
             PlacementDecision.TransientUnknown,
             SafeRegionPlanner.Calculate(incomplete, TaskbarPlacementOptions.Default).Decision);
         Assert.Equal(
-            PlacementReason.ContradictoryLandmarks,
-            SafeRegionPlanner.Calculate(contradictory, TaskbarPlacementOptions.Default).Reason);
+            PlacementReason.InvalidGeometry,
+            SafeRegionPlanner.Calculate(
+                invalidNotificationArea,
+                TaskbarPlacementOptions.Default).Reason);
     }
 
     [Theory]
@@ -98,7 +109,7 @@ public sealed class TaskbarPlacementTests
     {
         TaskbarLayoutObservation observation = Observation(
             taskbar: new PixelRect(-3840, 0, 0, 120),
-            start: new PixelRect(-1000, 0, -900, 120),
+            start: new PixelRect(-1600, 0, -1500, 120),
             dpi: dpi);
 
         TaskbarPlacementResult result = SafeRegionPlanner.Calculate(
@@ -119,7 +130,7 @@ public sealed class TaskbarPlacementTests
             obstacles:
             [
                 new PixelRect(0, 0, 300, 48),
-                new PixelRect(550, 0, 1000, 48),
+                new PixelRect(550, 0, 1340, 48),
             ]);
 
         TaskbarPlacementResult result = SafeRegionPlanner.Calculate(
@@ -129,6 +140,7 @@ public sealed class TaskbarPlacementTests
         Assert.Equal(PlacementDecision.Place, result.Decision);
         Assert.Equal(TaskbarStripMode.Compact, result.Mode);
         Assert.InRange(result.Bounds?.Width ?? 0, 190, 299);
+        Assert.Equal(1592, result.Bounds?.Right);
     }
 
     private static TaskbarLayoutObservation Observation(
@@ -136,13 +148,29 @@ public sealed class TaskbarPlacementTests
         PixelRect start,
         PixelRect? widgets = null,
         IReadOnlyList<PixelRect>? obstacles = null,
-        uint dpi = 96) =>
-        new(
+        uint dpi = 96)
+    {
+        int notificationAreaWidth = checked((int)Math.Round(320d * dpi / 96d));
+        var notificationArea = new PixelRect(
+            taskbar.Right - notificationAreaWidth,
+            taskbar.Top,
+            taskbar.Right,
+            taskbar.Bottom);
+        PixelRect[] allObstacles =
+        [
+            start,
+            .. (widgets is PixelRect widgetsBounds ? [widgetsBounds] : Array.Empty<PixelRect>()),
+            .. obstacles ?? [],
+            notificationArea,
+        ];
+        return new(
             taskbar,
             dpi,
             TaskbarOrientation.Horizontal,
             start,
             widgets,
-            obstacles ?? [],
+            notificationArea,
+            allObstacles,
             IsComplete: true);
+    }
 }

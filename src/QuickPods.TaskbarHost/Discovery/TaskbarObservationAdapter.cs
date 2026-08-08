@@ -18,6 +18,9 @@ internal static class TaskbarObservationAdapter
 
         PixelRect? start = FindUnique(snapshot.AutomationButtons, StartButtonAutomationId);
         PixelRect? widgets = FindUnique(snapshot.AutomationButtons, WidgetsButtonAutomationId);
+        PixelRect? notificationArea = FindUnique(
+            snapshot.NativeObstacles,
+            NativeObstacleKind.NotificationArea);
         PixelRect[] obstacles =
         [
             .. snapshot.AutomationButtons.Select(button => button.Bounds),
@@ -34,8 +37,9 @@ internal static class TaskbarObservationAdapter
             orientation,
             start,
             widgets,
+            notificationArea,
             [.. obstacles.Distinct()],
-            discovery.IsComplete && start is not null);
+            discovery.IsComplete && start is not null && notificationArea is not null);
     }
 
     private static PixelRect? FindUnique(
@@ -56,6 +60,29 @@ internal static class TaskbarObservationAdapter
             }
 
             match = button.Bounds;
+        }
+
+        return match;
+    }
+
+    private static PixelRect? FindUnique(
+        IReadOnlyList<NativeTaskbarObstacle> obstacles,
+        NativeObstacleKind kind)
+    {
+        PixelRect? match = null;
+        foreach (NativeTaskbarObstacle obstacle in obstacles)
+        {
+            if (obstacle.Kind != kind)
+            {
+                continue;
+            }
+
+            if (match is not null)
+            {
+                return null;
+            }
+
+            match = obstacle.Bounds;
         }
 
         return match;

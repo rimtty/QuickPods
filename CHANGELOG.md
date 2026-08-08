@@ -6,6 +6,7 @@ All notable changes to QuickPods will be documented in this file. The format fol
 
 ### Changed
 
+- Experimental: anchor the embedded taskbar surface in the nearest verified gap immediately left of the Windows notification area, including on left-aligned taskbars.
 - Reorganized the portable package around an obvious root `QuickPods.exe` launcher.
 - Moved the application runtime and helper executables into an internal `app` directory.
 - Collected license and third-party notice files in a dedicated `licenses` directory.

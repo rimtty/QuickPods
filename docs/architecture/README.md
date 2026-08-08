@@ -50,7 +50,7 @@ Unsupported capability, partial state, stale generation, timeout, and RDP owners
 
 ## Taskbar integration
 
-QuickPods uses an experimental Win32 surface in empty space on the center-aligned Windows 11 taskbar. It does not reserve taskbar space or move shell controls. Placement is permitted only after taskbar identity, monitor, DPI, landmarks, obstacles, geometry, and Explorer generation are verified.
+QuickPods uses an experimental Win32 surface in the nearest verified empty space immediately left of the Windows notification area. It supports center- and left-aligned horizontal Windows 11 taskbars, but does not reserve taskbar space or move shell controls. Placement is permitted only after taskbar identity, notification-area geometry, monitor, DPI, landmarks, obstacles, and Explorer generation are verified.
 
 Incomplete evidence hides the embedded surface and leaves notification-area access available. A dedicated short-lived observer contains UI Automation provider lifetime across Explorer restarts; see [ADR-0001](adr-0001-uia-watcher-process-boundary.md).
 

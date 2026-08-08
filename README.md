@@ -39,10 +39,10 @@
 ## Requirements
 
 - Windows 11 x64, build 22000 or later
-- A center-aligned taskbar for the embedded taskbar surface
+- A horizontal Windows 11 taskbar with enough verified free space immediately left of the notification area
 - A compatible Bluetooth audio driver for direct connect and disconnect operations
 
-QuickPods continues to work from the notification area when the taskbar is left-aligned or safe placement cannot be proven. Shipped packages are self-contained, so end users do not need to install .NET separately.
+This experimental branch places the embedded surface immediately left of the notification area on both center- and left-aligned taskbars. QuickPods continues to work from its notification-area icon when safe placement cannot be proven. Shipped packages are self-contained, so end users do not need to install .NET separately.
 
 ## Install and run
 

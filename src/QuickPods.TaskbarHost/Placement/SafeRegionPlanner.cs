@@ -22,20 +22,13 @@ internal static class SafeRegionPlanner
             return TaskbarPlacementResult.TransientUnknown(PlacementReason.UnsupportedOrientation);
         }
 
-        if (!options.IsValid || !TryValidateObservation(observation, out PixelRect startButton))
+        if (!options.IsValid ||
+            !TryValidateObservation(
+                observation,
+                out _,
+                out PixelRect notificationArea))
         {
             return TaskbarPlacementResult.TransientUnknown(PlacementReason.InvalidGeometry);
-        }
-
-        if (IsLeftAligned(observation.TaskbarBounds, startButton))
-        {
-            return TaskbarPlacementResult.UnsupportedConfiguration(
-                PlacementReason.UnsupportedAlignment);
-        }
-
-        if (observation.WidgetsButtonBounds is PixelRect widgets && widgets.Right > startButton.Left)
-        {
-            return TaskbarPlacementResult.TransientUnknown(PlacementReason.ContradictoryLandmarks);
         }
 
         if (!TryConvertMetrics(observation.Dpi, options, out PlacementMetrics metrics))
@@ -55,7 +48,7 @@ internal static class SafeRegionPlanner
 
         CandidateLaneStatus candidateStatus = TryCreateCandidateLane(
             observation,
-            startButton,
+            notificationArea,
             metrics.Margin,
             out PixelInterval candidateLane);
         if (candidateStatus == CandidateLaneStatus.Overflow)
@@ -79,25 +72,27 @@ internal static class SafeRegionPlanner
             return TaskbarPlacementResult.TransientUnknown(PlacementReason.ConversionFailed);
         }
 
-        if (!TryFindMaximumGap(gaps, out PixelInterval maximumGap) ||
-            maximumGap.Length < metrics.CompactMinimumWidth)
+        if (!TryFindRightmostFittingGap(
+                gaps,
+                metrics.CompactMinimumWidth,
+                out PixelInterval selectedGap))
         {
             return TaskbarPlacementResult.VerifiedNoFit(PlacementReason.InsufficientWidth);
         }
 
-        TaskbarStripMode mode = maximumGap.Length >= metrics.StandardWidth
+        TaskbarStripMode mode = selectedGap.Length >= metrics.StandardWidth
             ? TaskbarStripMode.Standard
             : TaskbarStripMode.Compact;
-        int width = mode == TaskbarStripMode.Standard ? metrics.StandardWidth : maximumGap.Length;
-        long left = (long)maximumGap.Start + ((long)maximumGap.Length - width) / 2;
-        long right = left + width;
+        int width = mode == TaskbarStripMode.Standard ? metrics.StandardWidth : selectedGap.Length;
+        long right = selectedGap.End;
+        long left = right - width;
         if (left < int.MinValue || right > int.MaxValue)
         {
             return TaskbarPlacementResult.TransientUnknown(PlacementReason.ConversionFailed);
         }
 
         var bounds = new PixelRect((int)left, verticalBand.Start, (int)right, verticalBand.End);
-        if (!Verify(bounds, observation, candidateLane, maximumGap, expandedObstacles))
+        if (!Verify(bounds, observation, candidateLane, selectedGap, expandedObstacles))
         {
             return TaskbarPlacementResult.TransientUnknown(PlacementReason.VerificationFailed);
         }
@@ -110,50 +105,32 @@ internal static class SafeRegionPlanner
         TaskbarPlacementOptions options,
         PixelRect existingBounds)
     {
-        if (observation is null ||
-            !observation.IsComplete ||
-            observation.Orientation != TaskbarOrientation.Horizontal ||
-            !options.IsValid ||
-            !existingBounds.IsValid ||
-            !TryValidateObservation(observation, out PixelRect startButton) ||
-            IsLeftAligned(observation.TaskbarBounds, startButton) ||
-            (observation.WidgetsButtonBounds is PixelRect widgets && widgets.Right > startButton.Left) ||
-            !TryConvertMetrics(observation.Dpi, options, out PlacementMetrics metrics) ||
-            existingBounds.Width < metrics.CompactMinimumWidth ||
-            existingBounds.Width > metrics.StandardWidth ||
-            existingBounds.Height != metrics.Height ||
-            !TryCreateVerticalBand(observation.TaskbarBounds, metrics.Height, out PixelInterval verticalBand) ||
-            existingBounds.Vertical != verticalBand ||
-            TryCreateCandidateLane(
-                observation,
-                startButton,
-                metrics.Margin,
-                out PixelInterval candidateLane) != CandidateLaneStatus.Success ||
-            !candidateLane.Contains(existingBounds.Horizontal) ||
-            !TryCreateExpandedObstacles(
-                observation.Obstacles,
-                verticalBand,
-                candidateLane,
-                metrics.Margin,
-                out IReadOnlyList<PixelInterval> expandedObstacles))
+        if (!existingBounds.IsValid)
         {
             return false;
         }
 
-        return Verify(existingBounds, observation, candidateLane, candidateLane, expandedObstacles);
+        TaskbarPlacementResult desired = Calculate(observation, options);
+        return desired.Decision == PlacementDecision.Place &&
+            desired.Bounds == existingBounds;
     }
 
     private static bool TryValidateObservation(
         TaskbarLayoutObservation observation,
-        out PixelRect startButton)
+        out PixelRect startButton,
+        out PixelRect notificationArea)
     {
         startButton = default;
+        notificationArea = default;
         if (!observation.TaskbarBounds.IsValid ||
             observation.TaskbarBounds.Width <= observation.TaskbarBounds.Height ||
             observation.Dpi == 0 ||
             observation.StartButtonBounds is not PixelRect start ||
             !start.IsValid ||
             !observation.TaskbarBounds.Contains(start) ||
+            observation.NotificationAreaBounds is not PixelRect tray ||
+            !tray.IsValid ||
+            !observation.TaskbarBounds.Contains(tray) ||
             observation.Obstacles is null)
         {
             return false;
@@ -171,6 +148,7 @@ internal static class SafeRegionPlanner
         }
 
         startButton = start;
+        notificationArea = tray;
         return true;
     }
 
@@ -193,12 +171,6 @@ internal static class SafeRegionPlanner
         return true;
     }
 
-    private static bool IsLeftAligned(PixelRect taskbar, PixelRect startButton)
-    {
-        long leftGap = (long)startButton.Left - taskbar.Left;
-        return leftGap >= 0 && leftGap <= startButton.Width;
-    }
-
     private static bool TryCreateVerticalBand(
         PixelRect taskbar,
         int height,
@@ -218,13 +190,13 @@ internal static class SafeRegionPlanner
 
     private static CandidateLaneStatus TryCreateCandidateLane(
         TaskbarLayoutObservation observation,
-        PixelRect startButton,
+        PixelRect notificationArea,
         int margin,
         out PixelInterval lane)
     {
         lane = default;
-        long start = (observation.WidgetsButtonBounds?.Right ?? observation.TaskbarBounds.Left) + (long)margin;
-        long end = (long)startButton.Left - margin;
+        long start = (long)observation.TaskbarBounds.Left + margin;
+        long end = (long)notificationArea.Left - margin;
         if (start < int.MinValue || start > int.MaxValue || end < int.MinValue || end > int.MaxValue)
         {
             return CandidateLaneStatus.Overflow;
@@ -326,11 +298,12 @@ internal static class SafeRegionPlanner
         return true;
     }
 
-    private static bool TryFindMaximumGap(
+    private static bool TryFindRightmostFittingGap(
         IReadOnlyList<PixelInterval> gaps,
-        out PixelInterval maximum)
+        int minimumWidth,
+        out PixelInterval selected)
     {
-        maximum = default;
+        selected = default;
         foreach (PixelInterval gap in gaps)
         {
             if (!gap.IsValid)
@@ -338,15 +311,13 @@ internal static class SafeRegionPlanner
                 return false;
             }
 
-            if (!maximum.IsValid ||
-                gap.Length > maximum.Length ||
-                (gap.Length == maximum.Length && gap.Start < maximum.Start))
+            if (gap.Length >= minimumWidth)
             {
-                maximum = gap;
+                selected = gap;
             }
         }
 
-        return maximum.IsValid;
+        return selected.IsValid;
     }
 
     private static bool Verify(
@@ -363,6 +334,8 @@ internal static class SafeRegionPlanner
             observation.StartButtonBounds is PixelRect start &&
             !bounds.Intersects(start) &&
             (observation.WidgetsButtonBounds is not PixelRect widgets || !bounds.Intersects(widgets)) &&
+            observation.NotificationAreaBounds is PixelRect notificationArea &&
+            !bounds.Intersects(notificationArea) &&
             observation.Obstacles.All(obstacle => bounds.IntersectionArea(obstacle) == 0) &&
             expandedObstacles.All(obstacle => !IntervalsOverlap(bounds.Horizontal, obstacle));
     }
