@@ -14,6 +14,7 @@ public sealed class BluetoothCatalogController : IAsyncDisposable
     private BluetoothAudioCatalogSnapshot state = BluetoothAudioCatalogSnapshot.Empty;
     private BluetoothDeviceKey? selectedDevice;
     private long nextInventoryGeneration;
+    private bool startupSelectionPending;
     private bool initialized;
     private bool disposed;
 
@@ -48,6 +49,7 @@ public sealed class BluetoothCatalogController : IAsyncDisposable
             if (!initialized)
             {
                 selectedDevice = await selectionStore.LoadAsync(cancellationToken).ConfigureAwait(false);
+                startupSelectionPending = true;
                 initialized = true;
             }
         }
@@ -73,6 +75,8 @@ public sealed class BluetoothCatalogController : IAsyncDisposable
         }
 
         BluetoothAudioCatalogSnapshot? published = null;
+        BluetoothDeviceKey? startupSelectionToPersist = null;
+        bool persistStartupSelection = false;
         lock (stateLock)
         {
             if (requestedGeneration == Volatile.Read(ref nextInventoryGeneration) &&
@@ -82,12 +86,33 @@ public sealed class BluetoothCatalogController : IAsyncDisposable
                     observation,
                     selectedDevice,
                     checked(state.Revision + 1));
+                if (startupSelectionPending && !published.Devices.IsDefaultOrEmpty)
+                {
+                    BluetoothDeviceKey preferred =
+                        BluetoothAudioCatalogBuilder.ResolveStartupSelection(published.Devices);
+                    persistStartupSelection = selectedDevice != preferred;
+                    selectedDevice = preferred;
+                    startupSelectionToPersist = preferred;
+                    published = BluetoothAudioCatalogBuilder.WithSelection(
+                        published,
+                        selectedDevice,
+                        published.Revision);
+                    startupSelectionPending = false;
+                }
+
                 state = published;
             }
         }
 
         if (published is not null)
         {
+            if (persistStartupSelection)
+            {
+                await selectionStore.SaveAsync(
+                    startupSelectionToPersist,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
             StateChanged?.Invoke(this, published);
         }
 
@@ -160,6 +185,22 @@ public sealed class BluetoothCatalogController : IAsyncDisposable
 
 internal static class BluetoothAudioCatalogBuilder
 {
+    internal static BluetoothDeviceKey ResolveStartupSelection(
+        ImmutableArray<BluetoothAudioDeviceDescriptor> devices)
+    {
+        if (devices.IsDefaultOrEmpty)
+        {
+            throw new ArgumentException("At least one Bluetooth audio device is required.", nameof(devices));
+        }
+
+        BluetoothAudioDeviceDescriptor? preferred = devices.FirstOrDefault(device =>
+            device.ConnectionState == BluetoothConnectionState.Connected &&
+            device.DefaultOutputState == DefaultOutputState.Default);
+        preferred ??= devices.FirstOrDefault(device =>
+            device.ConnectionState == BluetoothConnectionState.Connected);
+        return (preferred ?? devices[0]).DeviceKey;
+    }
+
     internal static BluetoothAudioCatalogSnapshot Build(
         BluetoothAudioCatalogObservation observation,
         BluetoothDeviceKey? selectedDevice,

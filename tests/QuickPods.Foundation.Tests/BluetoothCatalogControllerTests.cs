@@ -164,6 +164,7 @@ public sealed class BluetoothCatalogControllerTests
         var selection = new MemorySelectionStore();
         await using var controller = new BluetoothCatalogController(port, selection);
         BluetoothAudioCatalogSnapshot initial = await controller.InitializeAsync();
+        Assert.Equal(DeviceB, initial.SelectedDeviceKey);
 
         BluetoothAudioCatalogSnapshot state = await controller.SelectAsync(DeviceA);
 
@@ -174,6 +175,56 @@ public sealed class BluetoothCatalogControllerTests
             initial.Devices.Select(device => device.DeviceKey),
             state.Devices.Select(device => device.DeviceKey));
         Assert.Equal(DeviceB, state.Devices[0].DeviceKey);
+        Assert.Equal(1, port.DiscoveryCalls);
+    }
+
+    [Fact]
+    public async Task StartupSelectsConnectedDefaultInsteadOfLastSelection()
+    {
+        var port = new QueueCatalogPort();
+        port.Enqueue(
+            Endpoint(DeviceA, "A connected", BluetoothAudioProfile.Stereo,
+                BluetoothEndpointDirection.Render, BluetoothEndpointAvailability.Active,
+                BluetoothDeviceCapability.DirectControl),
+            Endpoint(DeviceB, "B connected default", BluetoothAudioProfile.Stereo,
+                BluetoothEndpointDirection.Render, BluetoothEndpointAvailability.Active,
+                BluetoothDeviceCapability.DirectControl) with
+            {
+                IsConsoleDefault = true,
+                IsMultimediaDefault = true,
+            });
+        var selection = new MemorySelectionStore(DeviceA);
+        await using var controller = new BluetoothCatalogController(port, selection);
+
+        BluetoothAudioCatalogSnapshot state = await controller.InitializeAsync();
+
+        Assert.Equal(DeviceB, state.SelectedDeviceKey);
+        Assert.Equal(DeviceB, selection.Selected);
+        Assert.True(state.Devices.Single(device => device.DeviceKey == DeviceB).IsSelected);
+        Assert.False(state.Devices.Single(device => device.DeviceKey == DeviceA).IsSelected);
+        Assert.Equal(1, port.DiscoveryCalls);
+    }
+
+    [Fact]
+    public async Task StartupSelectsFirstRowWhenEveryDeviceIsDisconnected()
+    {
+        var port = new QueueCatalogPort();
+        port.Enqueue(
+            Endpoint(DeviceA, "Z last", BluetoothAudioProfile.Stereo,
+                BluetoothEndpointDirection.Render, BluetoothEndpointAvailability.NotPresent,
+                BluetoothDeviceCapability.DirectControl),
+            Endpoint(DeviceB, "A first", BluetoothAudioProfile.Stereo,
+                BluetoothEndpointDirection.Render, BluetoothEndpointAvailability.NotPresent,
+                BluetoothDeviceCapability.DirectControl));
+        var selection = new MemorySelectionStore(DeviceA);
+        await using var controller = new BluetoothCatalogController(port, selection);
+
+        BluetoothAudioCatalogSnapshot state = await controller.InitializeAsync();
+
+        Assert.Equal(DeviceB, state.Devices[0].DeviceKey);
+        Assert.Equal(DeviceB, state.SelectedDeviceKey);
+        Assert.Equal(DeviceB, selection.Selected);
+        Assert.True(state.Devices[0].IsSelected);
         Assert.Equal(1, port.DiscoveryCalls);
     }
 

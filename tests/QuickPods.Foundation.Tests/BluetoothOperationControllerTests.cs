@@ -292,6 +292,7 @@ public sealed class BluetoothOperationControllerTests
             ]),
             new FakeSelectionStore(DeviceB));
         await controller.InitializeAsync();
+        await controller.SelectAsync(DeviceB);
         return controller;
     }
 
