@@ -15,12 +15,13 @@ if (-not (Test-Path -LiteralPath $payloadRoot -PathType Container)) {
     throw "Payload directory does not exist: $payloadRoot"
 }
 
-$selfContainedProof = & (Join-Path $PSScriptRoot "Test-SelfContainedPayload.ps1") `
+$portableProof = & (Join-Path $PSScriptRoot "Test-PortablePayload.ps1") `
     -PayloadDirectory $payloadRoot
-$requiredFiles = @($selfContainedProof.Executables) +
-    @($selfContainedProof.RuntimeFiles) +
-    @($selfContainedProof.RuntimeConfigs) +
-    @("artifact-manifest.json")
+$requiredFiles = @($portableProof.RootFiles) +
+    @($portableProof.LicenseFiles) +
+    @($portableProof.Executables) +
+    @($portableProof.RuntimeFiles) +
+    @($portableProof.RuntimeConfigs)
 $componentIds = [System.Collections.Generic.List[string]]::new()
 foreach ($requiredFile in $requiredFiles) {
     if (-not (Test-Path -LiteralPath (Join-Path $payloadRoot $requiredFile) -PathType Leaf)) {

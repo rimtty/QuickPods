@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Semantic release version (for example 0.1.1)
+        description: Semantic release version (for example 0.1.2)
         required: true
-        default: 0.1.1
+        default: 0.1.2
         type: string
 
 permissions:
@@ -88,6 +88,10 @@ jobs:
           if ($manifest.version -ne $env:QUICKPODS_RELEASE_VERSION -or $manifest.signed -ne $false) {
               throw 'Portable manifest version or signing state is invalid.'
           }
+
+          ./build/Test-PortablePayload.ps1 `
+              -PayloadDirectory artifacts/release/QuickPods `
+              -ExpectedVersion $env:QUICKPODS_RELEASE_VERSION | Out-Null
 
           $expectedHash = ((Get-Content -LiteralPath $checksumFile -Raw).Trim() -split '\s+')[0]
           $actualHash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()

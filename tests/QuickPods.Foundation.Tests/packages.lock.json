@@ -99,6 +99,9 @@
           "xunit.extensibility.core": "[2.9.3]"
         }
       },
+      "QuickPods": {
+        "type": "Project"
+      },
       "quickpods.contracts": {
         "type": "Project"
       },
@@ -108,27 +111,27 @@
       "quickpods.infrastructure": {
         "type": "Project",
         "dependencies": {
-          "QuickPods.Contracts": "[0.1.0, )",
-          "QuickPods.Core": "[0.1.0, )"
+          "QuickPods.Contracts": "[0.1.1, )",
+          "QuickPods.Core": "[0.1.1, )"
         }
       },
       "quickpods.presentation": {
         "type": "Project",
         "dependencies": {
-          "QuickPods.Contracts": "[0.1.0, )",
-          "QuickPods.Core": "[0.1.0, )"
+          "QuickPods.Contracts": "[0.1.1, )",
+          "QuickPods.Core": "[0.1.1, )"
         }
       },
       "quickpods.taskbarhost": {
         "type": "Project",
         "dependencies": {
-          "QuickPods.Contracts": "[0.1.0, )"
+          "QuickPods.Contracts": "[0.1.1, )"
         }
       },
       "quickpods.windows": {
         "type": "Project",
         "dependencies": {
-          "QuickPods.Core": "[0.1.0, )"
+          "QuickPods.Core": "[0.1.1, )"
         }
       }
     }

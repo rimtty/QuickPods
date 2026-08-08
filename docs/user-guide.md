@@ -2,7 +2,7 @@
 
 ## Start QuickPods
 
-Extract the official portable ZIP to a permanent folder and launch `QuickPods.exe` from the extracted `QuickPods` folder. QuickPods stays in the notification area after its flyout closes.
+Extract the official portable ZIP to a permanent folder and launch the root `QuickPods.exe` from the extracted `QuickPods` folder. The internal `app` directory contains runtime files and helper processes; do not launch or move them manually. License and third-party notice files are collected under `licenses`. QuickPods stays in the notification area after its flyout closes.
 
 The taskbar surface appears only when QuickPods can verify a safe empty region on a center-aligned Windows 11 taskbar. If it cannot, use the QuickPods notification-area icon instead.
 

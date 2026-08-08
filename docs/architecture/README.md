@@ -5,15 +5,16 @@ QuickPods separates product logic, Windows adapters, and failure-prone OS integr
 ## Process model
 
 ```text
-QuickPods.exe
-├─ WPF flyout, Settings, notification-area icon, and application lifetime
-├─ Core Audio and Bluetooth product coordination
-├─ QuickPods.TaskbarHost.exe
-│  └─ taskbar discovery, native surface, rendering, input, and versioned IPC
-├─ QuickPods.TaskbarObserver.exe
-│  └─ short-lived UI Automation subscription for one Explorer generation
-└─ QuickPods.BluetoothWorker.exe
-   └─ bounded Bluetooth capability or mutation call
+QuickPods.exe (portable launcher)
+└─ app\QuickPods.exe
+   ├─ WPF flyout, Settings, notification-area icon, and application lifetime
+   ├─ Core Audio and Bluetooth product coordination
+   ├─ QuickPods.TaskbarHost.exe
+   │  └─ taskbar discovery, native surface, rendering, input, and versioned IPC
+   ├─ QuickPods.TaskbarObserver.exe
+   │  └─ short-lived UI Automation subscription for one Explorer generation
+   └─ QuickPods.BluetoothWorker.exe
+      └─ bounded Bluetooth capability or mutation call
 ```
 
 The app owns settings, logs, startup registration, and child-process lifetime. Helper executables never register themselves at sign-in and are placed in kill-on-close job objects where appropriate.
@@ -23,6 +24,7 @@ The app owns settings, logs, startup registration, and child-process lifetime. H
 | Project | Responsibility |
 |---|---|
 | `QuickPods.App` | WPF UI, tray integration, settings UI, composition root |
+| `QuickPods.Launcher` | dependency-free native launcher for the portable package root |
 | `QuickPods.Core` | product state and use-case coordination |
 | `QuickPods.Presentation` | language-independent presentation and localization |
 | `QuickPods.Contracts` | versioned process contracts and shared glyph definitions |
@@ -54,10 +56,10 @@ Incomplete evidence hides the embedded surface and leaves notification-area acce
 
 ## Settings and diagnostics
 
-Settings use atomic JSON replacement under `%LocalAppData%\QuickPods`. A malformed file is quarantined before safe defaults are written. Startup registration uses one current-user Run value pointing to `QuickPods.exe --background`.
+Settings use atomic JSON replacement under `%LocalAppData%\QuickPods`. A malformed file is quarantined before safe defaults are written. Startup registration uses one current-user Run value pointing to the internal application executable with `--background`; the root launcher is needed only for direct user startup and installer cleanup forwarding.
 
 Structured diagnostics contain state classifications and counts, not raw device or account identifiers. See [Privacy](../privacy.md).
 
 ## Distribution
 
-Release payloads are x64 and self-contained. The MSI installs per user without elevation, preserves settings during upgrade and uninstall, and removes the startup value owned by QuickPods on complete uninstall. Release signing is fail-closed and handled only through protected secrets or an explicitly supplied local certificate.
+Release payloads are x64 and self-contained. The portable root contains one obvious launcher, keeps runtime files under `app`, and collects legal notices under `licenses`. The MSI installs the same layout per user without elevation, preserves settings during upgrade and uninstall, and removes the startup value owned by QuickPods on complete uninstall. Release signing remains fail-closed when MSI distribution is enabled.

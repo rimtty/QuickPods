@@ -240,9 +240,10 @@ try {
         -Force | Out-Null
 
     $stage = "launch-previous"
-    $previousProcess = Start-Process -FilePath $installedExecutable -ArgumentList "--background" -PassThru
+    $previousLauncher = Start-Process -FilePath $installedExecutable -ArgumentList "--background" -PassThru
+    $previousLauncher.WaitForExit(5000)
     Start-Sleep -Seconds 3
-    Assert-Condition -Condition (-not $previousProcess.HasExited) -Message "Previous QuickPods process did not remain resident."
+    Assert-Condition -Condition (@(Get-QuickPodsProcesses).Count -gt 0) -Message "Previous QuickPods process did not remain resident."
 
     $stage = "upgrade-running-product"
     Invoke-MsiExecution `
@@ -260,9 +261,10 @@ try {
     $checks.runningUpgrade = $true
 
     $stage = "launch-current"
-    $currentProcess = Start-Process -FilePath $installedExecutable -ArgumentList "--background" -PassThru
+    $currentLauncher = Start-Process -FilePath $installedExecutable -ArgumentList "--background" -PassThru
+    $currentLauncher.WaitForExit(5000)
     Start-Sleep -Seconds 3
-    Assert-Condition -Condition (-not $currentProcess.HasExited) -Message "Current QuickPods process did not remain resident."
+    Assert-Condition -Condition (@(Get-QuickPodsProcesses).Count -gt 0) -Message "Current QuickPods process did not remain resident."
 
     $stage = "uninstall-running-product"
     Invoke-MsiExecution `
