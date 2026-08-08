@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -19,6 +20,7 @@ using QuickPods.Windows.Settings;
 using QuickPods.Windows.Startup;
 using MediaColor = System.Windows.Media.Color;
 using WpfApplication = System.Windows.Application;
+using WpfMessageBox = System.Windows.MessageBox;
 using WpfSystemColors = System.Windows.SystemColors;
 
 namespace QuickPods.App;
@@ -42,6 +44,7 @@ public partial class App : WpfApplication, IDisposable
     private WindowsCoreAudioEndpointPort? windowsAudio;
     private JsonLineLogger? logger;
     private string logsDirectory = string.Empty;
+    private string? restartExecutable;
     private readonly ProductLifetimePolicy lifetimePolicy = new();
     private readonly HashSet<string> pendingLifecycleReasons = new(StringComparer.Ordinal);
     private QuickPodsSettings productSettings = QuickPodsSettings.Default;
@@ -112,6 +115,7 @@ public partial class App : WpfApplication, IDisposable
             bluetoothSelectionStore!,
             startupRegistration,
             lifetimePolicy,
+            RestartApplication,
             logsDirectory,
             startupDiagnostic);
         window.SettingsChanged += OnProductSettingsChanged;
@@ -181,7 +185,30 @@ public partial class App : WpfApplication, IDisposable
 
     protected override void OnExit(ExitEventArgs e)
     {
+        string? executable = restartExecutable;
         Dispose();
+        if (!string.IsNullOrWhiteSpace(executable))
+        {
+            try
+            {
+                // Dispose releases the single-instance lease before the replacement starts.
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = executable,
+                    WorkingDirectory = AppContext.BaseDirectory,
+                    UseShellExecute = true,
+                });
+            }
+            catch (Exception exception)
+            {
+                _ = WpfMessageBox.Show(
+                    $"QuickPodsを再起動できませんでした。\n\n{exception.Message}",
+                    "QuickPods",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
         base.OnExit(e);
     }
 
@@ -1028,6 +1055,29 @@ public partial class App : WpfApplication, IDisposable
         lifetimePolicy.RequestExit();
         MainWindow?.Close();
         Shutdown();
+    }
+
+    private void RestartApplication()
+    {
+        if (lifetimePolicy.IsExitRequested)
+        {
+            return;
+        }
+
+        string executable = Path.Combine(AppContext.BaseDirectory, "QuickPods.exe");
+        if (!File.Exists(executable))
+        {
+            if (MainWindow is MainWindow window)
+            {
+                window.ReportSettingsFailure(
+                    $"QuickPodsを再起動できませんでした: 実行ファイルが見つかりません ({executable})");
+            }
+
+            return;
+        }
+
+        restartExecutable = executable;
+        ExitApplication();
     }
 
     private TaskbarStateSnapshot CreateTaskbarSnapshot(

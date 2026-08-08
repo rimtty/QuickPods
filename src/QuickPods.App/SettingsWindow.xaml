@@ -423,12 +423,24 @@
                                VerticalAlignment="Center"
                                FontSize="12"
                                Foreground="{DynamicResource SecondaryTextBrush}" />
-                    <Button x:Name="ResetSettingsButton"
-                            Grid.Column="1"
-                            AutomationProperties.Name="QuickPodsの設定を既定値に戻す"
-                            Click="OnResetSettings"
-                            Content="既定値に戻す"
-                            Style="{StaticResource SettingsOutlinedButtonStyle}" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button x:Name="ResetSettingsButton"
+                                AutomationProperties.Name="QuickPodsの設定を既定値に戻す"
+                                Click="OnResetSettings"
+                                Content="既定値に戻す"
+                                Style="{StaticResource SettingsOutlinedButtonStyle}" />
+                        <Button x:Name="RestartApplicationButton"
+                                Margin="12,0,0,0"
+                                AutomationProperties.Name="QuickPodsを再起動する"
+                                Click="OnRestartApplication"
+                                Content="再起動"
+                                Style="{StaticResource SettingsOutlinedButtonStyle}" />
+                        <Button Margin="12,0,0,0"
+                                AutomationProperties.Name="QuickPods設定を閉じる"
+                                Click="OnCloseWindow"
+                                Content="閉じる"
+                                Style="{StaticResource SettingsOutlinedButtonStyle}" />
+                    </StackPanel>
                 </Grid>
             </Grid>
         </ScrollViewer>
