@@ -4,6 +4,8 @@ All notable changes to QuickPods will be documented in this file. The format fol
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-08
+
 ### Added
 
 - English and Japanese localization with an in-app language selector.
@@ -18,4 +20,5 @@ All notable changes to QuickPods will be documented in this file. The format fol
 
 - Kept device mutation fail-closed and excluded raw device and account identifiers from normal diagnostics.
 
-[Unreleased]: https://github.com/rimtty/QuickPods/commits/main
+[Unreleased]: https://github.com/rimtty/QuickPods/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/rimtty/QuickPods/releases/tag/v0.1.0
