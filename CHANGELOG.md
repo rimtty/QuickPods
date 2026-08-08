@@ -4,12 +4,18 @@ All notable changes to QuickPods will be documented in this file. The format fol
 
 ## [Unreleased]
 
+### Added
+
+- Added manual latest-release checks from the notification-area menu and Settings.
+- Added an opt-in startup update check limited to once every 24 hours.
+
 ### Changed
 
 - Reorganized the portable package around an obvious root `QuickPods.exe` launcher.
 - Moved the application runtime and helper executables into an internal `app` directory.
 - Collected license and third-party notice files in a dedicated `licenses` directory.
 - Added a bilingual package README with startup, security, update, and internal-file guidance.
+- Clarified the existing tray refresh action as a device-status refresh.
 
 ## [0.1.1] - 2026-08-08
 

@@ -112,6 +112,10 @@ public sealed record QuickPodsSettings(
     QuickPodsThemeMode Theme = QuickPodsThemeMode.System,
     QuickPodsLanguageMode Language = QuickPodsLanguageMode.System,
     bool ConfirmBluetoothDisconnect = false,
+    bool CheckForUpdatesAtStartup = false,
+    DateTimeOffset? LastUpdateCheckUtc = null,
+    string? LastKnownLatestVersion = null,
+    string? LastKnownReleasePage = null,
     int SchemaVersion = 1)
 {
     public static QuickPodsSettings Default { get; } = new(null, false, true);

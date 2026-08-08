@@ -36,6 +36,9 @@ public partial class MainWindow : Window
     private readonly IStartupRegistration startupRegistration;
     private readonly ProductLifetimePolicy lifetimePolicy;
     private readonly Action restartApplication;
+    private readonly Func<ApplicationUpdateViewState> readUpdateState;
+    private readonly Func<Task<ApplicationUpdateViewState>> checkForUpdates;
+    private readonly Action<Uri> openReleasePage;
     private readonly ProductLocalizer localizer;
     private readonly string logsDirectory;
     private bool applyingAudioState;
@@ -56,7 +59,7 @@ public partial class MainWindow : Window
 
     internal event EventHandler? FlyoutPointerExited;
 
-    public MainWindow(
+    internal MainWindow(
         AudioController audio,
         BluetoothCatalogController? bluetoothCatalog,
         BluetoothOperationController? bluetoothOperations,
@@ -65,6 +68,9 @@ public partial class MainWindow : Window
         IStartupRegistration startupRegistration,
         ProductLifetimePolicy lifetimePolicy,
         Action restartApplication,
+        Func<ApplicationUpdateViewState> readUpdateState,
+        Func<Task<ApplicationUpdateViewState>> checkForUpdates,
+        Action<Uri> openReleasePage,
         ProductLocalizer localizer,
         string logsDirectory,
         string? startupDiagnostic)
@@ -81,6 +87,12 @@ public partial class MainWindow : Window
             throw new ArgumentNullException(nameof(lifetimePolicy));
         this.restartApplication = restartApplication ??
             throw new ArgumentNullException(nameof(restartApplication));
+        this.readUpdateState = readUpdateState ??
+            throw new ArgumentNullException(nameof(readUpdateState));
+        this.checkForUpdates = checkForUpdates ??
+            throw new ArgumentNullException(nameof(checkForUpdates));
+        this.openReleasePage = openReleasePage ??
+            throw new ArgumentNullException(nameof(openReleasePage));
         this.localizer = localizer ?? throw new ArgumentNullException(nameof(localizer));
         ArgumentException.ThrowIfNullOrWhiteSpace(logsDirectory);
         this.logsDirectory = Path.GetFullPath(logsDirectory);
@@ -127,9 +139,13 @@ public partial class MainWindow : Window
         settingsWindow?.ReportDiagnostic(settingsDiagnostic);
     }
 
+    internal void ReportUpdateCheckState(ApplicationUpdateViewState state) =>
+        settingsWindow?.ApplyUpdateState(state);
+
     internal void ApplyLocalization()
     {
         settingsWindow?.ApplyLocalization();
+        settingsWindow?.ApplyUpdateState(readUpdateState());
         ApplyAudioState(audio.State);
         ApplyBluetoothPresentation();
     }
@@ -145,12 +161,16 @@ public partial class MainWindow : Window
                 OpenLogs,
                 CreateDiagnosticSummary,
                 restartApplication,
+                readUpdateState,
+                checkForUpdates,
+                openReleasePage,
                 localizer,
                 GetProductVersion());
             settingsWindow.Closed += OnSettingsWindowClosed;
         }
 
         settingsWindow.ApplySettings(productSettings);
+        settingsWindow.ApplyUpdateState(readUpdateState());
         settingsWindow.ReportDiagnostic(settingsDiagnostic);
         settingsWindow.Show();
         if (settingsWindow.WindowState == WindowState.Minimized)
@@ -670,10 +690,24 @@ public partial class MainWindow : Window
             MouseWheelStepPercent = requested.MouseWheelStepPercent,
             SetConnectedDeviceAsDefault = requested.SetConnectedDeviceAsDefault,
             ConfirmBluetoothDisconnect = requested.ConfirmBluetoothDisconnect,
+            CheckForUpdatesAtStartup = requested.CheckForUpdatesAtStartup,
         });
         ClearSettingsDiagnostic();
         ApplyProductSettings(saved);
         return saved;
+    }
+
+    internal async Task RecordUpdateCheckMetadataAsync(
+        ApplicationUpdateCheckResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        QuickPodsSettings saved = await settingsStore.UpdateSettingsAsync(current => current with
+        {
+            LastUpdateCheckUtc = result.CheckedAtUtc,
+            LastKnownLatestVersion = result.LatestVersion.ToString(3),
+            LastKnownReleasePage = result.ReleasePage.AbsoluteUri,
+        });
+        ApplyProductSettings(saved);
     }
 
     private async Task<QuickPodsSettings> UpdateStartupSettingAsync(bool requested)
@@ -832,6 +866,12 @@ public partial class MainWindow : Window
         _ = builder.AppendLine(
             CultureInfo.InvariantCulture,
             $"Start with Windows: {productSettings.StartWithWindows}");
+        _ = builder.AppendLine(
+            CultureInfo.InvariantCulture,
+            $"Automatic update checks: {productSettings.CheckForUpdatesAtStartup}");
+        _ = builder.AppendLine(
+            CultureInfo.InvariantCulture,
+            $"Last update check: {productSettings.LastUpdateCheckUtc?.ToString("O", CultureInfo.InvariantCulture) ?? "Never"}");
         return builder.ToString();
     }
 

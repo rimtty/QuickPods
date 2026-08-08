@@ -4,8 +4,8 @@
         Title="{DynamicResource SettingsWindowTitle}"
         Width="720"
         MinWidth="660"
-        Height="760"
-        MinHeight="680"
+        Height="880"
+        MinHeight="700"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource WindowBrush}"
         Foreground="{DynamicResource PrimaryTextBrush}"
@@ -404,6 +404,12 @@
                                   Unchecked="OnStartWithWindowsChanged"
                                   Style="{StaticResource SettingsToggleStyle}"
                                   Content="{DynamicResource StartWithWindows}" />
+                        <Border Height="1" Background="{DynamicResource PanelBorderBrush}" />
+                        <CheckBox x:Name="CheckForUpdatesAtStartupCheckBox"
+                                  AutomationProperties.Name="{DynamicResource CheckForUpdatesAtStartupName}"
+                                  Click="OnProductSettingChanged"
+                                  Style="{StaticResource SettingsToggleStyle}"
+                                  Content="{DynamicResource CheckForUpdatesAtStartup}" />
                     </StackPanel>
                 </Border>
 
@@ -441,7 +447,42 @@
                                                Text="{DynamicResource CopyDiagnostics}" />
                                 </StackPanel>
                             </Button>
+                            <Button x:Name="CheckForUpdatesButton"
+                                    Margin="12,0,0,0"
+                                    AutomationProperties.Name="{DynamicResource CheckForUpdatesName}"
+                                    Click="OnCheckForUpdates"
+                                    Style="{StaticResource SettingsOutlinedButtonStyle}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Margin="0,0,9,0"
+                                               VerticalAlignment="Center"
+                                               FontFamily="Segoe Fluent Icons"
+                                               FontSize="15"
+                                               Foreground="{DynamicResource AccentBrush}"
+                                               Text="&#xE895;" />
+                                    <TextBlock VerticalAlignment="Center"
+                                               Text="{DynamicResource CheckForUpdates}" />
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
+                        <Grid Margin="2,10,2,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="UpdateStatusText"
+                                       VerticalAlignment="Center"
+                                       AutomationProperties.LiveSetting="Polite"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       TextWrapping="Wrap" />
+                            <Button x:Name="OpenLatestReleaseButton"
+                                    Grid.Column="1"
+                                    Margin="12,0,0,0"
+                                    AutomationProperties.Name="{DynamicResource OpenLatestReleaseName}"
+                                    Click="OnOpenLatestRelease"
+                                    Content="{DynamicResource OpenLatestRelease}"
+                                    Style="{StaticResource SettingsOutlinedButtonStyle}"
+                                    Visibility="Collapsed" />
+                        </Grid>
                         <TextBlock x:Name="DiagnosticText"
                                    Margin="2,10,2,0"
                                    AutomationProperties.LiveSetting="Assertive"

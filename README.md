@@ -34,6 +34,7 @@
 - Follow external Windows audio and Bluetooth changes without requiring an app restart.
 - Fall back to the notification area when safe taskbar placement cannot be verified.
 - Use English by default, Japanese on Japanese Windows, or an explicit language selected in Settings.
+- Check the latest stable GitHub Release manually or once per day at startup when explicitly enabled.
 - Store settings and diagnostics per user without requiring administrator privileges.
 
 ## Requirements
@@ -63,7 +64,7 @@ Some Windows desktop capabilities used by QuickPods are not stable public extens
 
 ## Privacy and safety
 
-QuickPods runs locally. It does not include telemetry or a network service. Logs intentionally omit raw Bluetooth addresses, Container IDs, PnP IDs, endpoint IDs, account names, and other device identifiers. Review the [privacy notes](docs/privacy.md) before attaching diagnostics to an issue.
+QuickPods runs locally and does not include telemetry or a network service. Manual update checks—and optional startup checks when enabled—request only the latest public release metadata from GitHub. Logs intentionally omit raw Bluetooth addresses, Container IDs, PnP IDs, endpoint IDs, account names, and other device identifiers. Review the [privacy notes](docs/privacy.md) before attaching diagnostics to an issue.
 
 ## Build and test
 

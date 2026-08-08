@@ -1,6 +1,6 @@
 # Update policy
 
-QuickPods currently uses manual portable ZIP updates.
+QuickPods checks update availability but currently applies portable ZIP updates manually. Use **Check for updates...** in the notification-area menu or **Check for updates** in Settings. Optional startup checks are disabled by default and run at most once every 24 hours when enabled. The checker reads the latest stable public Release metadata and opens the official Release page; it does not download or execute an update.
 
 1. Exit QuickPods from the notification-area menu.
 2. Download the ZIP only from the official GitHub Release and verify its published SHA-256 checksum.

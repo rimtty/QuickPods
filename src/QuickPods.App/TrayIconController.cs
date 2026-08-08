@@ -12,17 +12,20 @@ internal sealed class TrayIconController : IDisposable
     private readonly ProductLocalizer localizer;
     private readonly ToolStripMenuItem openItem;
     private readonly ToolStripMenuItem refreshItem;
+    private readonly ToolStripMenuItem checkForUpdatesItem;
     private readonly ToolStripMenuItem settingsItem;
     private readonly ToolStripMenuItem taskbarSurfaceItem;
     private readonly ToolStripMenuItem soundSettingsItem;
     private readonly ToolStripMenuItem bluetoothSettingsItem;
     private readonly ToolStripMenuItem exitItem;
     private bool applyingTaskbarSurfaceState;
+    private Action? notificationActivated;
     private bool disposed;
 
     internal TrayIconController(
         Action open,
         Action refresh,
+        Action checkForUpdates,
         Action openSettings,
         Action<bool> setTaskbarSurfaceVisible,
         Action openSoundSettings,
@@ -32,6 +35,7 @@ internal sealed class TrayIconController : IDisposable
     {
         ArgumentNullException.ThrowIfNull(open);
         ArgumentNullException.ThrowIfNull(refresh);
+        ArgumentNullException.ThrowIfNull(checkForUpdates);
         ArgumentNullException.ThrowIfNull(openSettings);
         ArgumentNullException.ThrowIfNull(setTaskbarSurfaceVisible);
         ArgumentNullException.ThrowIfNull(openSoundSettings);
@@ -50,6 +54,11 @@ internal sealed class TrayIconController : IDisposable
         menu.Items.Add(openItem);
         refreshItem = new ToolStripMenuItem(null, null, (_, _) => refresh());
         menu.Items.Add(refreshItem);
+        checkForUpdatesItem = new ToolStripMenuItem(
+            null,
+            null,
+            (_, _) => checkForUpdates());
+        menu.Items.Add(checkForUpdatesItem);
         settingsItem = new ToolStripMenuItem(null, null, (_, _) => openSettings());
         menu.Items.Add(settingsItem);
         menu.Items.Add(new ToolStripSeparator());
@@ -85,6 +94,7 @@ internal sealed class TrayIconController : IDisposable
             Visible = true,
         };
         notifyIcon.DoubleClick += (_, _) => open();
+        notifyIcon.BalloonTipClicked += (_, _) => ActivateNotification();
         ApplyLocalization();
     }
 
@@ -92,11 +102,39 @@ internal sealed class TrayIconController : IDisposable
     {
         openItem.Text = localizer["TrayOpen"];
         refreshItem.Text = localizer["TrayRefresh"];
+        checkForUpdatesItem.Text = localizer["TrayCheckForUpdates"];
         settingsItem.Text = localizer["TraySettings"];
         taskbarSurfaceItem.Text = localizer["TrayTaskbarBar"];
         soundSettingsItem.Text = localizer["TraySoundSettings"];
         bluetoothSettingsItem.Text = localizer["TrayBluetoothSettings"];
         exitItem.Text = localizer["TrayExit"];
+    }
+
+    internal void ShowNotification(
+        string title,
+        string message,
+        Action? activated = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        notificationActivated = activated;
+        notifyIcon.ShowBalloonTip(
+            timeout: 6000,
+            tipTitle: title,
+            tipText: message,
+            tipIcon: ToolTipIcon.Info);
+    }
+
+    private void ActivateNotification()
+    {
+        try
+        {
+            notificationActivated?.Invoke();
+        }
+        catch
+        {
+            // Notification activation must not terminate the tray application.
+        }
     }
 
     internal void SetTaskbarSurfaceVisible(bool visible)
@@ -123,6 +161,7 @@ internal sealed class TrayIconController : IDisposable
         }
 
         disposed = true;
+        notificationActivated = null;
         notifyIcon.Visible = false;
         notifyIcon.Dispose();
         menu.Dispose();

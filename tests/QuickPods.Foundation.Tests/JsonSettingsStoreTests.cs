@@ -63,7 +63,11 @@ public sealed class JsonSettingsStoreTests
                 MouseWheelStepPercent: 5,
                 Theme: QuickPodsThemeMode.Light,
                 Language: QuickPodsLanguageMode.Japanese,
-                ConfirmBluetoothDisconnect: true);
+                ConfirmBluetoothDisconnect: true,
+                CheckForUpdatesAtStartup: true,
+                LastUpdateCheckUtc: new DateTimeOffset(2026, 8, 8, 6, 30, 0, TimeSpan.Zero),
+                LastKnownLatestVersion: "0.2.0",
+                LastKnownReleasePage: "https://github.com/rimtty/QuickPods/releases/tag/v0.2.0");
 
             await store.SaveAsync(expected);
             QuickPodsSettings? actual = await store.LoadAsync();
@@ -112,6 +116,10 @@ public sealed class JsonSettingsStoreTests
             Assert.Equal(QuickPodsThemeMode.System, migrated.Theme);
             Assert.Equal(QuickPodsLanguageMode.System, migrated.Language);
             Assert.False(migrated.ConfirmBluetoothDisconnect);
+            Assert.False(migrated.CheckForUpdatesAtStartup);
+            Assert.Null(migrated.LastUpdateCheckUtc);
+            Assert.Null(migrated.LastKnownLatestVersion);
+            Assert.Null(migrated.LastKnownReleasePage);
         }
         finally
         {
@@ -143,7 +151,11 @@ public sealed class JsonSettingsStoreTests
                 MouseWheelStepPercent: 10,
                 Theme: QuickPodsThemeMode.Dark,
                 Language: QuickPodsLanguageMode.English,
-                ConfirmBluetoothDisconnect: true));
+                ConfirmBluetoothDisconnect: true,
+                CheckForUpdatesAtStartup: true,
+                LastUpdateCheckUtc: new DateTimeOffset(2026, 8, 8, 6, 30, 0, TimeSpan.Zero),
+                LastKnownLatestVersion: "0.2.0",
+                LastKnownReleasePage: "https://github.com/rimtty/QuickPods/releases/tag/v0.2.0"));
             using var selection = new JsonBluetoothSelectionStore(settings);
 
             await selection.SaveAsync(new BluetoothDeviceKey("bt-device"));
@@ -160,6 +172,14 @@ public sealed class JsonSettingsStoreTests
             Assert.Equal(QuickPodsThemeMode.Dark, actual.Theme);
             Assert.Equal(QuickPodsLanguageMode.English, actual.Language);
             Assert.True(actual.ConfirmBluetoothDisconnect);
+            Assert.True(actual.CheckForUpdatesAtStartup);
+            Assert.Equal(
+                new DateTimeOffset(2026, 8, 8, 6, 30, 0, TimeSpan.Zero),
+                actual.LastUpdateCheckUtc);
+            Assert.Equal("0.2.0", actual.LastKnownLatestVersion);
+            Assert.Equal(
+                "https://github.com/rimtty/QuickPods/releases/tag/v0.2.0",
+                actual.LastKnownReleasePage);
         }
         finally
         {

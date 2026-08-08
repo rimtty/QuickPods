@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
 using System.Text;
 using System.Windows;
 using System.Windows.Media;
@@ -13,6 +14,7 @@ using QuickPods.Core.Ports;
 using QuickPods.Infrastructure.Logging;
 using QuickPods.Infrastructure.Runtime;
 using QuickPods.Infrastructure.Settings;
+using QuickPods.Infrastructure.Updates;
 using QuickPods.Presentation;
 using QuickPods.Windows.Audio;
 using QuickPods.Windows.Bluetooth;
@@ -43,13 +45,18 @@ public partial class App : WpfApplication, IDisposable
     private TrayIconController? trayIcon;
     private WindowsCoreAudioEndpointPort? windowsAudio;
     private JsonLineLogger? logger;
+    private HttpClient? updateHttpClient;
+    private IApplicationUpdateChecker? updateChecker;
     private string logsDirectory = string.Empty;
     private string? restartExecutable;
+    private readonly object updateCheckSync = new();
     private readonly ProductLocalizer localizer = new(
         ProductLanguageResolver.Resolve(QuickPodsLanguageMode.System));
     private readonly ProductLifetimePolicy lifetimePolicy = new();
     private readonly HashSet<string> pendingLifecycleReasons = new(StringComparer.Ordinal);
     private QuickPodsSettings productSettings = QuickPodsSettings.Default;
+    private ApplicationUpdateViewState updateViewState = ApplicationUpdateViewState.NotChecked;
+    private Task<ApplicationUpdateViewState>? activeUpdateCheck;
     private TaskbarThemeMode resolvedTaskbarTheme = TaskbarThemeMode.Dark;
     private DispatcherTimer? lifecycleRecoveryTimer;
     private DispatcherTimer? flyoutDismissTimer;
@@ -107,6 +114,11 @@ public partial class App : WpfApplication, IDisposable
 
         controller = new AudioController(audioPort);
         InitializeSettingsStore();
+        updateHttpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(12),
+        };
+        updateChecker = new GitHubReleaseUpdateChecker(updateHttpClient);
         StartBluetoothCatalog();
         var settingsLauncher = new WindowsSettingsLauncher();
         string applicationExecutable = Path.Combine(AppContext.BaseDirectory, "QuickPods.exe");
@@ -120,6 +132,9 @@ public partial class App : WpfApplication, IDisposable
             startupRegistration,
             lifetimePolicy,
             RestartApplication,
+            () => updateViewState,
+            () => CheckForUpdatesAsync(ApplicationUpdateCheckTrigger.Settings),
+            OpenReleasePage,
             localizer,
             logsDirectory,
             startupDiagnostic);
@@ -154,6 +169,7 @@ public partial class App : WpfApplication, IDisposable
             trayIcon = new TrayIconController(
                 ShowMainWindow,
                 () => _ = window.RequestRefreshAsync(),
+                () => _ = CheckForUpdatesAsync(ApplicationUpdateCheckTrigger.Tray),
                 window.ShowSettingsWindow,
                 visible => _ = window.SetTaskbarSurfaceVisibleAsync(visible),
                 () => settingsLauncher.TryOpenSoundSettings(),
@@ -316,6 +332,9 @@ public partial class App : WpfApplication, IDisposable
         bluetoothCatalogPort?.Dispose();
         bluetoothLifetime?.Dispose();
         windowsAudio?.Dispose();
+        updateHttpClient?.Dispose();
+        updateHttpClient = null;
+        updateChecker = null;
         logger?.DisposeAsync().AsTask().GetAwaiter().GetResult();
         logger = null;
         if (singleInstance is not null)
@@ -415,6 +434,8 @@ public partial class App : WpfApplication, IDisposable
             return;
         }
 
+        bool firstApplication = !productSettingsInitialized;
+        bool automaticChecksWereEnabled = productSettings.CheckForUpdatesAtStartup;
         productSettings = normalized;
         productSettingsInitialized = true;
         ProductLanguage resolvedLanguage = ProductLanguageResolver.Resolve(
@@ -444,13 +465,193 @@ public partial class App : WpfApplication, IDisposable
                 ["ConfirmBluetoothDisconnect"] =
                     productSettings.ConfirmBluetoothDisconnect,
                 ["StartWithWindows"] = productSettings.StartWithWindows,
+                ["CheckForUpdatesAtStartup"] = productSettings.CheckForUpdatesAtStartup,
             });
         ApplyTheme(productSettings.Theme);
         trayIcon?.SetTaskbarSurfaceVisible(
             productSettings.DisplayMode != QuickPodsDisplayMode.TrayOnly);
         taskbarHost?.Publish(CreateTaskbarSnapshot(
             controller?.State ?? AudioState.Unavailable));
+
+        if (firstApplication)
+        {
+            ApplicationUpdateCheckResult? cached = ApplicationUpdatePolicy.TryCreateCachedResult(
+                productSettings,
+                GetProductVersion());
+            if (cached is not null)
+            {
+                SetUpdateViewState(CreateUpdateViewState(cached));
+            }
+        }
+
+        if (productSettings.CheckForUpdatesAtStartup &&
+            (firstApplication || !automaticChecksWereEnabled) &&
+            ApplicationUpdatePolicy.ShouldCheckAutomatically(
+                productSettings,
+                DateTimeOffset.UtcNow))
+        {
+            _ = Dispatcher.InvokeAsync(
+                () => _ = CheckForUpdatesAsync(ApplicationUpdateCheckTrigger.Automatic),
+                DispatcherPriority.Background);
+        }
     }
+
+    private Task<ApplicationUpdateViewState> CheckForUpdatesAsync(
+        ApplicationUpdateCheckTrigger trigger)
+    {
+        Task<ApplicationUpdateViewState> check;
+        lock (updateCheckSync)
+        {
+            if (activeUpdateCheck is null || activeUpdateCheck.IsCompleted)
+            {
+                activeUpdateCheck = CheckForUpdatesCoreAsync();
+            }
+
+            check = activeUpdateCheck;
+        }
+
+        return CompleteUpdateCheckRequestAsync(check, trigger);
+    }
+
+    private async Task<ApplicationUpdateViewState> CompleteUpdateCheckRequestAsync(
+        Task<ApplicationUpdateViewState> check,
+        ApplicationUpdateCheckTrigger trigger)
+    {
+        ApplicationUpdateViewState state = await check;
+        if (trigger is ApplicationUpdateCheckTrigger.Tray ||
+            (trigger is ApplicationUpdateCheckTrigger.Automatic &&
+                state.Status == ApplicationUpdateViewStatus.UpdateAvailable))
+        {
+            ShowUpdateNotification(state);
+        }
+
+        return state;
+    }
+
+    private async Task<ApplicationUpdateViewState> CheckForUpdatesCoreAsync()
+    {
+        SetUpdateViewState(ApplicationUpdateViewState.Checking);
+        try
+        {
+            IApplicationUpdateChecker checker = updateChecker ??
+                throw new InvalidOperationException("The update service is unavailable.");
+            ApplicationUpdateCheckResult result = await checker.CheckAsync(GetProductVersion());
+            if (MainWindow is MainWindow window)
+            {
+                try
+                {
+                    await window.RecordUpdateCheckMetadataAsync(result);
+                }
+                catch (Exception exception)
+                {
+                    window.ReportSettingsFailure(
+                        localizer.Format("SettingsSaveFailed", exception.Message));
+                }
+            }
+
+            ApplicationUpdateViewState state = CreateUpdateViewState(result);
+            SetUpdateViewState(state);
+            Log(
+                QuickPodsLogLevel.Information,
+                "ApplicationUpdateChecked",
+                "The latest QuickPods release was checked.",
+                new Dictionary<string, object?>
+                {
+                    ["CurrentVersion"] = result.CurrentVersion.ToString(3),
+                    ["LatestVersion"] = result.LatestVersion.ToString(3),
+                    ["UpdateAvailable"] = result.IsUpdateAvailable,
+                });
+            return state;
+        }
+        catch (Exception exception)
+        {
+            var state = new ApplicationUpdateViewState(
+                ApplicationUpdateViewStatus.Failed,
+                ErrorDetail: exception.Message);
+            SetUpdateViewState(state);
+            Log(
+                QuickPodsLogLevel.Warning,
+                "ApplicationUpdateCheckFailed",
+                "The latest QuickPods release could not be checked.",
+                new Dictionary<string, object?>
+                {
+                    ["FailureType"] = exception.GetType().Name,
+                });
+            return state;
+        }
+    }
+
+    private void SetUpdateViewState(ApplicationUpdateViewState state)
+    {
+        updateViewState = state;
+        if (MainWindow is MainWindow window)
+        {
+            window.ReportUpdateCheckState(state);
+        }
+    }
+
+    private static ApplicationUpdateViewState CreateUpdateViewState(
+        ApplicationUpdateCheckResult result) => new(
+            result.IsUpdateAvailable
+                ? ApplicationUpdateViewStatus.UpdateAvailable
+                : ApplicationUpdateViewStatus.UpToDate,
+            result.CheckedAtUtc,
+            result.LatestVersion,
+            result.ReleasePage);
+
+    private void ShowUpdateNotification(ApplicationUpdateViewState state)
+    {
+        switch (state.Status)
+        {
+            case ApplicationUpdateViewStatus.UpdateAvailable
+                when state.LatestVersion is not null && state.ReleasePage is not null:
+                trayIcon?.ShowNotification(
+                    localizer["UpdateNotificationTitle"],
+                    localizer.Format(
+                        "UpdateAvailableNotification",
+                        state.LatestVersion.ToString(3)),
+                    () => OpenReleasePage(state.ReleasePage));
+                break;
+            case ApplicationUpdateViewStatus.UpToDate:
+                trayIcon?.ShowNotification(
+                    localizer["UpdateNotificationTitle"],
+                    localizer.Format(
+                        "UpToDateNotification",
+                        GetProductVersion().ToString(3)));
+                break;
+            case ApplicationUpdateViewStatus.Failed:
+                trayIcon?.ShowNotification(
+                    localizer["UpdateNotificationTitle"],
+                    localizer["UpdateCheckFailedNotification"]);
+                break;
+        }
+    }
+
+    private void OpenReleasePage(Uri releasePage)
+    {
+        ArgumentNullException.ThrowIfNull(releasePage);
+        try
+        {
+            _ = Process.Start(new ProcessStartInfo
+            {
+                FileName = releasePage.AbsoluteUri,
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception exception)
+        {
+            if (MainWindow is MainWindow window)
+            {
+                window.ReportSettingsFailure(
+                    localizer.Format("ReleasePageOpenFailed", exception.Message));
+            }
+        }
+    }
+
+    private static Version GetProductVersion() =>
+        typeof(App).Assembly.GetName().Version is { } version
+            ? new Version(version.Major, version.Minor, Math.Max(0, version.Build))
+            : new Version(0, 1, 0);
 
     private void StartBluetoothCatalog()
     {

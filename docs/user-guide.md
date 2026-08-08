@@ -55,8 +55,11 @@ Open Settings from the flyout gear button or the notification-area menu.
 - **Set connected device as the default audio device** — update Console and Multimedia roles after connection.
 - **Confirm before disconnecting Bluetooth** — require confirmation for disconnect actions.
 - **Start QuickPods when signing in to Windows** — create or remove the current-user startup entry.
+- **Check for updates when QuickPods starts** — when explicitly enabled, check the latest stable GitHub Release at most once every 24 hours.
 
-Settings are saved automatically. **Reset to defaults** restores editable preferences, **Restart** restarts QuickPods after orderly shutdown, and **Close** closes only the Settings window.
+Choose **Check for updates** in Settings or **Check for updates...** in the notification-area menu for an immediate manual check. When a newer version is available, QuickPods shows the version and opens the official GitHub Release page on request. It does not download or execute the package automatically; follow the checksum and replacement steps in the [update policy](release/update-policy.md).
+
+Settings are saved automatically. Automatic update checks are disabled by default. **Reset to defaults** restores editable preferences, **Restart** restarts QuickPods after orderly shutdown, and **Close** closes only the Settings window.
 
 ## Exit QuickPods
 
