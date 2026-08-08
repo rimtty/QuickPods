@@ -51,10 +51,12 @@ public static class BluetoothProductPresenter
         BluetoothAudioCatalogSnapshot catalog,
         BluetoothOperationSnapshot operation,
         bool isRefreshing,
-        string? catalogError = null)
+        string? catalogError = null,
+        ProductLocalizer? localizer = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(operation);
+        localizer ??= new ProductLocalizer(ProductLanguage.English);
 
         bool isBusy = operation.Outcome == BluetoothOperationOutcome.InProgress;
         ImmutableArray<BluetoothDeviceRowPresentation> devices = [.. catalog.Devices.Select(device =>
@@ -66,7 +68,8 @@ public static class BluetoothProductPresenter
                 connection,
                 output,
                 catalog.InventoryGeneration,
-                operation);
+                operation,
+                localizer);
             bool isProcessing = isBusy && IsMatching(
                 device,
                 catalog.InventoryGeneration,
@@ -79,7 +82,7 @@ public static class BluetoothProductPresenter
                 CreateIconGlyph(device.Kind),
                 status,
                 isProcessing,
-                $"{device.DisplayName}、ペアリング済み、{status}",
+                localizer.Format("PairedAccessible", device.DisplayName, status),
                 device.IsSelected,
                 !isRefreshing && !isBusy);
         })];
@@ -87,7 +90,7 @@ public static class BluetoothProductPresenter
         BluetoothAudioDeviceDescriptor? selected = catalog.Devices.FirstOrDefault(
             device => device.IsSelected);
         (ProductPrimaryActionKind action, string actionText, bool actionEnabled) =
-            ResolvePrimaryAction(catalog, selected, operation, isRefreshing, isBusy);
+            ResolvePrimaryAction(catalog, selected, operation, isRefreshing, isBusy, localizer);
         (BluetoothConnectionState selectedConnection, DefaultOutputState selectedOutput) =
             selected is null
                 ? (BluetoothConnectionState.Unknown, DefaultOutputState.NotApplicable)
@@ -96,7 +99,7 @@ public static class BluetoothProductPresenter
             selectedOutput is DefaultOutputState.NotDefault or DefaultOutputState.Failed;
         string? error = catalogError ?? (selected is not null &&
             ShouldShowOperationError(selected, operation)
-                ? CreateErrorMessage(operation.Error)
+                ? CreateErrorMessage(operation.Error, localizer)
                 : null);
 
         return new(
@@ -122,29 +125,30 @@ public static class BluetoothProductPresenter
         BluetoothAudioDeviceDescriptor? selected,
         BluetoothOperationSnapshot operation,
         bool isRefreshing,
-        bool isBusy)
+        bool isBusy,
+        ProductLocalizer localizer)
     {
         if (selected is null || !catalog.SelectedDevicePresent)
         {
-            return (ProductPrimaryActionKind.None, "接続", false);
+            return (ProductPrimaryActionKind.None, localizer["Connect"], false);
         }
 
         if (isBusy)
         {
             string operationText = operation.Operation switch
             {
-                QuickPodsOperation.Connecting => "接続中…",
-                QuickPodsOperation.SettingDefault => "既定の出力へ切替中…",
-                QuickPodsOperation.DisconnectingOtherDevices => "前の機器を切断中…",
-                QuickPodsOperation.Disconnecting => "切断中…",
-                _ => "処理中…",
+                QuickPodsOperation.Connecting => localizer["ConnectingEllipsis"],
+                QuickPodsOperation.SettingDefault => localizer["SettingDefaultEllipsis"],
+                QuickPodsOperation.DisconnectingOtherDevices => localizer["DisconnectingOthersEllipsis"],
+                QuickPodsOperation.Disconnecting => localizer["DisconnectingEllipsis"],
+                _ => localizer["WorkingEllipsis"],
             };
             return (ProductPrimaryActionKind.None, operationText, false);
         }
 
         if (isRefreshing)
         {
-            return (ProductPrimaryActionKind.None, "更新中…", false);
+            return (ProductPrimaryActionKind.None, localizer["RefreshingEllipsis"], false);
         }
 
         if (selected.Capability is
@@ -153,30 +157,30 @@ public static class BluetoothProductPresenter
         {
             return (
                 ProductPrimaryActionKind.OpenBluetoothSettings,
-                "Bluetooth設定を開く",
+                localizer["OpenBluetoothSettings"],
                 true);
         }
 
         if (selected.Capability != BluetoothDeviceCapability.DirectControl)
         {
-            return (ProductPrimaryActionKind.None, "現在は操作できません", false);
+            return (ProductPrimaryActionKind.None, localizer["CurrentlyUnavailable"], false);
         }
 
         (BluetoothConnectionState connection, DefaultOutputState output) =
             ResolveEffectiveState(selected, catalog.InventoryGeneration, operation);
         if (connection == BluetoothConnectionState.Disconnected)
         {
-            return (ProductPrimaryActionKind.Connect, "接続", true);
+            return (ProductPrimaryActionKind.Connect, localizer["Connect"], true);
         }
 
         if (connection == BluetoothConnectionState.Connected)
         {
             return output == DefaultOutputState.Default
-                ? (ProductPrimaryActionKind.Disconnect, "切断", true)
-                : (ProductPrimaryActionKind.MakeDefault, "既定の出力に設定", true);
+                ? (ProductPrimaryActionKind.Disconnect, localizer["Disconnect"], true)
+                : (ProductPrimaryActionKind.MakeDefault, localizer["MakeDefault"], true);
         }
 
-        return (ProductPrimaryActionKind.None, "状態を更新してください", false);
+        return (ProductPrimaryActionKind.None, localizer["RefreshState"], false);
     }
 
     private static string CreateStatus(
@@ -184,16 +188,17 @@ public static class BluetoothProductPresenter
         BluetoothConnectionState connection,
         DefaultOutputState output,
         long inventoryGeneration,
-        BluetoothOperationSnapshot operation)
+        BluetoothOperationSnapshot operation,
+        ProductLocalizer localizer)
     {
         if (IsMatching(device, inventoryGeneration, operation))
         {
             string? activeStatus = operation.Operation switch
             {
-                QuickPodsOperation.Connecting => "接続中",
-                QuickPodsOperation.SettingDefault => "既定の出力へ切替中",
-                QuickPodsOperation.DisconnectingOtherDevices => "前の機器を切断中",
-                QuickPodsOperation.Disconnecting => "切断中",
+                QuickPodsOperation.Connecting => localizer["Connecting"],
+                QuickPodsOperation.SettingDefault => localizer["SettingDefault"],
+                QuickPodsOperation.DisconnectingOtherDevices => localizer["DisconnectingOthers"],
+                QuickPodsOperation.Disconnecting => localizer["Disconnecting"],
                 _ => null,
             };
             if (activeStatus is not null)
@@ -207,23 +212,23 @@ public static class BluetoothProductPresenter
             BluetoothDeviceCapability.OwnershipUnknown)
         {
             return connection == BluetoothConnectionState.Connected
-                ? "接続済み・直接操作は未対応"
-                : "直接操作は未対応";
+                ? localizer["ConnectedUnsupported"]
+                : localizer["Unsupported"];
         }
 
         if (device.Capability == BluetoothDeviceCapability.TemporarilyUnavailable)
         {
-            return "一時的に利用不可";
+            return localizer["TemporarilyUnavailable"];
         }
 
         return connection switch
         {
             BluetoothConnectionState.Connected when output == DefaultOutputState.Default =>
-                "接続済み・既定",
-            BluetoothConnectionState.Connected => "接続済み・非既定",
-            BluetoothConnectionState.Disconnected => "未接続",
-            BluetoothConnectionState.Unavailable => "利用不可",
-            _ => "状態不明",
+                localizer["ConnectedDefault"],
+            BluetoothConnectionState.Connected => localizer["ConnectedNotDefault"],
+            BluetoothConnectionState.Disconnected => localizer["Disconnected"],
+            BluetoothConnectionState.Unavailable => localizer["Unavailable"],
+            _ => localizer["UnknownStatus"],
         };
     }
 
@@ -286,25 +291,27 @@ public static class BluetoothProductPresenter
         return !requestedStateReached;
     }
 
-    private static string? CreateErrorMessage(QuickPodsErrorCode? error) =>
+    private static string? CreateErrorMessage(
+        QuickPodsErrorCode? error,
+        ProductLocalizer localizer) =>
         error switch
         {
             QuickPodsErrorCode.BluetoothDriverUnsupported =>
-                "このデバイスはQuickPodsから直接操作できません。",
+                localizer["DirectControlUnavailable"],
             QuickPodsErrorCode.BluetoothTimeout =>
-                "接続状態を期限内に確認できませんでした。別の端末への接続や距離を確認し、状態を更新して再試行してください。",
+                localizer["BluetoothTimeout"],
             QuickPodsErrorCode.BluetoothSelectionStale =>
-                "デバイス一覧が更新されました。選択状態を確認してください。",
+                localizer["SelectionStale"],
             QuickPodsErrorCode.BluetoothDeviceUnavailable =>
-                "選択したデバイスを利用できません。距離や装着状態を確認してください。",
+                localizer["DeviceUnavailable"],
             QuickPodsErrorCode.BluetoothContainmentFailed =>
-                "Bluetooth操作の安全な終了を確認できないため、操作を停止しました。",
+                localizer["ContainmentFailed"],
             QuickPodsErrorCode.DefaultOutputSwitchFailed =>
-                "Bluetooth接続は完了しましたが、Windowsの既定出力を変更できませんでした。",
+                localizer["DefaultSwitchFailed"],
             QuickPodsErrorCode.OtherBluetoothDevicesStillConnected =>
-                "新しい機器への切り替えは完了しましたが、ほかのBluetoothオーディオを切断できませんでした。",
+                localizer["OtherDevicesStillConnected"],
             QuickPodsErrorCode.BluetoothOperationRejected =>
-                "Bluetooth操作を完了できませんでした。状態を更新してから再試行してください。",
+                localizer["OperationRejected"],
             _ => null,
         };
 

@@ -62,6 +62,7 @@ public sealed class JsonSettingsStoreTests
                 SetConnectedDeviceAsDefault: false,
                 MouseWheelStepPercent: 5,
                 Theme: QuickPodsThemeMode.Light,
+                Language: QuickPodsLanguageMode.Japanese,
                 ConfirmBluetoothDisconnect: true);
 
             await store.SaveAsync(expected);
@@ -109,6 +110,7 @@ public sealed class JsonSettingsStoreTests
             Assert.True(migrated.SetConnectedDeviceAsDefault);
             Assert.Equal(2, migrated.MouseWheelStepPercent);
             Assert.Equal(QuickPodsThemeMode.System, migrated.Theme);
+            Assert.Equal(QuickPodsLanguageMode.System, migrated.Language);
             Assert.False(migrated.ConfirmBluetoothDisconnect);
         }
         finally
@@ -140,6 +142,7 @@ public sealed class JsonSettingsStoreTests
                 SetConnectedDeviceAsDefault: false,
                 MouseWheelStepPercent: 10,
                 Theme: QuickPodsThemeMode.Dark,
+                Language: QuickPodsLanguageMode.English,
                 ConfirmBluetoothDisconnect: true));
             using var selection = new JsonBluetoothSelectionStore(settings);
 
@@ -155,6 +158,7 @@ public sealed class JsonSettingsStoreTests
             Assert.False(actual.SetConnectedDeviceAsDefault);
             Assert.Equal(10, actual.MouseWheelStepPercent);
             Assert.Equal(QuickPodsThemeMode.Dark, actual.Theme);
+            Assert.Equal(QuickPodsLanguageMode.English, actual.Language);
             Assert.True(actual.ConfirmBluetoothDisconnect);
         }
         finally

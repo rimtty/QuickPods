@@ -36,6 +36,7 @@ public partial class MainWindow : Window
     private readonly IStartupRegistration startupRegistration;
     private readonly ProductLifetimePolicy lifetimePolicy;
     private readonly Action restartApplication;
+    private readonly ProductLocalizer localizer;
     private readonly string logsDirectory;
     private bool applyingAudioState;
     private bool applyingBluetoothState;
@@ -64,6 +65,7 @@ public partial class MainWindow : Window
         IStartupRegistration startupRegistration,
         ProductLifetimePolicy lifetimePolicy,
         Action restartApplication,
+        ProductLocalizer localizer,
         string logsDirectory,
         string? startupDiagnostic)
     {
@@ -79,17 +81,19 @@ public partial class MainWindow : Window
             throw new ArgumentNullException(nameof(lifetimePolicy));
         this.restartApplication = restartApplication ??
             throw new ArgumentNullException(nameof(restartApplication));
+        this.localizer = localizer ?? throw new ArgumentNullException(nameof(localizer));
         ArgumentException.ThrowIfNullOrWhiteSpace(logsDirectory);
         this.logsDirectory = Path.GetFullPath(logsDirectory);
         bluetoothRefreshing = bluetoothCatalog is not null;
         bluetoothCatalogError = bluetoothCatalog is null
-            ? "Bluetoothサービスを初期化できませんでした。"
+            ? localizer["BluetoothServiceInitFailed"]
             : null;
         bluetoothView = BluetoothProductPresenter.Project(
             bluetoothCatalog?.State ?? BluetoothAudioCatalogSnapshot.Empty,
             bluetoothOperations?.State ?? BluetoothOperationSnapshot.Idle,
             bluetoothRefreshing,
-            bluetoothCatalogError);
+            bluetoothCatalogError,
+            localizer);
 
         InitializeComponent();
         AudioDiagnosticText.Text = startupDiagnostic ?? string.Empty;
@@ -111,8 +115,8 @@ public partial class MainWindow : Window
     {
         bluetoothRefreshing = false;
         bluetoothCatalogError = string.IsNullOrWhiteSpace(message)
-            ? "Bluetoothデバイス一覧を更新できませんでした。"
-            : $"Bluetoothデバイス一覧を更新できませんでした: {message}";
+            ? localizer["CatalogRefreshFailed"]
+            : localizer.Format("CatalogRefreshFailedWithDetail", message);
         ApplyBluetoothPresentation();
     }
 
@@ -121,6 +125,13 @@ public partial class MainWindow : Window
         settingsDiagnostic = message ?? string.Empty;
         SettingsDiagnosticText.Text = settingsDiagnostic;
         settingsWindow?.ReportDiagnostic(settingsDiagnostic);
+    }
+
+    internal void ApplyLocalization()
+    {
+        settingsWindow?.ApplyLocalization();
+        ApplyAudioState(audio.State);
+        ApplyBluetoothPresentation();
     }
 
     internal void ShowSettingsWindow()
@@ -134,6 +145,7 @@ public partial class MainWindow : Window
                 OpenLogs,
                 CreateDiagnosticSummary,
                 restartApplication,
+                localizer,
                 GetProductVersion());
             settingsWindow.Closed += OnSettingsWindowClosed;
         }
@@ -412,8 +424,8 @@ public partial class MainWindow : Window
                 if (productSettings.ConfirmBluetoothDisconnect &&
                     WpfMessageBox.Show(
                         this,
-                        "選択したBluetoothオーディオを切断しますか？",
-                        "QuickPods",
+                        localizer["DisconnectConfirmMessage"],
+                        localizer["DisconnectConfirmTitle"],
                         MessageBoxButton.YesNo,
                         MessageBoxImage.Question,
                         MessageBoxResult.No) != MessageBoxResult.Yes)
@@ -434,7 +446,7 @@ public partial class MainWindow : Window
     {
         if (!settingsLauncher.TryOpenSoundSettings())
         {
-            BluetoothDiagnosticText.Text = "Windowsのサウンド設定を開けませんでした。";
+            BluetoothDiagnosticText.Text = localizer["SoundSettingsOpenFailed"];
         }
     }
 
@@ -445,7 +457,7 @@ public partial class MainWindow : Window
     {
         if (!settingsLauncher.TryOpenBluetoothSettings())
         {
-            BluetoothDiagnosticText.Text = "WindowsのBluetooth設定を開けませんでした。";
+            BluetoothDiagnosticText.Text = localizer["BluetoothSettingsOpenFailed"];
         }
     }
 
@@ -477,21 +489,23 @@ public partial class MainWindow : Window
         try
         {
             bool available = state.Capability == AudioCapability.Available;
-            EndpointNameText.Text = state.EndpointDisplayName ?? "利用可能な出力デバイスがありません";
+            EndpointNameText.Text = state.EndpointDisplayName ?? localizer["NoOutputDevice"];
             VolumeSlider.IsEnabled = available;
             MuteButton.IsEnabled = available;
             VolumeSlider.Value = state.VolumePercent;
             VolumePercentText.Text = available ? $"{state.VolumePercent}%" : "--%";
-            MuteButton.ToolTip = state.IsMuted ? "ミュート解除" : "ミュート";
+            MuteButton.ToolTip = state.IsMuted ? localizer["Unmute"] : localizer["Mute"];
             System.Windows.Automation.AutomationProperties.SetName(
                 MuteButton,
-                state.IsMuted ? "ミュートを解除" : "ミュートにする");
+                state.IsMuted ? localizer["UnmuteName"] : localizer["MuteName"]);
             MuteGlyph.Text = FluentAudioGlyphs.ForMuteState(state.IsMuted);
             AudioStatusText.Text = state.Capability switch
             {
-                AudioCapability.Available => state.IsMuted ? "ミュート中" : "利用可能",
-                AudioCapability.ServiceUnavailable => "Audio service利用不可",
-                _ => "出力デバイスなし",
+                AudioCapability.Available => state.IsMuted
+                    ? localizer["Muted"]
+                    : localizer["Available"],
+                AudioCapability.ServiceUnavailable => localizer["AudioServiceUnavailable"],
+                _ => localizer["NoOutputDeviceShort"],
             };
         }
         finally
@@ -506,7 +520,8 @@ public partial class MainWindow : Window
             bluetoothCatalog?.State ?? BluetoothAudioCatalogSnapshot.Empty,
             bluetoothOperations?.State ?? BluetoothOperationSnapshot.Idle,
             bluetoothRefreshing,
-            bluetoothCatalogError);
+            bluetoothCatalogError,
+            localizer);
         applyingBluetoothState = true;
         try
         {
@@ -517,17 +532,17 @@ public partial class MainWindow : Window
                 ? Visibility.Visible
                 : Visibility.Collapsed;
             BluetoothSectionTitle.Text = bluetoothView.HasDevices
-                ? "Bluetoothオーディオを選択"
-                : "Bluetoothオーディオ";
+                ? localizer["SelectBluetoothAudio"]
+                : localizer["BluetoothAudio"];
             BluetoothEmptyState.Visibility = bluetoothView.HasDevices
                 ? Visibility.Collapsed
                 : Visibility.Visible;
             BluetoothEmptyText.Text = bluetoothView.IsRefreshing
-                ? "デバイスを検索しています…"
-                : "デバイスが見つかりません";
+                ? localizer["SearchingDevices"]
+                : localizer["DevicesNotFound"];
             BluetoothEmptyDescriptionText.Text = bluetoothView.IsRefreshing
-                ? "ペアリング済みのBluetoothオーディオを確認しています"
-                : "ペアリング済みのBluetoothオーディオがありません";
+                ? localizer["CheckingPairedBluetooth"]
+                : localizer["NoPairedBluetoothAudio"];
             EmptyRefreshButton.IsEnabled = !bluetoothView.IsRefreshing && !bluetoothView.IsBusy;
             PrimaryActionText.Text = bluetoothView.PrimaryActionText;
             PrimaryBusyIndicator.Visibility = bluetoothView.IsRefreshing || bluetoothView.IsBusy
@@ -539,7 +554,7 @@ public partial class MainWindow : Window
             System.Windows.Automation.AutomationProperties.SetHelpText(
                 BluetoothDeviceList,
                 bluetoothView.HasDevices
-                    ? "上下矢印でデバイスを選択します。選択だけでは接続状態を変更しません。"
+                    ? localizer["DeviceListHelpDetailed"]
                     : BluetoothEmptyText.Text);
             PrimaryActionButton.IsEnabled = bluetoothView.IsPrimaryActionEnabled;
             BluetoothDiagnosticText.Text = bluetoothView.ErrorMessage ?? string.Empty;
@@ -595,12 +610,14 @@ public partial class MainWindow : Window
             if (settingsStore.LastRecovery is { } recovery)
             {
                 ReportSettingsFailure(
-                    $"破損した設定を {Path.GetFileName(recovery.QuarantinedPath)} へ隔離し、安全な初期値で起動しました。");
+                    localizer.Format(
+                        "CorruptSettingsRecovered",
+                        Path.GetFileName(recovery.QuarantinedPath)));
             }
         }
         catch (Exception exception)
         {
-            ReportSettingsFailure($"設定を読み込めませんでした: {exception.Message}");
+            ReportSettingsFailure(localizer.Format("SettingsLoadFailed", exception.Message));
             ApplyProductSettings(QuickPodsSettings.Default);
             return;
         }
@@ -611,13 +628,14 @@ public partial class MainWindow : Window
             bool registered = await startupRegistration.IsEnabledAsync();
             if (stored.StartWithWindows != registered)
             {
-                throw new InvalidOperationException("自動起動設定を確認できませんでした。");
+                throw new InvalidOperationException(localizer["StartupVerifyFailed"]);
             }
 
         }
         catch (Exception exception)
         {
-            ReportSettingsFailure($"自動起動設定を確認できませんでした: {exception.Message}");
+            ReportSettingsFailure(
+                localizer.Format("StartupVerifyFailedWithDetail", exception.Message));
             bool? actual = await TryReadStartupRegistrationAsync();
             if (actual is not null)
             {
@@ -636,7 +654,7 @@ public partial class MainWindow : Window
         }
         catch (Exception exception)
         {
-            ReportSettingsFailure($"設定を保存できませんでした: {exception.Message}");
+            ReportSettingsFailure(localizer.Format("SettingsSaveFailed", exception.Message));
             ApplyProductSettings(productSettings);
         }
     }
@@ -648,6 +666,7 @@ public partial class MainWindow : Window
         {
             DisplayMode = requested.DisplayMode,
             Theme = requested.Theme,
+            Language = requested.Language,
             MouseWheelStepPercent = requested.MouseWheelStepPercent,
             SetConnectedDeviceAsDefault = requested.SetConnectedDeviceAsDefault,
             ConfirmBluetoothDisconnect = requested.ConfirmBluetoothDisconnect,
@@ -666,7 +685,7 @@ public partial class MainWindow : Window
             bool actual = await startupRegistration.IsEnabledAsync();
             if (actual != requested)
             {
-                throw new InvalidOperationException("自動起動設定を確認できませんでした。");
+                throw new InvalidOperationException(localizer["StartupVerifyFailed"]);
             }
 
             QuickPodsSettings saved = await settingsStore.UpdateSettingsAsync(
@@ -804,6 +823,9 @@ public partial class MainWindow : Window
             CultureInfo.InvariantCulture,
             $"Display mode: {productSettings.DisplayMode}");
         _ = builder.AppendLine(CultureInfo.InvariantCulture, $"Theme: {productSettings.Theme}");
+        _ = builder.AppendLine(
+            CultureInfo.InvariantCulture,
+            $"Language: {productSettings.Language}");
         _ = builder.AppendLine(
             CultureInfo.InvariantCulture,
             $"Wheel step: {productSettings.MouseWheelStepPercent}%");

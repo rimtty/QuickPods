@@ -59,6 +59,13 @@ public enum QuickPodsThemeMode
     Light,
 }
 
+public enum QuickPodsLanguageMode
+{
+    System,
+    English,
+    Japanese,
+}
+
 public readonly record struct BluetoothDeviceKey
 {
     [JsonConstructor]
@@ -103,6 +110,7 @@ public sealed record QuickPodsSettings(
     bool SetConnectedDeviceAsDefault = true,
     int MouseWheelStepPercent = 2,
     QuickPodsThemeMode Theme = QuickPodsThemeMode.System,
+    QuickPodsLanguageMode Language = QuickPodsLanguageMode.System,
     bool ConfirmBluetoothDisconnect = false,
     int SchemaVersion = 1)
 {
@@ -116,6 +124,7 @@ public sealed record QuickPodsSettings(
             ? MouseWheelStepPercent
             : Default.MouseWheelStepPercent,
         Theme = Enum.IsDefined(Theme) ? Theme : QuickPodsThemeMode.System,
+        Language = Enum.IsDefined(Language) ? Language : QuickPodsLanguageMode.System,
     };
 }
 

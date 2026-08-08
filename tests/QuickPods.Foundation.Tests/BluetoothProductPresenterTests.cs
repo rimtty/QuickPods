@@ -29,7 +29,7 @@ public sealed class BluetoothProductPresenterTests
         Assert.Equal(2, view.Devices.Length);
         Assert.NotEqual(view.Devices[0].DeviceKey, view.Devices[1].DeviceKey);
         Assert.All(view.Devices, device => Assert.Equal("\uE7F6", device.IconGlyph));
-        Assert.Equal("接続済み・既定", view.Devices[0].StatusText);
+        Assert.Equal("Connected · default", view.Devices[0].StatusText);
         Assert.Equal(ProductPrimaryActionKind.Disconnect, view.PrimaryAction);
         Assert.True(view.IsPrimaryActionEnabled);
     }
@@ -60,7 +60,7 @@ public sealed class BluetoothProductPresenterTests
             isRefreshing: false);
 
         Assert.Equal(ProductPrimaryActionKind.MakeDefault, view.PrimaryAction);
-        Assert.Equal("既定の出力に設定", view.PrimaryActionText);
+        Assert.Equal("Set as default output", view.PrimaryActionText);
         Assert.True(view.ShowSoundRecovery);
         Assert.NotNull(view.ErrorMessage);
     }
@@ -108,7 +108,7 @@ public sealed class BluetoothProductPresenterTests
 
         Assert.True(view.Devices.Single(device => device.DeviceKey == DeviceA).IsProcessing);
         Assert.False(view.Devices.Single(device => device.DeviceKey == DeviceB).IsProcessing);
-        Assert.Equal("接続中", view.Devices.Single(device => device.DeviceKey == DeviceA).StatusText);
+        Assert.Equal("Connecting", view.Devices.Single(device => device.DeviceKey == DeviceA).StatusText);
     }
 
     [Fact]
@@ -140,8 +140,10 @@ public sealed class BluetoothProductPresenterTests
             operation,
             isRefreshing: false);
 
-        Assert.Equal("前の機器を切断中", view.Devices.Single(device => device.DeviceKey == DeviceB).StatusText);
-        Assert.Equal("前の機器を切断中…", view.PrimaryActionText);
+        Assert.Equal(
+            "Disconnecting the previous device",
+            view.Devices.Single(device => device.DeviceKey == DeviceB).StatusText);
+        Assert.Equal("Disconnecting the previous device…", view.PrimaryActionText);
         Assert.True(view.IsBusy);
     }
 
@@ -171,7 +173,7 @@ public sealed class BluetoothProductPresenterTests
             isRefreshing: false);
 
         Assert.Equal(ProductPrimaryActionKind.Disconnect, view.PrimaryAction);
-        Assert.Contains("ほかのBluetoothオーディオを切断できませんでした", view.ErrorMessage);
+        Assert.Contains("another Bluetooth audio device", view.ErrorMessage);
     }
 
     [Fact]
@@ -221,7 +223,7 @@ public sealed class BluetoothProductPresenterTests
             staleOperation,
             isRefreshing: false);
 
-        Assert.Equal("未接続", Assert.Single(view.Devices).StatusText);
+        Assert.Equal("Not connected", Assert.Single(view.Devices).StatusText);
         Assert.Equal(ProductPrimaryActionKind.Connect, view.PrimaryAction);
     }
 
@@ -245,7 +247,7 @@ public sealed class BluetoothProductPresenterTests
             timedOut,
             isRefreshing: false);
 
-        Assert.Equal("接続済み・既定", Assert.Single(view.Devices).StatusText);
+        Assert.Equal("Connected · default", Assert.Single(view.Devices).StatusText);
         Assert.Equal(ProductPrimaryActionKind.Disconnect, view.PrimaryAction);
         Assert.Null(view.ErrorMessage);
     }
@@ -266,9 +268,9 @@ public sealed class BluetoothProductPresenterTests
             timedOut,
             isRefreshing: false);
 
-        Assert.Equal("未接続", Assert.Single(view.Devices).StatusText);
+        Assert.Equal("Not connected", Assert.Single(view.Devices).StatusText);
         Assert.Equal(ProductPrimaryActionKind.Connect, view.PrimaryAction);
-        Assert.Contains("期限内", view.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("in time", view.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -287,9 +289,30 @@ public sealed class BluetoothProductPresenterTests
             timedOut,
             isRefreshing: false);
 
-        Assert.Equal("未接続", Assert.Single(view.Devices).StatusText);
+        Assert.Equal("Not connected", Assert.Single(view.Devices).StatusText);
         Assert.Equal(ProductPrimaryActionKind.Connect, view.PrimaryAction);
         Assert.Null(view.ErrorMessage);
+    }
+
+    [Fact]
+    public void JapaneseLocalizerProjectsJapaneseStatusAndActions()
+    {
+        BluetoothAudioCatalogSnapshot catalog = Catalog(
+            generation: 13,
+            Device(DeviceA, "AirPods Pro", isSelected: true) with
+            {
+                ConnectionState = BluetoothConnectionState.Connected,
+                DefaultOutputState = DefaultOutputState.Default,
+            });
+
+        BluetoothProductPresentation view = BluetoothProductPresenter.Project(
+            catalog,
+            BluetoothOperationSnapshot.Idle,
+            isRefreshing: false,
+            localizer: new ProductLocalizer(ProductLanguage.Japanese));
+
+        Assert.Equal("接続済み・既定", Assert.Single(view.Devices).StatusText);
+        Assert.Equal("切断", view.PrimaryActionText);
     }
 
     private static BluetoothAudioCatalogSnapshot Catalog(

@@ -12,8 +12,9 @@ public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposab
     private readonly CoreAudioSession session;
     private int disposed;
 
-    public WindowsCoreAudioEndpointPort()
+    public WindowsCoreAudioEndpointPort(Func<string>? defaultOutputName = null)
     {
+        defaultOutputName ??= static () => "Default output device";
         worker = new MtaAudioWorker();
         try
         {
@@ -22,7 +23,8 @@ public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposab
                 worker,
                 Publish,
                 PublishTopologyChanged,
-                eventContext));
+                eventContext,
+                defaultOutputName));
         }
         catch
         {
@@ -92,6 +94,7 @@ public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposab
         private readonly Action<AudioState, bool> stateSink;
         private readonly Action topologySink;
         private readonly AudioEventContext eventContext;
+        private readonly Func<string> defaultOutputName;
         private readonly AudioRole role = AudioRole.Console;
         private readonly IMMDeviceEnumerator enumerator;
         private readonly DefaultDeviceNotificationClient deviceNotificationClient;
@@ -106,12 +109,14 @@ public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposab
             MtaAudioWorker worker,
             Action<AudioState, bool> stateSink,
             Action topologySink,
-            AudioEventContext eventContext)
+            AudioEventContext eventContext,
+            Func<string> defaultOutputName)
         {
             this.worker = worker;
             this.stateSink = stateSink;
             this.topologySink = topologySink;
             this.eventContext = eventContext;
+            this.defaultOutputName = defaultOutputName;
             enumerator = (IMMDeviceEnumerator)(object)new MMDeviceEnumeratorComObject();
             deviceNotificationClient = new DefaultDeviceNotificationClient(
                 role,
@@ -445,7 +450,7 @@ public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposab
             return (IAudioEndpointVolume)activatedInterface;
         }
 
-        private static string ReadFriendlyName(IMMDevice device)
+        private string ReadFriendlyName(IMMDevice device)
         {
             IPropertyStore? properties = null;
             PropVariant value = default;
@@ -455,12 +460,12 @@ public sealed class WindowsCoreAudioEndpointPort : IAudioEndpointPort, IDisposab
                 PropertyKey key = FriendlyNameProperty;
                 HResult.ThrowIfFailed(properties.GetValue(ref key, out value), nameof(IPropertyStore.GetValue));
                 return value.VariantType == VariantTypeWideString && value.PointerValue != nint.Zero
-                    ? Marshal.PtrToStringUni(value.PointerValue) ?? "既定の出力デバイス"
-                    : "既定の出力デバイス";
+                    ? Marshal.PtrToStringUni(value.PointerValue) ?? defaultOutputName()
+                    : defaultOutputName();
             }
             catch (Exception exception) when (IsRecoverable(exception))
             {
-                return "既定の出力デバイス";
+                return defaultOutputName();
             }
             finally
             {

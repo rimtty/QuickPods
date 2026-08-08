@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using QuickPods.Core.Models;
+using QuickPods.Presentation;
 using WpfClipboard = System.Windows.Clipboard;
 
 namespace QuickPods.App;
@@ -21,6 +22,7 @@ public partial class SettingsWindow : Window
     private readonly Action openLogs;
     private readonly Func<string> createDiagnosticSummary;
     private readonly Action restartApplication;
+    private readonly ProductLocalizer localizer;
     private bool applyingSettings;
     private bool updatePending;
 
@@ -31,6 +33,7 @@ public partial class SettingsWindow : Window
         Action openLogs,
         Func<string> createDiagnosticSummary,
         Action restartApplication,
+        ProductLocalizer localizer,
         string version)
     {
         this.readSettings = readSettings ?? throw new ArgumentNullException(nameof(readSettings));
@@ -43,6 +46,7 @@ public partial class SettingsWindow : Window
             throw new ArgumentNullException(nameof(createDiagnosticSummary));
         this.restartApplication = restartApplication ??
             throw new ArgumentNullException(nameof(restartApplication));
+        this.localizer = localizer ?? throw new ArgumentNullException(nameof(localizer));
         ArgumentException.ThrowIfNullOrWhiteSpace(version);
 
         InitializeComponent();
@@ -59,6 +63,7 @@ public partial class SettingsWindow : Window
             QuickPodsSettings normalized = settings.Normalize();
             DisplayModeComboBox.SelectedValue = normalized.DisplayMode;
             ThemeComboBox.SelectedValue = normalized.Theme;
+            LanguageComboBox.SelectedValue = normalized.Language;
             MouseWheelStepComboBox.SelectedValue = normalized.MouseWheelStepPercent;
             SetConnectedDeviceAsDefaultCheckBox.IsChecked =
                 normalized.SetConnectedDeviceAsDefault;
@@ -75,11 +80,18 @@ public partial class SettingsWindow : Window
 
     internal void ReportDiagnostic(string message) => DiagnosticText.Text = message ?? string.Empty;
 
+    internal void ApplyLocalization()
+    {
+        InitializeChoices();
+        ApplySettings(readSettings());
+    }
+
     private async void OnProductSettingChanged(object sender, RoutedEventArgs eventArgs)
     {
         if (applyingSettings || updatePending ||
             DisplayModeComboBox.SelectedValue is not QuickPodsDisplayMode displayMode ||
             ThemeComboBox.SelectedValue is not QuickPodsThemeMode theme ||
+            LanguageComboBox.SelectedValue is not QuickPodsLanguageMode language ||
             MouseWheelStepComboBox.SelectedValue is not int wheelStep)
         {
             return;
@@ -90,13 +102,14 @@ public partial class SettingsWindow : Window
         {
             DisplayMode = displayMode,
             Theme = theme,
+            Language = language,
             MouseWheelStepPercent = wheelStep,
             SetConnectedDeviceAsDefault = SetConnectedDeviceAsDefaultCheckBox.IsChecked == true,
             ConfirmBluetoothDisconnect = ConfirmBluetoothDisconnectCheckBox.IsChecked == true,
         };
         await RunUpdateAsync(
             () => updateSettings(requested),
-            "設定を保存できませんでした");
+            localizer["SettingsSaveActionFailed"]);
     }
 
     private async void OnStartWithWindowsChanged(object sender, RoutedEventArgs eventArgs)
@@ -109,7 +122,7 @@ public partial class SettingsWindow : Window
         bool requested = StartWithWindowsCheckBox.IsChecked == true;
         await RunUpdateAsync(
             () => updateStartup(requested),
-            "自動起動設定を変更できませんでした");
+            localizer["StartupChangeFailed"]);
     }
 
     private void OnOpenLogs(object sender, RoutedEventArgs eventArgs)
@@ -121,7 +134,7 @@ public partial class SettingsWindow : Window
         }
         catch (Exception exception)
         {
-            ReportDiagnostic($"ログフォルダーを開けませんでした: {exception.Message}");
+            ReportDiagnostic(localizer.Format("LogOpenFailed", exception.Message));
         }
     }
 
@@ -130,11 +143,11 @@ public partial class SettingsWindow : Window
         try
         {
             WpfClipboard.SetText(createDiagnosticSummary());
-            ReportDiagnostic("診断情報をクリップボードへコピーしました。");
+            ReportDiagnostic(localizer["DiagnosticsCopied"]);
         }
         catch (Exception exception)
         {
-            ReportDiagnostic($"診断情報をコピーできませんでした: {exception.Message}");
+            ReportDiagnostic(localizer.Format("DiagnosticsCopyFailed", exception.Message));
         }
     }
 
@@ -147,7 +160,7 @@ public partial class SettingsWindow : Window
 
         await RunUpdateAsync(
             ResetEditableSettingsAsync,
-            "設定を既定値に戻せませんでした");
+            localizer["ResetFailed"]);
     }
 
     private void OnRestartApplication(object sender, RoutedEventArgs eventArgs)
@@ -164,7 +177,7 @@ public partial class SettingsWindow : Window
         }
         catch (Exception exception)
         {
-            ReportDiagnostic($"QuickPodsを再起動できませんでした: {exception.Message}");
+            ReportDiagnostic(localizer.Format("RestartFailed", exception.Message));
         }
     }
 
@@ -183,6 +196,7 @@ public partial class SettingsWindow : Window
         {
             DisplayMode = defaults.DisplayMode,
             Theme = defaults.Theme,
+            Language = defaults.Language,
             MouseWheelStepPercent = defaults.MouseWheelStepPercent,
             SetConnectedDeviceAsDefault = defaults.SetConnectedDeviceAsDefault,
             ConfirmBluetoothDisconnect = defaults.ConfirmBluetoothDisconnect,
@@ -216,6 +230,7 @@ public partial class SettingsWindow : Window
     {
         DisplayModeComboBox.IsEnabled = enabled;
         ThemeComboBox.IsEnabled = enabled;
+        LanguageComboBox.IsEnabled = enabled;
         MouseWheelStepComboBox.IsEnabled = enabled;
         SetConnectedDeviceAsDefaultCheckBox.IsEnabled = enabled;
         ConfirmBluetoothDisconnectCheckBox.IsEnabled = enabled;
@@ -231,14 +246,20 @@ public partial class SettingsWindow : Window
         {
             DisplayModeComboBox.ItemsSource = new SettingChoice<QuickPodsDisplayMode>[]
             {
-                new(QuickPodsDisplayMode.Auto, "自動"),
-                new(QuickPodsDisplayMode.TrayOnly, "通知領域のみ"),
+                new(QuickPodsDisplayMode.Auto, localizer["ChoiceAuto"]),
+                new(QuickPodsDisplayMode.TrayOnly, localizer["ChoiceTrayOnly"]),
             };
             ThemeComboBox.ItemsSource = new SettingChoice<QuickPodsThemeMode>[]
             {
-                new(QuickPodsThemeMode.System, "Windowsに合わせる"),
-                new(QuickPodsThemeMode.Dark, "ダーク"),
-                new(QuickPodsThemeMode.Light, "ライト"),
+                new(QuickPodsThemeMode.System, localizer["ChoiceSystemTheme"]),
+                new(QuickPodsThemeMode.Dark, localizer["ChoiceDark"]),
+                new(QuickPodsThemeMode.Light, localizer["ChoiceLight"]),
+            };
+            LanguageComboBox.ItemsSource = new SettingChoice<QuickPodsLanguageMode>[]
+            {
+                new(QuickPodsLanguageMode.System, localizer["ChoiceSystemLanguage"]),
+                new(QuickPodsLanguageMode.English, localizer["ChoiceEnglish"]),
+                new(QuickPodsLanguageMode.Japanese, localizer["ChoiceJapanese"]),
             };
             MouseWheelStepComboBox.ItemsSource = new SettingChoice<int>[]
             {

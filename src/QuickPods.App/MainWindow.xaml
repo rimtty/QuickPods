@@ -149,14 +149,14 @@
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock FontSize="21"
                                    FontWeight="SemiBold"
-                                   Text="オーディオ" />
+                                   Text="{DynamicResource AudioTitle}" />
                         <TextBlock x:Name="EndpointNameText"
                                    Visibility="Collapsed"
-                                   Text="既定の出力を確認しています…" />
+                                   Text="{DynamicResource CheckingDefaultOutput}" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
                         <Button x:Name="QuickPodsSettingsButton"
-                                AutomationProperties.Name="QuickPodsの設定を開く"
+                                AutomationProperties.Name="{DynamicResource OpenQuickPodsSettings}"
                                 Click="OnOpenQuickPodsSettings"
                                 Style="{StaticResource QuickPodsHeaderIconButtonStyle}">
                             <TextBlock FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
@@ -165,7 +165,7 @@
                         </Button>
                         <Button x:Name="RefreshButton"
                                 Margin="4,0,0,0"
-                                AutomationProperties.Name="オーディオとBluetoothデバイスを更新"
+                                AutomationProperties.Name="{DynamicResource RefreshAudioAndBluetooth}"
                                 Click="OnRefresh"
                                 Style="{StaticResource QuickPodsHeaderIconButtonStyle}">
                             <TextBlock FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
@@ -179,7 +179,7 @@
                            Grid.Row="2"
                            FontSize="15"
                            FontWeight="SemiBold"
-                           Text="Bluetoothオーディオを選択" />
+                           Text="{DynamicResource SelectBluetoothAudio}" />
 
                 <Border Grid.Row="4"
                         Background="{DynamicResource PanelBrush}"
@@ -189,8 +189,8 @@
                         ClipToBounds="True">
                     <Grid>
                         <ListBox x:Name="BluetoothDeviceList"
-                                 AutomationProperties.Name="ペアリング済みBluetoothオーディオ一覧"
-                                 AutomationProperties.HelpText="上下矢印でデバイスを選択します"
+                                 AutomationProperties.Name="{DynamicResource BluetoothAudioListName}"
+                                 AutomationProperties.HelpText="{DynamicResource BluetoothAudioListHelp}"
                                  MaxHeight="230"
                                  Padding="0"
                                  Background="Transparent"
@@ -253,7 +253,7 @@
                                             <TextBlock Margin="0,2,0,0"
                                                        FontSize="12"
                                                        Foreground="{DynamicResource SecondaryTextBrush}"
-                                                       Text="ペアリング済み" />
+                                                       Text="{DynamicResource Paired}" />
                                         </StackPanel>
                                         <StackPanel Grid.Column="3"
                                                     MaxWidth="112"
@@ -308,23 +308,23 @@
                                            HorizontalAlignment="Center"
                                            FontSize="15"
                                            FontWeight="SemiBold"
-                                           Text="デバイスが見つかりません"
+                                           Text="{DynamicResource DevicesNotFound}"
                                            TextAlignment="Center" />
                                 <TextBlock x:Name="BluetoothEmptyDescriptionText"
                                            Margin="0,5,0,0"
                                            HorizontalAlignment="Center"
                                            FontSize="12"
                                            Foreground="{DynamicResource SecondaryTextBrush}"
-                                           Text="ペアリング済みのBluetoothオーディオがありません"
+                                           Text="{DynamicResource NoPairedBluetoothAudio}"
                                            TextAlignment="Center"
                                            TextWrapping="Wrap" />
                                 <Button x:Name="EmptyRefreshButton"
                                         Margin="0,13,0,0"
                                         HorizontalAlignment="Center"
-                                        AutomationProperties.Name="Bluetoothオーディオを再検索"
+                                        AutomationProperties.Name="{DynamicResource RescanBluetoothAudio}"
                                         Click="OnRefresh"
                                         Style="{StaticResource QuickPodsSecondaryButtonStyle}"
-                                        Content="再検索" />
+                                        Content="{DynamicResource Rescan}" />
                             </StackPanel>
                         </Grid>
                     </Grid>
@@ -347,7 +347,9 @@
                             <ColumnDefinition Width="52" />
                         </Grid.ColumnDefinitions>
 
-                        <TextBlock FontSize="15" FontWeight="SemiBold" Text="音量" />
+                        <TextBlock FontSize="15"
+                                   FontWeight="SemiBold"
+                                   Text="{DynamicResource Volume}" />
                         <TextBlock x:Name="VolumePercentText"
                                    Grid.Column="2"
                                    HorizontalAlignment="Center"
@@ -356,8 +358,8 @@
 
                         <Slider x:Name="VolumeSlider"
                                 Grid.Row="2"
-                                AutomationProperties.Name="既定の出力デバイスの音量"
-                                AutomationProperties.HelpText="左右矢印で音量を変更します"
+                                AutomationProperties.Name="{DynamicResource VolumeSliderName}"
+                                AutomationProperties.HelpText="{DynamicResource VolumeSliderHelp}"
                                 Minimum="0"
                                 Maximum="100"
                                 SmallChange="1"
@@ -373,7 +375,7 @@
                             <Button x:Name="MuteButton"
                                     Width="52"
                                     Height="52"
-                                    AutomationProperties.Name="ミュート切り替え"
+                                    AutomationProperties.Name="{DynamicResource ToggleMute}"
                                     Click="OnToggleMute"
                                     Style="{StaticResource QuickPodsIconButtonStyle}">
                                 <TextBlock x:Name="MuteGlyph"
@@ -387,7 +389,7 @@
                                        HorizontalAlignment="Center"
                                        FontSize="11"
                                        Foreground="{DynamicResource SecondaryTextBrush}"
-                                       Text="初期化中"
+                                       Text="{DynamicResource Initializing}"
                                        TextAlignment="Center"
                                        Visibility="Collapsed" />
                         </StackPanel>
@@ -397,7 +399,7 @@
                 <Button x:Name="PrimaryActionButton"
                         Grid.Row="8"
                         MinHeight="48"
-                        AutomationProperties.Name="Bluetoothオーディオ デバイスを選択"
+                        AutomationProperties.Name="{DynamicResource SelectBluetoothAudio}"
                         Click="OnPrimaryAction"
                         Style="{StaticResource QuickPodsPrimaryButtonStyle}">
                     <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
@@ -411,14 +413,14 @@
                                    Visibility="Collapsed" />
                         <TextBlock x:Name="PrimaryActionText"
                                    VerticalAlignment="Center"
-                                   Text="接続" />
+                                   Text="{DynamicResource Connect}" />
                     </StackPanel>
                 </Button>
 
                 <StackPanel Grid.Row="10" Orientation="Horizontal">
                     <Button x:Name="SoundSettingsButton"
                             HorizontalAlignment="Left"
-                            AutomationProperties.Name="Windowsのサウンド設定を開く"
+                            AutomationProperties.Name="{DynamicResource OpenSoundSettingsName}"
                             Click="OnOpenSoundSettings"
                             Style="{StaticResource QuickPodsLinkButtonStyle}">
                         <StackPanel Orientation="Horizontal">
@@ -426,13 +428,13 @@
                                        FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
                                        FontSize="17"
                                        Text="{x:Static contracts:FluentAudioGlyphs.Speaker}" />
-                            <TextBlock FontSize="13" Text="サウンド設定を開く" />
+                            <TextBlock FontSize="13" Text="{DynamicResource OpenSoundSettings}" />
                         </StackPanel>
                     </Button>
                     <Button x:Name="BluetoothSettingsButton"
                             Margin="12,0,0,0"
                             HorizontalAlignment="Left"
-                            AutomationProperties.Name="WindowsのBluetooth設定を開く"
+                            AutomationProperties.Name="{DynamicResource OpenBluetoothSettingsName}"
                             Click="OnOpenBluetoothSettings"
                             Style="{StaticResource QuickPodsLinkButtonStyle}">
                         <StackPanel Orientation="Horizontal">
@@ -440,7 +442,8 @@
                                        FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
                                        FontSize="17"
                                        Text="&#xE702;" />
-                            <TextBlock FontSize="13" Text="Bluetooth設定を開く" />
+                            <TextBlock FontSize="13"
+                                       Text="{DynamicResource OpenBluetoothSettings}" />
                         </StackPanel>
                     </Button>
                 </StackPanel>

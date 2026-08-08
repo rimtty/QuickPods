@@ -52,8 +52,13 @@ public sealed class ProtocolContractTests
             TaskbarSurfaceMode.Native,
             64,
             true,
-            null,
-            TaskbarThemeMode.Light);
+            new TaskbarDeviceView(
+                "device-key",
+                "AirPods Pro",
+                "接続済み・既定",
+                IsConnected: true),
+            TaskbarThemeMode.Light,
+            TaskbarLanguage.Japanese);
         var state = new HostStateEnvelope(QuickPodsProtocol.Version, 7, snapshot);
         var interaction = new HostInteractionEnvelope(
             QuickPodsProtocol.Version,
@@ -68,6 +73,8 @@ public sealed class ProtocolContractTests
 
         Assert.Equal(state, restoredState);
         Assert.Equal(TaskbarThemeMode.Light, restoredState.Snapshot.Theme);
+        Assert.Equal(TaskbarLanguage.Japanese, restoredState.Snapshot.Language);
+        Assert.True(restoredState.Snapshot.SelectedDevice?.IsConnected);
         Assert.Equal(interaction, restoredInteraction);
         Assert.Equal(250d, restoredInteraction.Anchor?.CenterXDip);
         Assert.Equal(900d, restoredInteraction.Anchor?.TopDip);
