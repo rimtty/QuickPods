@@ -1,29 +1,28 @@
-## Linked issue
-
-Closes #
-
-## Scope
+## Summary
 
 - What changed:
 - Why it changed:
-- User or developer impact:
+- User or maintainer impact:
 
-## Requirements
+## Related issue
 
-- Requirement IDs (`FR-*`, `NFR-*`, `AC-*`):
-- Out of scope:
+Closes #
 
 ## Validation
 
-- [ ] `dotnet restore --locked-mode`
-- [ ] `dotnet format QuickPods.sln --verify-no-changes --no-restore`
+- [ ] `./build/Test-RepositoryPublicReadiness.ps1`
+- [ ] `dotnet format QuickPods.sln --verify-no-changes --no-restore --severity warn`
 - [ ] `dotnet build QuickPods.sln -c Release --no-restore`
-- [ ] `dotnet test QuickPods.sln -c Release --no-build --logger trx`
-- [ ] Hardware-dependent evidence is attached or explicitly not applicable
-- [ ] Logs and screenshots contain no private device identifiers or credentials
+- [ ] `dotnet test QuickPods.sln -c Release --no-build --no-restore -- RunConfiguration.TreatNoTestsAsError=true`
+- [ ] Hardware, DPI, Explorer, startup, or installer validation is attached when applicable
 
-## Evidence and remaining risk
+## Documentation and privacy
 
-- Test output or validation document:
+- [ ] User-visible and maintainer-facing documentation is updated
+- [ ] Logs and screenshots were reviewed for credentials, account data, and raw device identifiers
+- [ ] No generated artifacts, dumps, certificates, keys, or machine-specific files are included
+
+## Remaining risk
+
 - Known limitations:
-- Follow-up issues:
+- Follow-up work:

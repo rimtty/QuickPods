@@ -1,41 +1,106 @@
-# QuickPods
+<p align="center">
+  <img src="docs/assets/branding/quickpods-icon-v2.png" width="112" alt="QuickPods icon">
+</p>
 
-QuickPods is a Windows 11 desktop application for controlling the default output volume and selecting, connecting, disconnecting, and making a paired Bluetooth audio device the default output from the taskbar.
+<h1 align="center">QuickPods</h1>
 
-Phases 0–6B are integrated and the non-signing QuickPods 0.1.0 acceptance audit is 27/27 Proven. WiX 6.0.2 produces an elevation-free per-user x64 MSI alongside the diagnostic portable ZIP, centralized product versions, legal notices, dependency auditing, and offline update/uninstall contracts. Physical Bluetooth operation, approved resource observation, local-console DPI/theme/login behavior, Explorer recovery, and a disposable standard-user install/upgrade/uninstall lifecycle have passed. RC installers remain explicitly unsigned; certificate provisioning and a signed production artifact are intentionally deferred by the repository owner.
+<p align="center">
+  Fast access to Windows audio and paired Bluetooth audio devices from the Windows 11 taskbar.
+</p>
 
-For a new development machine, start with the [developer handoff](docs/handoff/README.md). Distribution details are in the [Phase 6B architecture](docs/architecture/phase-6b-distribution.md), [installer guide](installer/README.md), [update policy](docs/release/update-policy.md), [uninstall policy](docs/release/uninstall-policy.md), and [Phase 6B validation](docs/validation/phase-6b/test-results.md).
+<p align="center">
+  <a href="https://github.com/rimtty/QuickPods/actions/workflows/ci.yml"><img src="https://github.com/rimtty/QuickPods/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+  <img src="https://img.shields.io/badge/platform-Windows%2011-0078D4" alt="Windows 11">
+  <img src="https://img.shields.io/badge/.NET-10.0-512BD4" alt=".NET 10">
+</p>
+
+<p align="center">
+  <a href="README.ja.md">日本語</a> ·
+  <a href="docs/user-guide.md">User guide</a> ·
+  <a href="docs/development.md">Development</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
+
+> [!IMPORTANT]
+> QuickPods is under active development. There is not yet a signed public release. CI and locally built installers are unsigned test artifacts and may trigger Windows security warnings.
+
+## Features
+
+- Control the current default output volume and mute state from a compact taskbar surface.
+- List paired Bluetooth headphones, headsets, earbuds, and speakers in one flyout.
+- Connect or disconnect a selected device when its Windows driver exposes a supported operation.
+- Make a connected device the Windows Console and Multimedia default output.
+- Follow external Windows audio and Bluetooth changes without requiring an app restart.
+- Fall back to the notification area when safe taskbar placement cannot be verified.
+- Use English by default, Japanese on Japanese Windows, or an explicit language selected in Settings.
+- Store settings and diagnostics per user without requiring administrator privileges.
 
 ## Requirements
 
-- Windows 11 x64
-- .NET SDK 10.0.302 or a compatible patch in the same feature band
-- WiX Toolset 6.0.2 is restored by the installer project; distributors must comply with its current OSMF terms
+- Windows 11 x64, build 22000 or later
+- A center-aligned taskbar for the embedded taskbar surface
+- A compatible Bluetooth audio driver for direct connect and disconnect operations
 
-## Bootstrap validation
+QuickPods continues to work from the notification area when the taskbar is left-aligned or safe placement cannot be proven. Shipped packages are self-contained, so end users do not need to install .NET separately.
 
-Run these commands from the repository root:
+## Install and run
+
+Signed public binaries are not available yet. Until the first signed release, build QuickPods from source:
 
 ```powershell
-dotnet restore QuickPods.sln
+git clone https://github.com/rimtty/QuickPods.git
+Set-Location QuickPods
 dotnet restore QuickPods.sln --locked-mode
-dotnet format QuickPods.sln --verify-no-changes --no-restore --severity warn
-dotnet build QuickPods.sln -c Release --no-restore -warnaserror
-dotnet test QuickPods.sln -c Release --no-build --no-restore --logger "trx;LogFilePrefix=quickpods" --results-directory TestResults -- RunConfiguration.TreatNoTestsAsError=true
-./build/Publish-Installer.ps1 -Version 0.1.0-rc.1
+dotnet build src/QuickPods.App/QuickPods.App.csproj -c Release --no-restore
+./src/QuickPods.App/bin/Release/net10.0-windows10.0.26100.0/QuickPods.exe
 ```
 
-QuickPods supports x64 only. The solution's `Any CPU` configuration is retained as a .NET CLI and Visual Studio compatibility alias; `Directory.Build.props` always selects the x64 target.
+For packaging, test artifacts, and installer signing requirements, see the [release guide](docs/release/README.md).
+
+## How it works
+
+QuickPods uses public Windows Core Audio APIs for volume, mute, endpoint observation, and most device discovery. Bluetooth mutations are sent only after the selected physical device and driver capability are verified. Taskbar placement is fail-closed: if QuickPods cannot prove that a region is safe, it hides the embedded surface and remains available from the notification area.
+
+Some Windows desktop capabilities used by QuickPods are not stable public extension points. The architecture isolates those boundaries in helper processes and confirms the resulting OS state instead of treating an API return value as proof of success. See the [architecture overview](docs/architecture/README.md).
+
+## Privacy and safety
+
+QuickPods runs locally. It does not include telemetry or a network service. Logs intentionally omit raw Bluetooth addresses, Container IDs, PnP IDs, endpoint IDs, account names, and other device identifiers. Review the [privacy notes](docs/privacy.md) before attaching diagnostics to an issue.
+
+## Build and test
+
+The repository pins the .NET 10 SDK feature band in [`global.json`](global.json). From a Windows 11 x64 development machine:
+
+```powershell
+dotnet restore QuickPods.sln --locked-mode
+dotnet format QuickPods.sln --verify-no-changes --no-restore --severity warn
+dotnet build QuickPods.sln -c Release --no-restore
+dotnet test QuickPods.sln -c Release --no-build --no-restore -- RunConfiguration.TreatNoTestsAsError=true
+```
+
+See [Development](docs/development.md) for Visual Studio, hardware-dependent validation, and packaging commands.
 
 ## Repository layout
 
-```text
-docs/     Product plans, validation evidence, mockups, and branding
-spikes/   Isolated technical feasibility projects
-src/      Production projects
-tests/    Automated test projects
-build/    Reproducible validation, RC, MSI, signing, and resource scripts
-installer/ WiX per-user MSI project and distribution guide
-```
+| Path | Purpose |
+|---|---|
+| `src/` | Production application and helper processes |
+| `tests/` | Automated unit, contract, and Windows integration tests |
+| `spikes/` | Historical feasibility projects kept separate from production code |
+| `build/` | Reproducible validation and packaging scripts |
+| `installer/` | WiX per-user MSI project |
+| `docs/` | User, architecture, development, privacy, and release documentation |
 
-See [the implementation plan](docs/QuickPods_実装計画書.md), [the branch roadmap](docs/QuickPods_ブランチ別実装ロードマップ.md), [the v2 UI baseline](docs/QuickPods%20UI%20Mockup%20v2.md), and [the Bluetooth selector specification](docs/QuickPods_Bluetoothオーディオ選択_機能仕様.md) for scope and quality gates.
+## Project status and support
+
+QuickPods currently targets Windows 11 x64 and is preparing for its first public signed release. Review the [known limitations](docs/release/known-limitations.md) before filing a defect.
+
+- Use [GitHub Issues](https://github.com/rimtty/QuickPods/issues) for reproducible bugs and focused feature requests.
+- Read [SUPPORT.md](SUPPORT.md) for support expectations.
+- Report security issues privately according to [SECURITY.md](SECURITY.md).
+- See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+
+## License
+
+QuickPods is available under the [MIT License](LICENSE). Third-party attributions are listed in [ThirdPartyNotices.txt](ThirdPartyNotices.txt).

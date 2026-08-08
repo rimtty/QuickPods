@@ -20,8 +20,10 @@
     <Company>QuickPods contributors</Company>
     <Authors>QuickPods contributors</Authors>
     <Description>Quick access to Windows audio and paired Bluetooth audio devices.</Description>
-    <Copyright>Copyright © 2026 QuickPods contributors</Copyright>
+    <Copyright>Copyright © 2026 rimtty and QuickPods contributors</Copyright>
     <RepositoryUrl>https://github.com/rimtty/QuickPods</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/rimtty/QuickPods</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <IncludeSourceRevisionInInformationalVersion>true</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 </Project>

@@ -1,19 +1,25 @@
-# QuickPods 0.1.0 compatibility
+# Compatibility
 
 ## Supported baseline
 
-- Windows 11 x64, build 22000以降
-- standard user権限。管理者権限は要求しない
-- Windows 11 taskbarの中央揃え
-- default render endpointのmaster volume／mute
-- ユーザー単位の通知領域常駐と任意のログイン時自動起動
+- Windows 11 x64, build 22000 or later
+- Standard-user execution; administrator privileges are not required
+- Center-aligned taskbar for the embedded taskbar surface
+- Current Windows default render endpoint for master volume and mute
+- Per-user notification-area lifetime and optional sign-in startup
 
-## Hardware-dependent capabilities
+## Bluetooth audio
 
-Bluetooth一覧はpaired association endpoint、MMDevice、Container IDの一致を読み取り専用で確認する。直接の接続／切断は対象driverが安全なKS Reconnect／Disconnect propertyを両方向とも公開する場合だけ有効になる。接続後の既定出力化は対象stereo render endpointを一意に確認できた場合だけConsole／Multimediaへ適用する。未対応または不確実な機器ではWindows Bluetooth／Sound settingsを案内し、推測したmutationを送らない。
+QuickPods combines paired association data, Windows audio endpoints, and physical-device identity. Direct connection and disconnection are enabled only when the selected device's driver exposes a supported, unambiguous operation.
 
-参照するAirPods／MediaTek環境では、Issue #38で単一行列挙、同一ContainerのRender／Capture集約、選択復元と外部状態追従を確認し、Issue #41で直接接続／切断、Console／Multimedia既定出力、選択外影響0を確認した。別のBluetooth driverは同じ機器単位capability判定を通り、未対応ならWindows設定へ縮退する。RDPのRemote AudioはローカルBluetooth inventoryではないため、RDP中は物理対応判定を行わない。
+Devices may expose A2DP render, Hands-Free capture/render, transport, and other endpoints. QuickPods groups these into one user-visible row and targets the verified stereo render endpoint for default-output behavior.
 
-## Display baseline
+Hardware and drivers differ. Unsupported or uncertain devices remain visible when possible but use Windows Bluetooth or Sound Settings for mutation. RDP Remote Audio is not considered local Bluetooth inventory.
 
-タスクバー表示は中央揃えだけをsupportする。左揃え、taskbar evidenceが不完全な状態、空き領域が安全に証明できない状態では、taskbar surfaceを表示せず通知領域へfallbackする。Windows 11が提示する100、125、150、175、200、225、250、300、350%のlive DPI切替、通常Light／Dark／System theme、実ログイン自動起動はlocal-consoleで合格した。High Contrast追加追試は最終Gateから除外しており、mixed-DPI monitor移動とmonitor hot-plugの包括的matrixも本受入では主張しない。
+## Display and shell
+
+QuickPods supports normal Windows light, dark, and system themes and common Windows 11 DPI values. The taskbar host validates physical-pixel geometry for the active monitor and Explorer generation.
+
+Left-aligned taskbars do not show the embedded surface. Incomplete taskbar identity, geometry, monitor, DPI, or obstacle evidence also hides the surface and keeps notification-area access available.
+
+Mixed-DPI moves, monitor hot-plug, Windows Insider builds, third-party taskbar replacements, and shell customization tools may require additional validation even when the general Windows baseline is met.

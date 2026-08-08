@@ -1,27 +1,40 @@
 # QuickPods per-user MSI
 
-`QuickPods.Setup`はWiX Toolset 6.0.2で、QuickPodsのself-contained `win-x64` payloadを昇格不要のユーザー単位MSIへ変換する。利用者が.NET Desktop Runtimeを別途インストールする必要はない。RC生成とMSI取込は、app-local host、CoreCLR、Windows Desktop framework、全runtime configの`includedFrameworks`をfail-closedで検証する。インストール先は`PerUserProgramFilesFolder\QuickPods`、ショートカットは現在のユーザーのスタートメニューである。
+`QuickPods.Setup` uses WiX Toolset 6 to package the self-contained `win-x64` payload as a per-user MSI.
 
-リポジトリrootから次を実行する。
+## Package behavior
+
+- Installs without elevation under the current user's Programs directory.
+- Creates a current-user Start menu shortcut.
+- Closes a running QuickPods instance during upgrade or uninstall.
+- Removes the QuickPods-owned sign-in startup value during a complete uninstall.
+- Preserves `%LocalAppData%\QuickPods` settings and logs.
+- Includes QuickPods and third-party legal notices in the payload.
+
+End users do not need to install .NET separately.
+
+## Build an unsigned test installer
+
+From the repository root:
 
 ```powershell
+dotnet restore QuickPods.sln --locked-mode
+dotnet restore installer/QuickPods.Setup/QuickPods.Setup.wixproj --locked-mode
 ./build/Publish-Installer.ps1 -Version 0.1.0-rc.1
 ```
 
-生成物は既定で`artifacts/installer`へ出力され、MSI、SHA-256、installer manifest、payload manifestを含む。MSI内部は`Test-InstallerPackage.ps1`により、per-user scope、必須file、upgrade identity、スタートメニューshortcut、更新／uninstall時のprocess終了policy、完全uninstall時のstartup解除commandを検証する。pre-releaseは正式版より低く、各RC／CI buildで単調増加できるWindows Installer versionへ写像する。ProductCodeは完全なartifact versionから決定的に生成するため、同一入力の再buildでpackage identityが変化しない。
+Outputs are written to `artifacts/installer` by default:
 
-WiX v6はbuild-time toolchainであり、QuickPods runtimeへ同梱しない。WiX v6にはOpen Source Maintenance Feeの条件が適用されるため、配布主体は利用時点の[公式条件](https://docs.firegiant.com/wix/osmf/)への適合をrelease前に確認する。WiX v7への更新ではEULAの明示承諾が必要なため、自動更新しない。
+- `QuickPods-<version>-win-x64.msi`
+- `SHA256SUMS.txt`
+- `installer-manifest.json`
+- `payload-artifact-manifest.json`
 
-RC MSIはコード署名証明書の準備まで未署名である。証明書や秘密鍵をrepositoryへ保存してはならず、正式releaseでは署名後に`Test-InstallerPackage.ps1 -RequireSignature`を通す。
+The build validates the self-contained runtime, installer scope, required files, deterministic package identity, Start menu shortcut, upgrade policy, and uninstall cleanup contract.
 
-正式releaseはGitHub Actionsの`release-signing` environmentへ次のsecretを登録し、`Signed release candidate` workflowを手動実行する。
+## Signing
 
-- `QUICKPODS_SIGNING_PFX_BASE64`：PFX全体をBase64化した値
-- `QUICKPODS_SIGNING_PFX_PASSWORD`：PFX password
-
-workflowは一時PFXをrunner tempへ復元し、PowerShellのcertificate objectからSHA-256 Authenticode署名とtimestampをMSIへ付与する。秘密鍵passwordを外部processのcommand lineへ渡さない。署名statusが`Valid`でなければartifact upload前に失敗し、PFXは成功／失敗にかかわらず削除する。通常のPR／push CIは引き続き未署名RCを作り、secretへアクセスしない。
-
-ローカルで署名経路を確認する場合もPFXはrepository外へ置き、passwordは`SecureString`として渡す。
+Do not publish an unsigned MSI as a stable release. Keep the PFX outside the repository and pass the password as a `SecureString`:
 
 ```powershell
 $password = Read-Host 'PFX password' -AsSecureString
@@ -32,9 +45,11 @@ $password = Read-Host 'PFX password' -AsSecureString
   -RequireSignature
 ```
 
-## Clean lifecycle gate
+The GitHub `Signed release` workflow uses protected environment secrets and removes its temporary certificate file even when the job fails. See the [release guide](../docs/release/README.md).
 
-通常利用中のWindows accountでは実行しない。QuickPodsを一度も使用していない、非昇格の標準userを持つ使い捨てWindows 11 VM／test accountで、旧版と新版を別directoryへ生成してから次を実行する。
+## Lifecycle validation
+
+Run lifecycle tests only in a disposable Windows 11 VM or test account where QuickPods has never stored real user data:
 
 ```powershell
 ./build/Publish-Installer.ps1 -OutputDirectory artifacts/msi-lifecycle/previous -Version 0.1.0-ci.1
@@ -46,4 +61,8 @@ $password = Read-Host 'PFX password' -AsSecureString
   -ConfirmDisposableEnvironment
 ```
 
-検証器は既存のinstall、process、startup登録、user dataを検出した場合は変更前に停止する。旧版install、常駐中のMajor Upgrade、startup設定保持、新版常駐中の完全uninstall、process／binary／shortcut／registration残骸0件、startup intent解除、user data保持、無関係なRun値の保持を一つのfocused gateとして確認する。MSI詳細logにはlocal pathやaccount情報が含まれ得るためrepositoryへ保存せず、sanitized `result.json`だけを確認後に試験記録へ転記する。
+The verifier refuses to start when it detects an existing install, QuickPods process, startup registration, or user-data directory. MSI logs may contain local paths and account details; do not commit them.
+
+## WiX terms
+
+WiX is a build-time tool and is not shipped in the QuickPods runtime. Maintainers and distributors are responsible for reviewing the current WiX licensing and maintenance terms before producing release installers.

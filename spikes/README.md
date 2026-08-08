@@ -1,14 +1,14 @@
 # Technical spikes
 
-Phase 0 feasibility projects live under this directory. Each spike must remain isolated from production projects and record its environment, measurements, and decision under `docs/validation/phase-0/`.
+This directory retains isolated feasibility projects that informed QuickPods architecture. They are historical engineering references, not shipped product components or supported command-line tools.
 
-Planned spikes:
+| Project | Research area |
+|---|---|
+| `QuickPods.Spike.CoreAudio` | Core Audio endpoint, volume, mute, notifications, and restoration |
+| `QuickPods.Spike.BluetoothKs` | Bluetooth audio discovery and bounded kernel-streaming operations |
+| `QuickPods.Spike.DefaultEndpointPolicy` | Windows default-output compatibility boundary |
+| `QuickPods.Spike.TaskbarHost` | Windows 11 taskbar discovery, placement, rendering, and recovery |
 
-- `QuickPods.Spike.CoreAudio`
-- `QuickPods.Spike.BluetoothKs`
-- `QuickPods.Spike.DefaultEndpointPolicy`
-- `QuickPods.Spike.TaskbarHost`
+The spikes remain in the solution because their pure logic and safety contracts have regression tests. Production behavior lives under `src/` and may have evolved beyond a spike.
 
-Each spike branch contains only its own diagnostic until the focused pull request is integrated into `main`.
-
-Spike code is evidence, not production code. Product implementations must be written from the validated behavior and contracts rather than promoted directly from a spike.
+Some commands can change audio, Bluetooth, Explorer, or default-device state. Read the relevant source and local README before running one. Do not commit generated logs, raw device identifiers, window handles, process identifiers, or machine-specific evidence.

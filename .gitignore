@@ -22,6 +22,11 @@ packages/
 .nuget/
 *.nupkg
 *.snupkg
+*.msi
+*.msix
+*.appx
+*.appxbundle
+*.zip
 
 # Runtime and diagnostic output
 logs/
@@ -39,11 +44,9 @@ logs/
 *.pem
 *.key
 *.snk
-
-# Sanitized validation evidence may be committed intentionally.
-!docs/validation/**/logs/
-!docs/validation/**/logs/**/*.jsonl
-!docs/validation/**/logs/**/*.txt
+*.cer
+*.pubxml
+*.publishsettings
 
 # OS metadata
 Thumbs.db

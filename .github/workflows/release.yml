@@ -1,4 +1,4 @@
-name: Signed release candidate
+name: Signed release
 
 on:
   workflow_dispatch:
@@ -51,6 +51,7 @@ jobs:
       - name: Audit, format, build, and test
         run: |
           ./build/Test-DependencyVulnerabilities.ps1
+          ./build/Test-RepositoryPublicReadiness.ps1
           dotnet format QuickPods.sln --verify-no-changes --no-restore --severity warn --verbosity minimal
           dotnet build QuickPods.sln -c Release --no-restore -p:ContinuousIntegrationBuild=true
           dotnet test QuickPods.sln -c Release --no-build --no-restore -- RunConfiguration.TreatNoTestsAsError=true

@@ -1,0 +1,43 @@
+name: Feature request
+description: Propose a focused improvement to QuickPods.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem should QuickPods solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the smallest useful behavior and how a user would interact with it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Include existing Windows features or workarounds when relevant.
+
+  - type: textarea
+    id: safety
+    attributes:
+      label: Windows and device safety
+      description: Could this affect unrelated audio devices, Bluetooth hardware, taskbar layout, startup, or installation state?
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: I searched existing issues and pull requests for this request.
+          required: true
+        - label: This request is specific to QuickPods rather than general Windows or hardware support.
+          required: true

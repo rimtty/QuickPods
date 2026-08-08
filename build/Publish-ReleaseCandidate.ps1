@@ -85,6 +85,7 @@ $requiredExecutables = @($selfContainedProof.Executables)
 
 $dotnetRoot = Split-Path -Parent (Get-Command dotnet).Source
 $legalFiles = [ordered]@{
+    (Join-Path $repositoryRoot "LICENSE") = "LICENSE"
     (Join-Path $repositoryRoot "ThirdPartyNotices.txt") = "ThirdPartyNotices.txt"
     (Join-Path $dotnetRoot "LICENSE.txt") = "DOTNET-LICENSE.txt"
     (Join-Path $dotnetRoot "ThirdPartyNotices.txt") = "DOTNET-THIRD-PARTY-NOTICES.txt"
