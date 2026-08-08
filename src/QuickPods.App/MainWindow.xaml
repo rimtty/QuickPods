@@ -154,15 +154,25 @@
                                    Visibility="Collapsed"
                                    Text="既定の出力を確認しています…" />
                     </StackPanel>
-                    <Button x:Name="RefreshButton"
-                            Grid.Column="1"
-                            AutomationProperties.Name="オーディオとBluetoothデバイスを更新"
-                            Click="OnRefresh"
-                            Style="{StaticResource QuickPodsHeaderIconButtonStyle}">
-                        <TextBlock FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
-                                   FontSize="19"
-                                   Text="&#xE72C;" />
-                    </Button>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button x:Name="QuickPodsSettingsButton"
+                                AutomationProperties.Name="QuickPodsの設定を開く"
+                                Click="OnOpenQuickPodsSettings"
+                                Style="{StaticResource QuickPodsHeaderIconButtonStyle}">
+                            <TextBlock FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="19"
+                                       Text="&#xE713;" />
+                        </Button>
+                        <Button x:Name="RefreshButton"
+                                Margin="4,0,0,0"
+                                AutomationProperties.Name="オーディオとBluetoothデバイスを更新"
+                                Click="OnRefresh"
+                                Style="{StaticResource QuickPodsHeaderIconButtonStyle}">
+                            <TextBlock FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="19"
+                                       Text="&#xE72C;" />
+                        </Button>
+                    </StackPanel>
                 </Grid>
 
                 <TextBlock x:Name="BluetoothSectionTitle"
@@ -411,7 +421,7 @@
                             <TextBlock Margin="0,0,8,0"
                                        FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
                                        FontSize="17"
-                                       Text="&#xE713;" />
+                                       Text="{x:Static contracts:FluentAudioGlyphs.Speaker}" />
                             <TextBlock FontSize="13" Text="サウンド設定を開く" />
                         </StackPanel>
                     </Button>

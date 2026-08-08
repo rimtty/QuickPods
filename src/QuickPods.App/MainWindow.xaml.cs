@@ -433,6 +433,9 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnOpenQuickPodsSettings(object sender, RoutedEventArgs eventArgs) =>
+        ShowSettingsWindow();
+
     private void OnOpenBluetoothSettings(object sender, RoutedEventArgs eventArgs)
     {
         if (!settingsLauncher.TryOpenBluetoothSettings())
