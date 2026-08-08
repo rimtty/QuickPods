@@ -5,6 +5,8 @@ param(
 
     [string]$ExpectedVersion = "0.1.0",
 
+    [string]$ExpectedLanguage = "1033",
+
     [string]$ExpectedPackageCode,
 
     [switch]$RequireSignature
@@ -113,6 +115,9 @@ try {
     if ($properties.ProductVersion -ne $ExpectedVersion) {
         throw "Unexpected ProductVersion: $($properties.ProductVersion)"
     }
+    if ($properties.ProductLanguage -ne $ExpectedLanguage) {
+        throw "Unexpected ProductLanguage: $($properties.ProductLanguage)"
+    }
     if ($properties.ALLUSERS) {
         throw "ALLUSERS must be absent for the fixed per-user package."
     }
@@ -164,6 +169,10 @@ try {
         "hostpolicy.dll",
         "coreclr.dll",
         "PresentationFramework.dll",
+        "LICENSE",
+        "ThirdPartyNotices.txt",
+        "DOTNET-LICENSE.txt",
+        "DOTNET-THIRD-PARTY-NOTICES.txt",
         "artifact-manifest.json"
     )) {
         if (-not ($files | Where-Object { ($_[1] -split '\|')[-1] -eq $requiredFile })) {
@@ -224,6 +233,7 @@ try {
     [pscustomobject]@{
         InstallerPath = $resolvedInstaller
         ProductVersion = $properties.ProductVersion
+        ProductLanguage = $properties.ProductLanguage
         PackageCode = $summaryPackageCode
         Scope = "perUser"
         FileCount = $files.Count

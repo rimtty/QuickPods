@@ -234,6 +234,7 @@ $manifest = [ordered]@{
     packageCode = $packageCode
     allowsSameVersionUpgrade = $false
     architecture = "x64"
+    productLanguage = 1033
     scope = "perUser"
     requiresElevation = $false
     signed = $signature.Status -eq [System.Management.Automation.SignatureStatus]::Valid
@@ -251,6 +252,7 @@ Copy-Item `
 & (Join-Path $PSScriptRoot "Test-InstallerPackage.ps1") `
     -InstallerPath $installerPath `
     -ExpectedVersion $packageVersion `
+    -ExpectedLanguage "1033" `
     -ExpectedPackageCode $packageCode `
     -RequireSignature:$signatureRequired
 

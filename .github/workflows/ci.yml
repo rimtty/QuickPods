@@ -3,13 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
   pull_request:
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
   workflow_dispatch:
 
 permissions:
@@ -59,6 +53,9 @@ jobs:
 
       - name: Audit NuGet vulnerabilities
         run: ./build/Test-DependencyVulnerabilities.ps1
+
+      - name: Verify repository public readiness
+        run: ./build/Test-RepositoryPublicReadiness.ps1
 
       - name: Verify formatting
         run: dotnet format QuickPods.sln --verify-no-changes --no-restore --severity warn --verbosity minimal

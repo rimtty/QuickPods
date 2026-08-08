@@ -1,32 +1,9 @@
-# QuickPods Default Endpoint Policy Spike
+# Default-output policy feasibility project
 
-This Phase 0D spike isolates the Windows default-output compatibility boundary required after a selected Bluetooth device is independently verified as connected.
+This historical project isolates the Windows compatibility boundary used to make a verified render endpoint the Console and Multimedia default output.
 
-The spike defines and verifies these fail-closed rules:
+Microsoft does not publish a general desktop API for setting the default audio endpoint. The spike therefore keeps the policy interface narrow, resolves a unique target, subscribes before mutation, reads state back afterward, and leaves the Communications role unchanged.
 
-- only one active stereo render endpoint from the selected physical Container is eligible;
-- Hands-Free, capture, inactive, missing, and ambiguous endpoints are rejected;
-- only Console and Multimedia may be changed;
-- a write is not successful until the matching generation notification and read-back agree;
-- Communications must remain unchanged;
-- already-default is idempotent, and partial or superseded work remains visible in the result.
+It is not the production implementation. Current product code lives in `src/QuickPods.Windows/Audio` and `src/QuickPods.Windows/Bluetooth`.
 
-The Windows adapter isolates the undocumented `IPolicyConfig::SetDefaultEndpoint`
-vtable, registers `IMMNotificationClient` before each write, and verifies the
-result through both notification and MMDevice read-back. The compatibility
-boundary is never used by `inventory` or `probe`.
-
-Commands:
-
-- `inventory` lists only report-scoped Container/Endpoint aliases, state,
-  form-factor classification, and current default roles. It does not create the
-  mutation adapter.
-- `probe` activates the isolated COM boundary and reads whether each default
-  role exists. It does not call `SetDefaultEndpoint`.
-- `apply --session TOKEN --container ALIAS --confirm-container ALIAS
-  --confirm-default-endpoint-operation` resolves exactly one current active
-  stereo render Endpoint and may write only Console and Multimedia.
-
-`apply` remains an explicit Gate command. Do not run it until the selected
-Bluetooth Container is independently verified as connected and the operator is
-ready to observe and restore the prior defaults.
+Only run mutation commands after reviewing the explicit confirmation requirements. Record sanitized results outside the repository and restore the previous default output after testing.

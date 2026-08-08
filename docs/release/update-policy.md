@@ -1,7 +1,12 @@
-# QuickPods 0.1.0 update policy
+# Update policy
 
-QuickPods 0.1.0はネットワークへ接続せず、自動更新を行わない。新しいversionはprivate GitHub repositoryの承認済みユーザー単位MSIとして提供し、利用者がchecksumを確認して明示的に実行する。診断用portable ZIPはインストール更新経路として扱わない。
+QuickPods currently uses manual MSI updates.
 
-更新時はQuickPodsを通知領域から終了し、新しいMSIを実行してから起動する。WiX Major Upgradeは旧packageをtransaction内で除去し、同じper-user install先へ新しいpayloadを導入する。`%LocalAppData%\QuickPods\settings.json`と`logs`はuser dataとして保持し、schema互換の範囲で再利用する。version downgradeはMSIで拒否する。更新失敗時はrollbackを確認できるよう、配布工程側で旧packageを保持する。
+1. Exit QuickPods from the notification-area menu.
+2. Verify the new installer's source, Authenticode signature, and published SHA-256 checksum.
+3. Run the newer MSI as the same Windows user.
+4. Start QuickPods and confirm settings, startup preference, and device behavior.
 
-初期releaseではbackground updater、scheduled task、service、管理者権限、外部telemetryを追加しない。将来自動更新を導入する場合は、署名、rollback、通信先、privacy、partial update失敗を別ADRと脅威modelで承認する。
+The WiX package performs a per-user major upgrade in the existing installation directory. User settings and logs under `%LocalAppData%\QuickPods` are preserved. Version downgrades are rejected.
+
+Maintainers must retain the previous supported installer for rollback testing. QuickPods does not download or execute updates automatically.

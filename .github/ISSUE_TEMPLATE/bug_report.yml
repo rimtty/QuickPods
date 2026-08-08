@@ -1,42 +1,29 @@
 name: Bug report
-description: Record a reproducible defect found during implementation or validation.
+description: Report a reproducible QuickPods defect.
 title: "[Bug]: "
+labels:
+  - bug
 body:
   - type: markdown
     attributes:
       value: |
-        Provide enough evidence to reproduce and verify the defect. Remove credentials, MAC addresses, full endpoint IDs, PnP IDs, and other private identifiers from logs and screenshots.
-
-  - type: dropdown
-    id: phase
-    attributes:
-      label: Phase
-      options:
-        - Phase 0 - Technical spikes
-        - Phase 1 - Solution foundation
-        - Phase 2 - Audio MVP
-        - Phase 3 - Taskbar Host and IPC
-        - Phase 4 - Bluetooth
-        - Phase 5 - Product UI and resilience
-        - Phase 6 - Release
-    validations:
-      required: true
+        Thank you for reporting a problem. Remove credentials, account details, Bluetooth addresses, full Container/PnP/Endpoint IDs, and unrelated private information from logs and screenshots.
 
   - type: textarea
     id: summary
     attributes:
       label: Summary
-      description: Describe the observed problem and its impact.
+      description: What happened, and how does it affect you?
     validations:
       required: true
 
   - type: textarea
     id: reproduction
     attributes:
-      label: Reproduction steps
+      label: Steps to reproduce
       placeholder: |
         1. Start QuickPods...
-        2. Perform...
+        2. Select...
         3. Observe...
     validations:
       required: true
@@ -49,36 +36,49 @@ body:
       required: true
 
   - type: textarea
-    id: actual
-    attributes:
-      label: Actual behavior
-    validations:
-      required: true
-
-  - type: textarea
     id: environment
     attributes:
       label: Environment
-      description: Include the commit, branch, Windows build, DPI, adapter and driver versions when relevant.
+      description: Include only information relevant to reproduction.
       placeholder: |
-        Commit:
-        Branch:
-        Windows build:
-        .NET SDK:
-        Hardware/driver:
+        QuickPods version or commit:
+        Windows edition and build:
+        Display scale and taskbar alignment:
+        Bluetooth device and driver (if relevant):
+        Local console or Remote Desktop:
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected area
+      options:
+        - Audio volume or mute
+        - Bluetooth device list
+        - Bluetooth connect or disconnect
+        - Default audio output
+        - Taskbar surface or flyout
+        - Settings, startup, or tray
+        - Installer, update, or uninstall
+        - Other
     validations:
       required: true
 
   - type: textarea
     id: evidence
     attributes:
-      label: Sanitized evidence
-      description: Add logs, measurements, screenshots, or links to validation records.
+      label: Sanitized diagnostics
+      description: Paste the smallest useful excerpt or attach reviewed screenshots.
 
   - type: checkboxes
-    id: privacy
+    id: checklist
     attributes:
-      label: Privacy check
+      label: Checklist
       options:
-        - label: I removed credentials and full private device identifiers from the evidence.
+        - label: I reproduced this with the latest release or current `main` build.
+          required: true
+        - label: I reviewed every attachment and removed private identifiers and secrets.
+          required: true
+        - label: This is not a security vulnerability; security reports follow `SECURITY.md`.
           required: true

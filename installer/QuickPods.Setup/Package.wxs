@@ -8,7 +8,7 @@
     Version="$(var.PackageVersion)"
     ProductCode="$(var.PackageProductCode)"
     UpgradeCode="C4CC3407-E68A-4EF0-9DB0-7CBE95768FC4"
-    Language="1041"
+    Language="1033"
     Scope="perUser"
     InstallerVersion="500"
     Compressed="yes">
