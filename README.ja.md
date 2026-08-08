@@ -15,6 +15,8 @@
   <a href="CONTRIBUTING.md">コントリビューション</a>
 </p>
 
+![QuickPodsのBluetoothオーディオ選択画面、タスクバー操作バー、設定画面](docs/assets/screenshots/quickpods-overview.png)
+
 > [!IMPORTANT]
 > 一般公開するポータブルZIPは現在未署名で、Microsoft Defender SmartScreenの警告が表示される場合があります。このリポジトリのReleasesページからのみダウンロードし、公開されたSHA-256チェックサムを確認してください。コード署名を利用できるまではMSIを配布しません。
 

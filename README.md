@@ -22,6 +22,8 @@
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
+![QuickPods Bluetooth audio flyout, taskbar control, and Settings window](docs/assets/screenshots/quickpods-overview.png)
+
 > [!IMPORTANT]
 > The public portable ZIP is currently unsigned and may trigger a Microsoft Defender SmartScreen warning. Download it only from this repository's Releases page and verify its published SHA-256 checksum. An MSI installer is not distributed until code signing is available.
 
