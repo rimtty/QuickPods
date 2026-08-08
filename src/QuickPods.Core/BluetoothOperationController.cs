@@ -99,6 +99,9 @@ public sealed class BluetoothOperationController : IDisposable
             var target = new BluetoothOperationTarget(
                 selected.DeviceKey,
                 catalogState.InventoryGeneration);
+            BluetoothAudioDeviceDescriptor[] otherConnectedDevices = [.. catalogState.Devices.Where(
+                device => device.DeviceKey != selected.DeviceKey &&
+                    device.ConnectionState == BluetoothConnectionState.Connected)];
             if (selected.Capability != BluetoothDeviceCapability.DirectControl)
             {
                 return PublishTerminal(
@@ -118,6 +121,7 @@ public sealed class BluetoothOperationController : IDisposable
                         action,
                         target,
                         selected,
+                        otherConnectedDevices,
                         setConnectedDeviceAsDefault,
                         cancellationToken),
                     cancellationToken).ConfigureAwait(false);
@@ -160,6 +164,7 @@ public sealed class BluetoothOperationController : IDisposable
         BluetoothRequestedAction action,
         BluetoothOperationTarget target,
         BluetoothAudioDeviceDescriptor selected,
+        IReadOnlyList<BluetoothAudioDeviceDescriptor> otherConnectedDevices,
         bool setConnectedDeviceAsDefault,
         CancellationToken cancellationToken) =>
         action switch
@@ -167,6 +172,7 @@ public sealed class BluetoothOperationController : IDisposable
             BluetoothRequestedAction.Connect => ConnectAsync(
                 target,
                 selected,
+                otherConnectedDevices,
                 setConnectedDeviceAsDefault,
                 cancellationToken),
             BluetoothRequestedAction.Disconnect => DisconnectAsync(
@@ -179,6 +185,7 @@ public sealed class BluetoothOperationController : IDisposable
     private async ValueTask<BluetoothOperationSnapshot> ConnectAsync(
         BluetoothOperationTarget target,
         BluetoothAudioDeviceDescriptor selected,
+        IReadOnlyList<BluetoothAudioDeviceDescriptor> otherConnectedDevices,
         bool setConnectedDeviceAsDefault,
         CancellationToken cancellationToken)
     {
@@ -328,13 +335,91 @@ public sealed class BluetoothOperationController : IDisposable
                 QuickPodsErrorCode.DefaultOutputSwitchFailed);
         }
 
-        return PublishTerminal(
+        return await DisconnectOtherConnectedDevicesAsync(
             target,
+            DefaultOutputState.Default,
+            otherConnectedDevices,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask<BluetoothOperationSnapshot> DisconnectOtherConnectedDevicesAsync(
+        BluetoothOperationTarget selectedTarget,
+        DefaultOutputState selectedOutput,
+        IReadOnlyList<BluetoothAudioDeviceDescriptor> otherConnectedDevices,
+        CancellationToken cancellationToken)
+    {
+        if (otherConnectedDevices.Count == 0)
+        {
+            return PublishTerminal(
+                selectedTarget,
+                BluetoothRequestedAction.Connect,
+                BluetoothOperationOutcome.Succeeded,
+                BluetoothConnectionState.Connected,
+                selectedOutput,
+                null);
+        }
+
+        Publish(
+            selectedTarget,
+            BluetoothRequestedAction.Connect,
+            QuickPodsOperation.DisconnectingOtherDevices,
+            BluetoothOperationOutcome.InProgress,
+            BluetoothConnectionState.Connected,
+            selectedOutput,
+            null);
+
+        bool cleanupFailed = false;
+        foreach (BluetoothAudioDeviceDescriptor device in otherConnectedDevices)
+        {
+            if (!IsCurrent(selectedTarget))
+            {
+                return PublishSuperseded(
+                    selectedTarget,
+                    BluetoothRequestedAction.Connect,
+                    BluetoothConnectionState.Connected,
+                    selectedOutput);
+            }
+
+            if (device.Capability != BluetoothDeviceCapability.DirectControl)
+            {
+                cleanupFailed = true;
+                continue;
+            }
+
+            BluetoothDeviceOperationResult result;
+            try
+            {
+                result = await bluetooth.DisconnectAsync(
+                    new BluetoothOperationTarget(
+                        device.DeviceKey,
+                        selectedTarget.InventoryGeneration),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return PublishCancelled(
+                    selectedTarget,
+                    BluetoothRequestedAction.Connect,
+                    BluetoothConnectionState.Connected,
+                    selectedOutput);
+            }
+            catch
+            {
+                cleanupFailed = true;
+                continue;
+            }
+
+            cleanupFailed |= result.ConnectionState != BluetoothConnectionState.Disconnected ||
+                result.Failure != BluetoothMutationFailure.None;
+        }
+
+        return PublishTerminal(
+            selectedTarget,
             BluetoothRequestedAction.Connect,
             BluetoothOperationOutcome.Succeeded,
             BluetoothConnectionState.Connected,
-            DefaultOutputState.Default,
-            null);
+            selectedOutput,
+            cleanupFailed ? QuickPodsErrorCode.OtherBluetoothDevicesStillConnected : null);
     }
 
     private async ValueTask<BluetoothOperationSnapshot> DisconnectAsync(

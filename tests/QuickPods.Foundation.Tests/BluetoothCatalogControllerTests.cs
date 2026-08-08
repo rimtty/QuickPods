@@ -153,7 +153,7 @@ public sealed class BluetoothCatalogControllerTests
     }
 
     [Fact]
-    public async Task SelectionPersistsWithoutAnyMutationPort()
+    public async Task SelectionPersistsWithoutMutationOrReordering()
     {
         var port = new QueueCatalogPort();
         port.Enqueue(
@@ -163,14 +163,17 @@ public sealed class BluetoothCatalogControllerTests
                 BluetoothEndpointAvailability.Active, BluetoothDeviceCapability.DirectControl));
         var selection = new MemorySelectionStore();
         await using var controller = new BluetoothCatalogController(port, selection);
-        await controller.InitializeAsync();
+        BluetoothAudioCatalogSnapshot initial = await controller.InitializeAsync();
 
         BluetoothAudioCatalogSnapshot state = await controller.SelectAsync(DeviceA);
 
         Assert.Equal(DeviceA, selection.Selected);
         Assert.Equal(DeviceA, state.SelectedDeviceKey);
         Assert.True(state.SelectedDevicePresent);
-        Assert.Equal(DeviceA, state.Devices[0].DeviceKey);
+        Assert.Equal(
+            initial.Devices.Select(device => device.DeviceKey),
+            state.Devices.Select(device => device.DeviceKey));
+        Assert.Equal(DeviceB, state.Devices[0].DeviceKey);
         Assert.Equal(1, port.DiscoveryCalls);
     }
 
