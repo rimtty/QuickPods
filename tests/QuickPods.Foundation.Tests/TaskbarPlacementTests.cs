@@ -1,3 +1,4 @@
+using QuickPods.Contracts;
 using QuickPods.TaskbarHost.Geometry;
 using QuickPods.TaskbarHost.Placement;
 using Xunit;
@@ -7,7 +8,7 @@ namespace QuickPods.Foundation.Tests;
 public sealed class TaskbarPlacementTests
 {
     [Fact]
-    public void CompleteCenteredTaskbarChoosesStandardPlacementWithoutOverlap()
+    public void NotificationAreaLeftChoosesTrayAdjacentStandardPlacementWithoutOverlap()
     {
         TaskbarLayoutObservation observation = Observation(
             taskbar: new PixelRect(0, 0, 3840, 48),
@@ -34,6 +35,24 @@ public sealed class TaskbarPlacementTests
     }
 
     [Fact]
+    public void TaskbarLeftRetainsPreviousCenteredGapBehavior()
+    {
+        TaskbarLayoutObservation observation = Observation(
+            taskbar: new PixelRect(0, 0, 3840, 48),
+            start: new PixelRect(1568, 0, 1613, 48),
+            widgets: new PixelRect(6, 0, 158, 48),
+            obstacles: [new PixelRect(500, 0, 760, 48)]);
+
+        TaskbarPlacementResult result = SafeRegionPlanner.Calculate(
+            observation,
+            TaskbarPlacementOptions.Default,
+            TaskbarPlacementMode.TaskbarLeft);
+
+        Assert.Equal(PlacementDecision.Place, result.Decision);
+        Assert.Equal(new PixelRect(1014, 4, 1314, 44), result.Bounds);
+    }
+
+    [Fact]
     public void LeftAlignedStartPlacesSurfaceImmediatelyBeforeNotificationArea()
     {
         TaskbarLayoutObservation observation = Observation(
@@ -42,7 +61,8 @@ public sealed class TaskbarPlacementTests
 
         TaskbarPlacementResult result = SafeRegionPlanner.Calculate(
             observation,
-            TaskbarPlacementOptions.Default);
+            TaskbarPlacementOptions.Default,
+            TaskbarPlacementMode.NotificationAreaLeft);
 
         Assert.Equal(PlacementDecision.Place, result.Decision);
         Assert.Equal(TaskbarStripMode.Standard, result.Mode);
@@ -50,11 +70,29 @@ public sealed class TaskbarPlacementTests
         Assert.True(SafeRegionPlanner.IsExistingPlacementSafe(
             observation,
             TaskbarPlacementOptions.Default,
-            result.Bounds!.Value));
+            result.Bounds!.Value,
+            TaskbarPlacementMode.NotificationAreaLeft));
         Assert.False(SafeRegionPlanner.IsExistingPlacementSafe(
             observation,
             TaskbarPlacementOptions.Default,
-            new PixelRect(100, 4, 400, 44)));
+            new PixelRect(100, 4, 400, 44),
+            TaskbarPlacementMode.NotificationAreaLeft));
+    }
+
+    [Fact]
+    public void TaskbarLeftKeepsLeftAlignedTaskbarUnsupported()
+    {
+        TaskbarLayoutObservation observation = Observation(
+            taskbar: new PixelRect(0, 0, 1920, 48),
+            start: new PixelRect(0, 0, 45, 48));
+
+        TaskbarPlacementResult result = SafeRegionPlanner.Calculate(
+            observation,
+            TaskbarPlacementOptions.Default,
+            TaskbarPlacementMode.TaskbarLeft);
+
+        Assert.Equal(PlacementDecision.UnsupportedConfiguration, result.Decision);
+        Assert.Equal(PlacementReason.UnsupportedAlignment, result.Reason);
     }
 
     [Fact]
@@ -67,7 +105,8 @@ public sealed class TaskbarPlacementTests
 
         TaskbarPlacementResult result = SafeRegionPlanner.Calculate(
             observation,
-            TaskbarPlacementOptions.Default);
+            TaskbarPlacementOptions.Default,
+            TaskbarPlacementMode.NotificationAreaLeft);
 
         Assert.Equal(PlacementDecision.VerifiedNoFit, result.Decision);
         Assert.Equal(PlacementReason.InsufficientWidth, result.Reason);
@@ -114,7 +153,8 @@ public sealed class TaskbarPlacementTests
 
         TaskbarPlacementResult result = SafeRegionPlanner.Calculate(
             observation,
-            TaskbarPlacementOptions.Default);
+            TaskbarPlacementOptions.Default,
+            TaskbarPlacementMode.NotificationAreaLeft);
 
         Assert.Equal(PlacementDecision.Place, result.Decision);
         Assert.Equal(expectedWidth, result.Bounds?.Width);
@@ -135,7 +175,8 @@ public sealed class TaskbarPlacementTests
 
         TaskbarPlacementResult result = SafeRegionPlanner.Calculate(
             observation,
-            TaskbarPlacementOptions.Default);
+            TaskbarPlacementOptions.Default,
+            TaskbarPlacementMode.NotificationAreaLeft);
 
         Assert.Equal(PlacementDecision.Place, result.Decision);
         Assert.Equal(TaskbarStripMode.Compact, result.Mode);

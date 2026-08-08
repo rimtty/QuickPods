@@ -63,7 +63,8 @@ public sealed class JsonSettingsStoreTests
                 MouseWheelStepPercent: 5,
                 Theme: QuickPodsThemeMode.Light,
                 Language: QuickPodsLanguageMode.Japanese,
-                ConfirmBluetoothDisconnect: true);
+                ConfirmBluetoothDisconnect: true,
+                TaskbarPlacement: QuickPodsTaskbarPlacement.NotificationAreaLeft);
 
             await store.SaveAsync(expected);
             QuickPodsSettings? actual = await store.LoadAsync();
@@ -105,13 +106,16 @@ public sealed class JsonSettingsStoreTests
 
             QuickPodsSettings migrated = await settings.LoadSettingsAsync();
 
-            Assert.Equal(1, migrated.SchemaVersion);
+            Assert.Equal(2, migrated.SchemaVersion);
             Assert.Equal(QuickPodsDisplayMode.Auto, migrated.DisplayMode);
             Assert.True(migrated.SetConnectedDeviceAsDefault);
             Assert.Equal(2, migrated.MouseWheelStepPercent);
             Assert.Equal(QuickPodsThemeMode.System, migrated.Theme);
             Assert.Equal(QuickPodsLanguageMode.System, migrated.Language);
             Assert.False(migrated.ConfirmBluetoothDisconnect);
+            Assert.Equal(
+                QuickPodsTaskbarPlacement.NotificationAreaLeft,
+                migrated.TaskbarPlacement);
         }
         finally
         {
@@ -143,7 +147,8 @@ public sealed class JsonSettingsStoreTests
                 MouseWheelStepPercent: 10,
                 Theme: QuickPodsThemeMode.Dark,
                 Language: QuickPodsLanguageMode.English,
-                ConfirmBluetoothDisconnect: true));
+                ConfirmBluetoothDisconnect: true,
+                TaskbarPlacement: QuickPodsTaskbarPlacement.NotificationAreaLeft));
             using var selection = new JsonBluetoothSelectionStore(settings);
 
             await selection.SaveAsync(new BluetoothDeviceKey("bt-device"));
@@ -160,6 +165,9 @@ public sealed class JsonSettingsStoreTests
             Assert.Equal(QuickPodsThemeMode.Dark, actual.Theme);
             Assert.Equal(QuickPodsLanguageMode.English, actual.Language);
             Assert.True(actual.ConfirmBluetoothDisconnect);
+            Assert.Equal(
+                QuickPodsTaskbarPlacement.NotificationAreaLeft,
+                actual.TaskbarPlacement);
         }
         finally
         {

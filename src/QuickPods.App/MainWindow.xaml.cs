@@ -665,6 +665,7 @@ public partial class MainWindow : Window
         QuickPodsSettings saved = await settingsStore.UpdateSettingsAsync(current => current with
         {
             DisplayMode = requested.DisplayMode,
+            TaskbarPlacement = requested.TaskbarPlacement,
             Theme = requested.Theme,
             Language = requested.Language,
             MouseWheelStepPercent = requested.MouseWheelStepPercent,
@@ -822,6 +823,9 @@ public partial class MainWindow : Window
         _ = builder.AppendLine(
             CultureInfo.InvariantCulture,
             $"Display mode: {productSettings.DisplayMode}");
+        _ = builder.AppendLine(
+            CultureInfo.InvariantCulture,
+            $"Taskbar placement: {productSettings.TaskbarPlacement}");
         _ = builder.AppendLine(CultureInfo.InvariantCulture, $"Theme: {productSettings.Theme}");
         _ = builder.AppendLine(
             CultureInfo.InvariantCulture,

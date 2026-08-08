@@ -1,3 +1,4 @@
+using QuickPods.Contracts;
 using QuickPods.TaskbarHost.Geometry;
 
 namespace QuickPods.TaskbarHost.Placement;
@@ -10,7 +11,8 @@ internal static class SafeRegionPlanner
 {
     public static TaskbarPlacementResult Calculate(
         TaskbarLayoutObservation? observation,
-        TaskbarPlacementOptions options)
+        TaskbarPlacementOptions options,
+        TaskbarPlacementMode placementMode = TaskbarPlacementMode.NotificationAreaLeft)
     {
         if (observation is null || !observation.IsComplete)
         {
@@ -23,12 +25,28 @@ internal static class SafeRegionPlanner
         }
 
         if (!options.IsValid ||
+            !Enum.IsDefined(placementMode) ||
             !TryValidateObservation(
                 observation,
-                out _,
+                out PixelRect startButton,
                 out PixelRect notificationArea))
         {
             return TaskbarPlacementResult.TransientUnknown(PlacementReason.InvalidGeometry);
+        }
+
+        if (placementMode == TaskbarPlacementMode.TaskbarLeft &&
+            IsLeftAligned(observation.TaskbarBounds, startButton))
+        {
+            return TaskbarPlacementResult.UnsupportedConfiguration(
+                PlacementReason.UnsupportedAlignment);
+        }
+
+        if (placementMode == TaskbarPlacementMode.TaskbarLeft &&
+            observation.WidgetsButtonBounds is PixelRect widgets &&
+            widgets.Right > startButton.Left)
+        {
+            return TaskbarPlacementResult.TransientUnknown(
+                PlacementReason.ContradictoryLandmarks);
         }
 
         if (!TryConvertMetrics(observation.Dpi, options, out PlacementMetrics metrics))
@@ -48,8 +66,10 @@ internal static class SafeRegionPlanner
 
         CandidateLaneStatus candidateStatus = TryCreateCandidateLane(
             observation,
+            startButton,
             notificationArea,
             metrics.Margin,
+            placementMode,
             out PixelInterval candidateLane);
         if (candidateStatus == CandidateLaneStatus.Overflow)
         {
@@ -72,9 +92,10 @@ internal static class SafeRegionPlanner
             return TaskbarPlacementResult.TransientUnknown(PlacementReason.ConversionFailed);
         }
 
-        if (!TryFindRightmostFittingGap(
+        if (!TrySelectGap(
                 gaps,
                 metrics.CompactMinimumWidth,
+                placementMode,
                 out PixelInterval selectedGap))
         {
             return TaskbarPlacementResult.VerifiedNoFit(PlacementReason.InsufficientWidth);
@@ -84,8 +105,10 @@ internal static class SafeRegionPlanner
             ? TaskbarStripMode.Standard
             : TaskbarStripMode.Compact;
         int width = mode == TaskbarStripMode.Standard ? metrics.StandardWidth : selectedGap.Length;
-        long right = selectedGap.End;
-        long left = right - width;
+        long left = placementMode == TaskbarPlacementMode.NotificationAreaLeft
+            ? (long)selectedGap.End - width
+            : (long)selectedGap.Start + ((long)selectedGap.Length - width) / 2;
+        long right = left + width;
         if (left < int.MinValue || right > int.MaxValue)
         {
             return TaskbarPlacementResult.TransientUnknown(PlacementReason.ConversionFailed);
@@ -103,14 +126,15 @@ internal static class SafeRegionPlanner
     public static bool IsExistingPlacementSafe(
         TaskbarLayoutObservation? observation,
         TaskbarPlacementOptions options,
-        PixelRect existingBounds)
+        PixelRect existingBounds,
+        TaskbarPlacementMode placementMode = TaskbarPlacementMode.NotificationAreaLeft)
     {
         if (!existingBounds.IsValid)
         {
             return false;
         }
 
-        TaskbarPlacementResult desired = Calculate(observation, options);
+        TaskbarPlacementResult desired = Calculate(observation, options, placementMode);
         return desired.Decision == PlacementDecision.Place &&
             desired.Bounds == existingBounds;
     }
@@ -171,6 +195,12 @@ internal static class SafeRegionPlanner
         return true;
     }
 
+    private static bool IsLeftAligned(PixelRect taskbar, PixelRect startButton)
+    {
+        long leftGap = (long)startButton.Left - taskbar.Left;
+        return leftGap >= 0 && leftGap <= startButton.Width;
+    }
+
     private static bool TryCreateVerticalBand(
         PixelRect taskbar,
         int height,
@@ -190,13 +220,20 @@ internal static class SafeRegionPlanner
 
     private static CandidateLaneStatus TryCreateCandidateLane(
         TaskbarLayoutObservation observation,
+        PixelRect startButton,
         PixelRect notificationArea,
         int margin,
+        TaskbarPlacementMode placementMode,
         out PixelInterval lane)
     {
         lane = default;
-        long start = (long)observation.TaskbarBounds.Left + margin;
-        long end = (long)notificationArea.Left - margin;
+        long start = placementMode == TaskbarPlacementMode.NotificationAreaLeft
+            ? (long)observation.TaskbarBounds.Left + margin
+            : (observation.WidgetsButtonBounds?.Right ?? observation.TaskbarBounds.Left) +
+                (long)margin;
+        long end = placementMode == TaskbarPlacementMode.NotificationAreaLeft
+            ? (long)notificationArea.Left - margin
+            : (long)startButton.Left - margin;
         if (start < int.MinValue || start > int.MaxValue || end < int.MinValue || end > int.MaxValue)
         {
             return CandidateLaneStatus.Overflow;
@@ -298,9 +335,10 @@ internal static class SafeRegionPlanner
         return true;
     }
 
-    private static bool TryFindRightmostFittingGap(
+    private static bool TrySelectGap(
         IReadOnlyList<PixelInterval> gaps,
         int minimumWidth,
+        TaskbarPlacementMode placementMode,
         out PixelInterval selected)
     {
         selected = default;
@@ -311,7 +349,15 @@ internal static class SafeRegionPlanner
                 return false;
             }
 
-            if (gap.Length >= minimumWidth)
+            if (gap.Length < minimumWidth)
+            {
+                continue;
+            }
+
+            if (placementMode == TaskbarPlacementMode.NotificationAreaLeft ||
+                !selected.IsValid ||
+                gap.Length > selected.Length ||
+                (gap.Length == selected.Length && gap.Start < selected.Start))
             {
                 selected = gap;
             }

@@ -321,6 +321,28 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Style="{StaticResource SettingsRowLabelStyle}"
+                                           Text="{DynamicResource TaskbarPlacement}" />
+                                <TextBlock Style="{StaticResource SettingsSupportingTextStyle}"
+                                           Text="{DynamicResource SelectTaskbarPlacement}" />
+                            </StackPanel>
+                            <ComboBox x:Name="TaskbarPlacementComboBox"
+                                      Grid.Column="1"
+                                      VerticalAlignment="Center"
+                                      AutomationProperties.Name="{DynamicResource TaskbarPlacementAutomation}"
+                                      DisplayMemberPath="Text"
+                                      SelectedValuePath="Value"
+                                      SelectionChanged="OnProductSettingChanged"
+                                      Style="{StaticResource SettingsComboBoxStyle}" />
+                        </Grid>
+                        <Border Height="1" Background="{DynamicResource PanelBorderBrush}" />
+
+                        <Grid Height="50">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="250" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource SettingsRowLabelStyle}"
                                            Text="{DynamicResource Theme}" />
                                 <TextBlock Style="{StaticResource SettingsSupportingTextStyle}"
                                            Text="{DynamicResource AppAppearance}" />

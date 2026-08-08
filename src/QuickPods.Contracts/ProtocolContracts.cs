@@ -4,7 +4,7 @@ namespace QuickPods.Contracts;
 
 public static class QuickPodsProtocol
 {
-    public const int Version = 6;
+    public const int Version = 7;
 
     public const int MaximumMessageCharacters = 16 * 1024;
 }
@@ -27,6 +27,12 @@ public enum TaskbarLanguage
 {
     English,
     Japanese,
+}
+
+public enum TaskbarPlacementMode
+{
+    NotificationAreaLeft,
+    TaskbarLeft,
 }
 
 public enum HostInteractionKind
@@ -118,7 +124,8 @@ public sealed record TaskbarStateSnapshot(
     bool IsMuted,
     TaskbarDeviceView? SelectedDevice,
     TaskbarThemeMode Theme = TaskbarThemeMode.Dark,
-    TaskbarLanguage Language = TaskbarLanguage.English);
+    TaskbarLanguage Language = TaskbarLanguage.English,
+    TaskbarPlacementMode PlacementMode = TaskbarPlacementMode.NotificationAreaLeft);
 
 public sealed record HostStateEnvelope
 {
