@@ -20,6 +20,7 @@ public partial class SettingsWindow : Window
     private readonly Func<bool, Task<QuickPodsSettings>> updateStartup;
     private readonly Action openLogs;
     private readonly Func<string> createDiagnosticSummary;
+    private readonly Action restartApplication;
     private bool applyingSettings;
     private bool updatePending;
 
@@ -29,6 +30,7 @@ public partial class SettingsWindow : Window
         Func<bool, Task<QuickPodsSettings>> updateStartup,
         Action openLogs,
         Func<string> createDiagnosticSummary,
+        Action restartApplication,
         string version)
     {
         this.readSettings = readSettings ?? throw new ArgumentNullException(nameof(readSettings));
@@ -39,6 +41,8 @@ public partial class SettingsWindow : Window
         this.openLogs = openLogs ?? throw new ArgumentNullException(nameof(openLogs));
         this.createDiagnosticSummary = createDiagnosticSummary ??
             throw new ArgumentNullException(nameof(createDiagnosticSummary));
+        this.restartApplication = restartApplication ??
+            throw new ArgumentNullException(nameof(restartApplication));
         ArgumentException.ThrowIfNullOrWhiteSpace(version);
 
         InitializeComponent();
@@ -146,6 +150,26 @@ public partial class SettingsWindow : Window
             "設定を既定値に戻せませんでした");
     }
 
+    private void OnRestartApplication(object sender, RoutedEventArgs eventArgs)
+    {
+        if (applyingSettings || updatePending)
+        {
+            return;
+        }
+
+        ReportDiagnostic(string.Empty);
+        try
+        {
+            restartApplication();
+        }
+        catch (Exception exception)
+        {
+            ReportDiagnostic($"QuickPodsを再起動できませんでした: {exception.Message}");
+        }
+    }
+
+    private void OnCloseWindow(object sender, RoutedEventArgs eventArgs) => Close();
+
     private async Task<QuickPodsSettings> ResetEditableSettingsAsync()
     {
         QuickPodsSettings defaults = QuickPodsSettings.Default;
@@ -197,6 +221,7 @@ public partial class SettingsWindow : Window
         ConfirmBluetoothDisconnectCheckBox.IsEnabled = enabled;
         StartWithWindowsCheckBox.IsEnabled = enabled;
         ResetSettingsButton.IsEnabled = enabled;
+        RestartApplicationButton.IsEnabled = enabled;
     }
 
     private void InitializeChoices()

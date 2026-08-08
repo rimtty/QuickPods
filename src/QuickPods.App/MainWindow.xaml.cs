@@ -35,6 +35,7 @@ public partial class MainWindow : Window
     private readonly JsonBluetoothSelectionStore settingsStore;
     private readonly IStartupRegistration startupRegistration;
     private readonly ProductLifetimePolicy lifetimePolicy;
+    private readonly Action restartApplication;
     private readonly string logsDirectory;
     private bool applyingAudioState;
     private bool applyingBluetoothState;
@@ -62,6 +63,7 @@ public partial class MainWindow : Window
         JsonBluetoothSelectionStore settingsStore,
         IStartupRegistration startupRegistration,
         ProductLifetimePolicy lifetimePolicy,
+        Action restartApplication,
         string logsDirectory,
         string? startupDiagnostic)
     {
@@ -75,6 +77,8 @@ public partial class MainWindow : Window
             throw new ArgumentNullException(nameof(startupRegistration));
         this.lifetimePolicy = lifetimePolicy ??
             throw new ArgumentNullException(nameof(lifetimePolicy));
+        this.restartApplication = restartApplication ??
+            throw new ArgumentNullException(nameof(restartApplication));
         ArgumentException.ThrowIfNullOrWhiteSpace(logsDirectory);
         this.logsDirectory = Path.GetFullPath(logsDirectory);
         bluetoothRefreshing = bluetoothCatalog is not null;
@@ -129,6 +133,7 @@ public partial class MainWindow : Window
                 UpdateStartupSettingAsync,
                 OpenLogs,
                 CreateDiagnosticSummary,
+                restartApplication,
                 GetProductVersion());
             settingsWindow.Closed += OnSettingsWindowClosed;
         }
