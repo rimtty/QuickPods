@@ -34,12 +34,6 @@ $requiredRuntimeFiles = @(
     "coreclr.dll",
     "PresentationFramework.dll"
 )
-$requiredLegalFiles = @(
-    "LICENSE",
-    "ThirdPartyNotices.txt",
-    "DOTNET-LICENSE.txt",
-    "DOTNET-THIRD-PARTY-NOTICES.txt"
-)
 $runtimeConfigExpectations = [ordered]@{
     "QuickPods.runtimeconfig.json" = @(
         "Microsoft.NETCore.App",
@@ -63,7 +57,6 @@ $requiredFiles = @(
     $requiredManagedAssemblies
     $requiredDependencyManifests
     $requiredRuntimeFiles
-    $requiredLegalFiles
     $runtimeConfigExpectations.Keys
 )
 foreach ($requiredFile in $requiredFiles) {
@@ -130,7 +123,6 @@ foreach ($expectation in $runtimeConfigExpectations.GetEnumerator()) {
     ManagedAssemblies = $requiredManagedAssemblies
     DependencyManifests = $requiredDependencyManifests
     RuntimeFiles = $requiredRuntimeFiles
-    LegalFiles = $requiredLegalFiles
     RuntimeConfigs = @($runtimeConfigExpectations.Keys)
     IncludedFrameworks = [pscustomobject]$includedFrameworkVersions
 }

@@ -23,19 +23,24 @@ if ($outputRoot -eq $repositoryRoot) {
 }
 
 $payloadDirectory = Join-Path $outputRoot "QuickPods"
+$applicationDirectory = Join-Path $payloadDirectory "app"
+$licenseDirectory = Join-Path $payloadDirectory "licenses"
 $buildArtifactsDirectory = Join-Path $outputRoot ".build-artifacts"
+$launcherPublishDirectory = Join-Path $buildArtifactsDirectory "launcher-publish"
 if (Test-Path -LiteralPath $outputRoot) {
     Remove-Item -LiteralPath $outputRoot -Recurse -Force
 }
 
-New-Item -ItemType Directory -Path $payloadDirectory -Force | Out-Null
+New-Item -ItemType Directory -Path $applicationDirectory -Force | Out-Null
+New-Item -ItemType Directory -Path $licenseDirectory -Force | Out-Null
 
-$projects = @(
+$applicationProjects = @(
     "src/QuickPods.App/QuickPods.App.csproj",
     "src/QuickPods.TaskbarObserver/QuickPods.TaskbarObserver.csproj",
     "src/QuickPods.TaskbarHost/QuickPods.TaskbarHost.csproj",
     "src/QuickPods.BluetoothWorker/QuickPods.BluetoothWorker.csproj"
 )
+$launcherProject = "src/QuickPods.Launcher/QuickPods.Launcher.csproj"
 
 Push-Location $repositoryRoot
 try {
@@ -43,7 +48,7 @@ try {
         # The app project graph includes every shipped executable. The normal solution lock
         # files intentionally describe the framework-dependent build, so use RID-specific
         # locks under ignored obj directories and never rewrite the committed locks.
-        & dotnet restore $projects[0] `
+        & dotnet restore $applicationProjects[0] `
             --runtime win-x64 `
             --artifacts-path $buildArtifactsDirectory `
             -p:NuGetLockFilePath=obj/project.rc.packages.lock.json `
@@ -52,16 +57,26 @@ try {
         if ($LASTEXITCODE -ne 0) {
             throw "Release-candidate restore failed."
         }
+
+        & dotnet restore $launcherProject `
+            --runtime win-x64 `
+            --artifacts-path $buildArtifactsDirectory `
+            -p:NuGetLockFilePath=obj/project.rc.packages.lock.json `
+            -p:RestoreLockedMode=false `
+            -p:RestoreForceEvaluate=true
+        if ($LASTEXITCODE -ne 0) {
+            throw "Portable launcher restore failed."
+        }
     }
 
-    foreach ($project in $projects) {
+    foreach ($project in $applicationProjects) {
         & dotnet publish $project `
             --configuration Release `
             --runtime win-x64 `
             --self-contained true `
             --no-restore `
             --artifacts-path $buildArtifactsDirectory `
-            --output $payloadDirectory `
+            --output $applicationDirectory `
             -p:Version=$Version `
             -p:ContinuousIntegrationBuild=true `
             -p:DebugSymbols=false `
@@ -72,6 +87,28 @@ try {
             throw "Publish failed for $project."
         }
     }
+
+    & dotnet publish $launcherProject `
+        --configuration Release `
+        --runtime win-x64 `
+        --self-contained true `
+        --no-restore `
+        --artifacts-path $buildArtifactsDirectory `
+        --output $launcherPublishDirectory `
+        -p:Version=$Version `
+        -p:ContinuousIntegrationBuild=true `
+        -p:DebugSymbols=false `
+        -p:DebugType=None `
+        -p:PublishAot=true
+    if ($LASTEXITCODE -ne 0) {
+        throw "Publish failed for $launcherProject."
+    }
+
+    $launcherExecutable = Join-Path $launcherPublishDirectory "QuickPods.exe"
+    if (-not (Test-Path -LiteralPath $launcherExecutable -PathType Leaf)) {
+        throw "Native portable launcher was not produced."
+    }
+    Copy-Item -LiteralPath $launcherExecutable -Destination $payloadDirectory
 } finally {
     Pop-Location
     if (Test-Path -LiteralPath $buildArtifactsDirectory -PathType Container) {
@@ -91,12 +128,19 @@ foreach ($legalFile in $legalFiles.GetEnumerator()) {
         throw "Required legal file is missing: $($legalFile.Key)"
     }
 
-    Copy-Item -LiteralPath $legalFile.Key -Destination (Join-Path $payloadDirectory $legalFile.Value)
+    Copy-Item -LiteralPath $legalFile.Key -Destination (Join-Path $licenseDirectory $legalFile.Value)
 }
 
+Copy-Item `
+    -LiteralPath (Join-Path $repositoryRoot "packaging\PORTABLE-README.txt") `
+    -Destination (Join-Path $payloadDirectory "README.txt")
+
 $selfContainedProof = & (Join-Path $PSScriptRoot "Test-SelfContainedPayload.ps1") `
-    -PayloadDirectory $payloadDirectory
-$requiredExecutables = @($selfContainedProof.Executables)
+    -PayloadDirectory $applicationDirectory
+$requiredExecutables = @("QuickPods.exe") + @(
+    $selfContainedProof.Executables |
+        ForEach-Object { "app/$($_)" }
+)
 
 $executables = foreach ($requiredFile in $requiredExecutables) {
     $versionInfo = (Get-Item -LiteralPath (Join-Path $payloadDirectory $requiredFile)).VersionInfo
@@ -126,6 +170,10 @@ $files = Get-ChildItem -LiteralPath $payloadDirectory -File -Recurse |
 $manifest = [ordered]@{
     product = "QuickPods"
     version = $Version
+    layoutVersion = 2
+    entryPoint = "QuickPods.exe"
+    applicationDirectory = "app"
+    licenseDirectory = "licenses"
     runtimeIdentifier = "win-x64"
     selfContained = $true
     includedFrameworks = $selfContainedProof.IncludedFrameworks
@@ -134,6 +182,10 @@ $manifest = [ordered]@{
     files = @($files)
 }
 $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestPath -Encoding utf8NoBOM
+
+& (Join-Path $PSScriptRoot "Test-PortablePayload.ps1") `
+    -PayloadDirectory $payloadDirectory `
+    -ExpectedVersion $Version | Out-Null
 
 $archivePath = Join-Path $outputRoot "QuickPods-$Version-win-x64.zip"
 Add-Type -AssemblyName System.IO.Compression
@@ -188,6 +240,7 @@ $checksumPath = Join-Path $outputRoot "SHA256SUMS.txt"
 [pscustomobject]@{
     Version = $Version
     PayloadDirectory = $payloadDirectory
+    EntryPoint = (Join-Path $payloadDirectory "QuickPods.exe")
     ArchivePath = $archivePath
     ArchiveSha256 = $archiveHash
     FileCount = @($files).Count + 1

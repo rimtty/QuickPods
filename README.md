@@ -49,9 +49,9 @@ QuickPods continues to work from the notification area when the taskbar is left-
 1. Download `QuickPods-<version>-win-x64.zip` and `SHA256SUMS.txt` from the [latest release](https://github.com/rimtty/QuickPods/releases/latest).
 2. Verify the ZIP's SHA-256 checksum against `SHA256SUMS.txt`.
 3. Extract the complete `QuickPods` folder to a permanent location owned by your Windows user.
-4. Run `QuickPods.exe` from that folder.
+4. Run the `QuickPods.exe` located directly in that folder.
 
-The package is self-contained and does not require a separate .NET installation. Because it is unsigned, Windows may display a SmartScreen warning on first launch. Confirm the download source and checksum before deciding whether to run it. Keep the extracted files together and do not move the folder after enabling start at sign-in.
+The package is self-contained and does not require a separate .NET installation. The root `QuickPods.exe` is a lightweight launcher; runtime files and helper processes are kept in the internal `app` folder, while license files are collected under `licenses`. Do not start or move files from `app` manually. Because the package is unsigned, Windows may display a SmartScreen warning on first launch. Confirm the download source and checksum before deciding whether to run it. Keep the extracted files together and do not move the folder after enabling start at sign-in.
 
 For portable updates, removal, source builds, and packaging details, see the [user guide](docs/user-guide.md), [update policy](docs/release/update-policy.md), and [release guide](docs/release/README.md).
 

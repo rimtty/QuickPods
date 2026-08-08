@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.22000.0</TargetPlatformMinVersion>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <RootNamespace>QuickPods.Launcher</RootNamespace>
+    <AssemblyName>QuickPods</AssemblyName>
+    <PublishAot>true</PublishAot>
+    <SelfContained>true</SelfContained>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <StripSymbols>true</StripSymbols>
+    <ApplicationIcon>..\..\docs\assets\branding\quickpods-icon-v2.ico</ApplicationIcon>
+  </PropertyGroup>
+
+</Project>

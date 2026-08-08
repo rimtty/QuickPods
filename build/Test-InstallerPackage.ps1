@@ -173,6 +173,7 @@ try {
         "ThirdPartyNotices.txt",
         "DOTNET-LICENSE.txt",
         "DOTNET-THIRD-PARTY-NOTICES.txt",
+        "README.txt",
         "artifact-manifest.json"
     )) {
         if (-not ($files | Where-Object { ($_[1] -split '\|')[-1] -eq $requiredFile })) {

@@ -12,6 +12,8 @@ QuickPods can produce:
 
 End users do not need a separate .NET Desktop Runtime.
 
+The portable ZIP presents a lightweight native `QuickPods.exe` launcher at its root. The launcher starts `app\QuickPods.exe`, while the self-contained runtime and isolated helper processes remain grouped under `app`. Legal notices, a bilingual `README.txt`, and the artifact manifest stay beside the launcher.
+
 ## Versioning
 
 Use a three-part semantic version, optionally followed by a prerelease suffix:
@@ -65,4 +67,4 @@ Before changing repository visibility, complete the separate [public repository 
 
 ## Dependency and legal review
 
-Review NuGet vulnerability output and every third-party license before release. QuickPods includes its own `LICENSE`, `ThirdPartyNotices.txt`, and the .NET license/notices in self-contained payloads. WiX is a build-time dependency; maintainers must review the toolchain's current terms independently.
+Review NuGet vulnerability output and every third-party license before release. QuickPods collects its own `LICENSE`, `ThirdPartyNotices.txt`, and the .NET license/notices under the portable package's `licenses` directory. WiX is a build-time dependency; maintainers must review the toolchain's current terms independently.
