@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using QuickPods.Core.Models;
 using QuickPods.Presentation;
 using Xunit;
@@ -55,6 +56,21 @@ public sealed class ProductLocalizationTests
     }
 
     [Fact]
+    public void EnglishAndJapaneseCatalogsUseMatchingFormatArguments()
+    {
+        var english = new ProductLocalizer(ProductLanguage.English);
+        var japanese = new ProductLocalizer(ProductLanguage.Japanese);
+
+        foreach (string key in ProductLocalizer.Keys)
+        {
+            string[] englishArguments = ExtractFormatArguments(english[key]);
+            string[] japaneseArguments = ExtractFormatArguments(japanese[key]);
+
+            Assert.Equal(englishArguments, japaneseArguments);
+        }
+    }
+
+    [Fact]
     public void InvalidSavedLanguageNormalizesToSystem()
     {
         QuickPodsSettings normalized = (QuickPodsSettings.Default with
@@ -65,4 +81,10 @@ public sealed class ProductLocalizationTests
         Assert.Equal(QuickPodsLanguageMode.System, QuickPodsSettings.Default.Language);
         Assert.Equal(QuickPodsLanguageMode.System, normalized.Language);
     }
+
+    private static string[] ExtractFormatArguments(string value) =>
+        Regex.Matches(value, @"\{(\d+)(?:[^{}]*)?\}")
+            .Select(match => match.Groups[1].Value)
+            .OrderBy(argument => argument, StringComparer.Ordinal)
+            .ToArray();
 }

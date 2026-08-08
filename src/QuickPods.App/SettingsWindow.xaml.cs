@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
@@ -22,9 +23,13 @@ public partial class SettingsWindow : Window
     private readonly Action openLogs;
     private readonly Func<string> createDiagnosticSummary;
     private readonly Action restartApplication;
+    private readonly Func<ApplicationUpdateViewState> readUpdateState;
+    private readonly Func<Task<ApplicationUpdateViewState>> checkForUpdates;
+    private readonly Action<Uri> openReleasePage;
     private readonly ProductLocalizer localizer;
     private bool applyingSettings;
     private bool updatePending;
+    private bool updateChecking;
 
     internal SettingsWindow(
         Func<QuickPodsSettings> readSettings,
@@ -33,6 +38,9 @@ public partial class SettingsWindow : Window
         Action openLogs,
         Func<string> createDiagnosticSummary,
         Action restartApplication,
+        Func<ApplicationUpdateViewState> readUpdateState,
+        Func<Task<ApplicationUpdateViewState>> checkForUpdates,
+        Action<Uri> openReleasePage,
         ProductLocalizer localizer,
         string version)
     {
@@ -46,6 +54,12 @@ public partial class SettingsWindow : Window
             throw new ArgumentNullException(nameof(createDiagnosticSummary));
         this.restartApplication = restartApplication ??
             throw new ArgumentNullException(nameof(restartApplication));
+        this.readUpdateState = readUpdateState ??
+            throw new ArgumentNullException(nameof(readUpdateState));
+        this.checkForUpdates = checkForUpdates ??
+            throw new ArgumentNullException(nameof(checkForUpdates));
+        this.openReleasePage = openReleasePage ??
+            throw new ArgumentNullException(nameof(openReleasePage));
         this.localizer = localizer ?? throw new ArgumentNullException(nameof(localizer));
         ArgumentException.ThrowIfNullOrWhiteSpace(version);
 
@@ -53,6 +67,7 @@ public partial class SettingsWindow : Window
         InitializeChoices();
         VersionText.Text = $"QuickPods {version}";
         ApplySettings(readSettings());
+        ApplyUpdateState(readUpdateState());
     }
 
     internal void ApplySettings(QuickPodsSettings settings)
@@ -70,6 +85,8 @@ public partial class SettingsWindow : Window
             ConfirmBluetoothDisconnectCheckBox.IsChecked =
                 normalized.ConfirmBluetoothDisconnect;
             StartWithWindowsCheckBox.IsChecked = normalized.StartWithWindows;
+            CheckForUpdatesAtStartupCheckBox.IsChecked =
+                normalized.CheckForUpdatesAtStartup;
             ApplyNativeWindowTheme();
         }
         finally
@@ -91,6 +108,41 @@ public partial class SettingsWindow : Window
     {
         InitializeChoices();
         ApplySettings(readSettings());
+        ApplyUpdateState(readUpdateState());
+    }
+
+    internal void ApplyUpdateState(ApplicationUpdateViewState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        updateChecking = state.Status == ApplicationUpdateViewStatus.Checking;
+        string checkedAt = state.CheckedAtUtc?.ToLocalTime().ToString(
+            "g",
+            CultureInfo.CurrentCulture) ?? string.Empty;
+        UpdateStatusText.Text = state.Status switch
+        {
+            ApplicationUpdateViewStatus.NotChecked => localizer["UpdateNotChecked"],
+            ApplicationUpdateViewStatus.Checking => localizer["CheckingForUpdates"],
+            ApplicationUpdateViewStatus.UpToDate => localizer.Format(
+                "UpdateUpToDateStatus",
+                state.LatestVersion?.ToString(3) ?? string.Empty,
+                checkedAt),
+            ApplicationUpdateViewStatus.UpdateAvailable => localizer.Format(
+                "UpdateAvailableStatus",
+                state.LatestVersion?.ToString(3) ?? string.Empty,
+                checkedAt),
+            ApplicationUpdateViewStatus.Failed => localizer.Format(
+                "UpdateCheckFailedStatus",
+                state.ErrorDetail ?? localizer["UnknownStatus"]),
+            _ => localizer["UpdateNotChecked"],
+        };
+        OpenLatestReleaseButton.Tag = state.ReleasePage;
+        OpenLatestReleaseButton.Visibility =
+            state.Status == ApplicationUpdateViewStatus.UpdateAvailable &&
+            state.ReleasePage is not null
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        CheckForUpdatesButton.IsEnabled = !updatePending && !updateChecking;
+        OpenLatestReleaseButton.IsEnabled = !updatePending && !updateChecking;
     }
 
     private async void OnProductSettingChanged(object sender, RoutedEventArgs eventArgs)
@@ -113,6 +165,7 @@ public partial class SettingsWindow : Window
             MouseWheelStepPercent = wheelStep,
             SetConnectedDeviceAsDefault = SetConnectedDeviceAsDefaultCheckBox.IsChecked == true,
             ConfirmBluetoothDisconnect = ConfirmBluetoothDisconnectCheckBox.IsChecked == true,
+            CheckForUpdatesAtStartup = CheckForUpdatesAtStartupCheckBox.IsChecked == true,
         };
         await RunUpdateAsync(
             () => updateSettings(requested),
@@ -190,6 +243,25 @@ public partial class SettingsWindow : Window
 
     private void OnCloseWindow(object sender, RoutedEventArgs eventArgs) => Close();
 
+    private async void OnCheckForUpdates(object sender, RoutedEventArgs eventArgs)
+    {
+        if (updateChecking)
+        {
+            return;
+        }
+
+        ApplyUpdateState(ApplicationUpdateViewState.Checking);
+        ApplyUpdateState(await checkForUpdates());
+    }
+
+    private void OnOpenLatestRelease(object sender, RoutedEventArgs eventArgs)
+    {
+        if (OpenLatestReleaseButton.Tag is Uri releasePage)
+        {
+            openReleasePage(releasePage);
+        }
+    }
+
     private async Task<QuickPodsSettings> ResetEditableSettingsAsync()
     {
         QuickPodsSettings defaults = QuickPodsSettings.Default;
@@ -207,6 +279,7 @@ public partial class SettingsWindow : Window
             MouseWheelStepPercent = defaults.MouseWheelStepPercent,
             SetConnectedDeviceAsDefault = defaults.SetConnectedDeviceAsDefault,
             ConfirmBluetoothDisconnect = defaults.ConfirmBluetoothDisconnect,
+            CheckForUpdatesAtStartup = defaults.CheckForUpdatesAtStartup,
         });
     }
 
@@ -242,6 +315,9 @@ public partial class SettingsWindow : Window
         SetConnectedDeviceAsDefaultCheckBox.IsEnabled = enabled;
         ConfirmBluetoothDisconnectCheckBox.IsEnabled = enabled;
         StartWithWindowsCheckBox.IsEnabled = enabled;
+        CheckForUpdatesAtStartupCheckBox.IsEnabled = enabled;
+        CheckForUpdatesButton.IsEnabled = enabled && !updateChecking;
+        OpenLatestReleaseButton.IsEnabled = enabled && !updateChecking;
         ResetSettingsButton.IsEnabled = enabled;
         RestartApplicationButton.IsEnabled = enabled;
     }

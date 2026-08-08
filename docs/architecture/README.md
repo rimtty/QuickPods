@@ -28,7 +28,7 @@ The app owns settings, logs, startup registration, and child-process lifetime. H
 | `QuickPods.Core` | product state and use-case coordination |
 | `QuickPods.Presentation` | language-independent presentation and localization |
 | `QuickPods.Contracts` | versioned process contracts and shared glyph definitions |
-| `QuickPods.Infrastructure` | settings, logging, single-instance, and host supervision |
+| `QuickPods.Infrastructure` | settings, logging, update metadata retrieval, single-instance, and host supervision |
 | `QuickPods.Windows` | Core Audio, Bluetooth, registry, and Windows Settings adapters |
 | `QuickPods.TaskbarHost` | out-of-process taskbar surface and placement policy |
 | `QuickPods.TaskbarObserver` | Explorer-generation UI Automation observation |
@@ -59,6 +59,8 @@ Incomplete evidence hides the embedded surface and leaves notification-area acce
 Settings use atomic JSON replacement under `%LocalAppData%\QuickPods`. A malformed file is quarantined before safe defaults are written. Startup registration uses one current-user Run value pointing to the internal application executable with `--background`; the root launcher is needed only for direct user startup and installer cleanup forwarding.
 
 Structured diagnostics contain state classifications and counts, not raw device or account identifiers. See [Privacy](../privacy.md).
+
+Update availability is checked through the public GitHub latest-release endpoint behind `IApplicationUpdateChecker`. Requests run asynchronously, stable-release metadata is validated against the official repository URL, and successful check metadata is stored with the user settings. Automatic checks are opt-in and throttled to once every 24 hours. Downloading and applying packages remains a separate manual operation.
 
 ## Distribution
 

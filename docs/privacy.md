@@ -1,12 +1,12 @@
 # Privacy
 
-QuickPods is a local Windows desktop application. It does not include telemetry, analytics, advertising, cloud synchronization, or a network service.
+QuickPods is a local Windows desktop application. It does not include telemetry, analytics, advertising, cloud synchronization, or a network service. A manual update check—and an optional startup check when explicitly enabled—makes an HTTPS request to GitHub's public Releases API for `rimtty/QuickPods`. The request includes the QuickPods version in its standard HTTP user-agent and does not include Bluetooth, audio, account, or settings data. Automatic checks are disabled by default and limited to once every 24 hours.
 
 ## Local data
 
 QuickPods stores data below `%LocalAppData%\QuickPods`:
 
-- `settings.json` — user preferences and an opaque selected-device key;
+- `settings.json` — user preferences, an opaque selected-device key, and the time, version, and official page URL from the last successful update check;
 - `logs\quickpods-YYYYMMDD.jsonl` — structured operational diagnostics;
 - `settings.corrupt-*.json` — a quarantined settings file only when malformed JSON is detected.
 
