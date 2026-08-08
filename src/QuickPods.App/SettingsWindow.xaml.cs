@@ -78,7 +78,14 @@ public partial class SettingsWindow : Window
         }
     }
 
-    internal void ReportDiagnostic(string message) => DiagnosticText.Text = message ?? string.Empty;
+    internal void ReportDiagnostic(string message)
+    {
+        string diagnostic = message ?? string.Empty;
+        DiagnosticText.Text = diagnostic;
+        DiagnosticText.Visibility = string.IsNullOrEmpty(diagnostic)
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+    }
 
     internal void ApplyLocalization()
     {

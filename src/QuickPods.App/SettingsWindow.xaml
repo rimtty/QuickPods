@@ -74,7 +74,7 @@
         </Style>
 
         <Style x:Key="SettingsComboBoxStyle" TargetType="ComboBox">
-            <Setter Property="Height" Value="38" />
+            <Setter Property="Height" Value="42" />
             <Setter Property="Padding" Value="13,0,10,0" />
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
             <Setter Property="Background" Value="{DynamicResource ControlSurfaceBrush}" />
@@ -249,6 +249,10 @@
 
         <ScrollViewer VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
+            <ScrollViewer.Resources>
+                <Style TargetType="ScrollBar"
+                       BasedOn="{StaticResource QuickPodsModernVerticalScrollBarStyle}" />
+            </ScrollViewer.Resources>
             <Grid Margin="32,16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -288,7 +292,7 @@
                         <TextBlock Style="{StaticResource SettingsSectionTitleStyle}"
                                    Text="{DynamicResource DisplaySection}" />
 
-                        <Grid Height="40" Margin="0,4,0,0">
+                        <Grid Height="50" Margin="0,4,0,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="250" />
@@ -310,7 +314,7 @@
                         </Grid>
                         <Border Height="1" Background="{DynamicResource PanelBorderBrush}" />
 
-                        <Grid Height="40">
+                        <Grid Height="50">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="250" />
@@ -332,7 +336,7 @@
                         </Grid>
                         <Border Height="1" Background="{DynamicResource PanelBorderBrush}" />
 
-                        <Grid Height="40">
+                        <Grid Height="50">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="250" />
@@ -354,7 +358,7 @@
                         </Grid>
                         <Border Height="1" Background="{DynamicResource PanelBorderBrush}" />
 
-                        <Grid Height="40">
+                        <Grid Height="50">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="250" />
@@ -442,7 +446,8 @@
                                    Margin="2,10,2,0"
                                    AutomationProperties.LiveSetting="Assertive"
                                    Foreground="{DynamicResource ErrorBrush}"
-                                   TextWrapping="Wrap" />
+                                   TextWrapping="Wrap"
+                                   Visibility="Collapsed" />
                     </StackPanel>
                 </Border>
 
