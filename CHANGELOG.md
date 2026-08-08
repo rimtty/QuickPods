@@ -4,6 +4,8 @@ All notable changes to QuickPods will be documented in this file. The format fol
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-08
+
 ### Added
 
 - Added manual latest-release checks from the notification-area menu and Settings.
@@ -42,6 +44,7 @@ All notable changes to QuickPods will be documented in this file. The format fol
 
 - Kept device mutation fail-closed and excluded raw device and account identifiers from normal diagnostics.
 
-[Unreleased]: https://github.com/rimtty/QuickPods/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/rimtty/QuickPods/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/rimtty/QuickPods/compare/v0.1.1...v1.0.0
 [0.1.1]: https://github.com/rimtty/QuickPods/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/rimtty/QuickPods/releases/tag/v0.1.0
