@@ -1,12 +1,12 @@
-name: Signed release
+name: Portable release
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: Semantic release version (for example 0.1.0-rc.1 or 0.1.0)
+        description: Semantic release version (for example 0.1.1)
         required: true
-        default: 0.1.0-rc.1
+        default: 0.1.1
         type: string
 
 permissions:
@@ -19,11 +19,10 @@ env:
   QUICKPODS_RELEASE_VERSION: ${{ inputs.version }}
 
 jobs:
-  signed-release:
-    name: Signed x64 per-user MSI
+  portable-release:
+    name: Unsigned portable ZIP / x64
     runs-on: windows-2025
     timeout-minutes: 25
-    environment: release-signing
 
     defaults:
       run:
@@ -43,10 +42,20 @@ jobs:
           cache: true
           cache-dependency-path: '**/packages.lock.json'
 
-      - name: Restore
+      - name: Validate release version
         run: |
-          dotnet restore QuickPods.sln --locked-mode
-          dotnet restore installer/QuickPods.Setup/QuickPods.Setup.wixproj --locked-mode
+          if ($env:QUICKPODS_RELEASE_VERSION -notmatch '^\d+\.\d+\.\d+$') {
+              throw 'Stable release version must use the form X.Y.Z.'
+          }
+
+          [xml] $props = Get-Content -LiteralPath Directory.Build.props
+          $configuredVersion = $props.Project.PropertyGroup.VersionPrefix
+          if ($configuredVersion -ne $env:QUICKPODS_RELEASE_VERSION) {
+              throw "Requested version '$env:QUICKPODS_RELEASE_VERSION' does not match VersionPrefix '$configuredVersion'."
+          }
+
+      - name: Restore
+        run: dotnet restore QuickPods.sln --locked-mode
 
       - name: Audit, format, build, and test
         run: |
@@ -56,70 +65,41 @@ jobs:
           dotnet build QuickPods.sln -c Release --no-restore -p:ContinuousIntegrationBuild=true
           dotnet test QuickPods.sln -c Release --no-build --no-restore -- RunConfiguration.TreatNoTestsAsError=true
 
-      - name: Decode signing certificate
-        env:
-          QUICKPODS_SIGNING_PFX_BASE64: ${{ secrets.QUICKPODS_SIGNING_PFX_BASE64 }}
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:QUICKPODS_SIGNING_PFX_BASE64)) {
-              throw 'QUICKPODS_SIGNING_PFX_BASE64 is not configured in the release-signing environment.'
-          }
-          $certificatePath = Join-Path $env:RUNNER_TEMP 'quickpods-signing.pfx'
-          [IO.File]::WriteAllBytes(
-              $certificatePath,
-              [Convert]::FromBase64String($env:QUICKPODS_SIGNING_PFX_BASE64))
-          "QUICKPODS_SIGNING_PFX_PATH=$certificatePath" >> $env:GITHUB_ENV
+      - name: Publish portable package
+        run: >-
+          ./build/Publish-ReleaseCandidate.ps1
+          -OutputDirectory artifacts/release
+          -Version $env:QUICKPODS_RELEASE_VERSION
 
-      - name: Publish signed installer
-        env:
-          QUICKPODS_SIGNING_PFX_PASSWORD: ${{ secrets.QUICKPODS_SIGNING_PFX_PASSWORD }}
+      - name: Verify portable package
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:QUICKPODS_SIGNING_PFX_PASSWORD)) {
-              throw 'QUICKPODS_SIGNING_PFX_PASSWORD is not configured in the release-signing environment.'
-          }
-          ./build/Publish-ReleaseCandidate.ps1 `
-              -OutputDirectory artifacts/rc `
-              -Version $env:QUICKPODS_RELEASE_VERSION
-          $password = ConvertTo-SecureString `
-              $env:QUICKPODS_SIGNING_PFX_PASSWORD `
-              -AsPlainText `
-              -Force
-          ./build/Publish-Installer.ps1 `
-              -OutputDirectory artifacts/installer `
-              -Version $env:QUICKPODS_RELEASE_VERSION `
-              -PayloadDirectory artifacts/rc/QuickPods `
-              -SkipPayloadPublish `
-              -SkipRestore `
-              -SigningCertificatePath $env:QUICKPODS_SIGNING_PFX_PATH `
-              -SigningCertificatePassword $password `
-              -RequireSignature
-
-      - name: Remove signing certificate
-        if: ${{ always() }}
-        run: |
-          if ($env:QUICKPODS_SIGNING_PFX_PATH -and
-              (Test-Path -LiteralPath $env:QUICKPODS_SIGNING_PFX_PATH -PathType Leaf)) {
-              Remove-Item -LiteralPath $env:QUICKPODS_SIGNING_PFX_PATH -Force
+          $archive = "artifacts/release/QuickPods-$env:QUICKPODS_RELEASE_VERSION-win-x64.zip"
+          $checksumFile = 'artifacts/release/SHA256SUMS.txt'
+          $manifestFile = 'artifacts/release/QuickPods/artifact-manifest.json'
+          foreach ($path in @($archive, $checksumFile, $manifestFile)) {
+              if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+                  throw "Required release artifact is missing: $path"
+              }
           }
 
-      - name: Upload signed installer
+          $manifest = Get-Content -LiteralPath $manifestFile -Raw | ConvertFrom-Json
+          if ($manifest.version -ne $env:QUICKPODS_RELEASE_VERSION -or $manifest.signed -ne $false) {
+              throw 'Portable manifest version or signing state is invalid.'
+          }
+
+          $expectedHash = ((Get-Content -LiteralPath $checksumFile -Raw).Trim() -split '\s+')[0]
+          $actualHash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne $expectedHash) {
+              throw 'Portable archive checksum mismatch.'
+          }
+
+      - name: Upload portable release package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: quickpods-signed-per-user-msi
+          name: quickpods-${{ inputs.version }}-portable
           path: |
-            artifacts/installer/QuickPods-*-win-x64.msi
-            artifacts/installer/SHA256SUMS.txt
-            artifacts/installer/installer-manifest.json
-            artifacts/installer/payload-artifact-manifest.json
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload diagnostic portable package
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: quickpods-diagnostic-portable
-          path: |
-            artifacts/rc/QuickPods-*-win-x64.zip
-            artifacts/rc/SHA256SUMS.txt
-            artifacts/rc/QuickPods/artifact-manifest.json
+            artifacts/release/QuickPods-${{ inputs.version }}-win-x64.zip
+            artifacts/release/SHA256SUMS.txt
+            artifacts/release/QuickPods/artifact-manifest.json
           if-no-files-found: error
           retention-days: 14

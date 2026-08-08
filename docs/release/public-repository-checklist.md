@@ -20,14 +20,14 @@ Use this checklist immediately before changing the GitHub repository from privat
 - [ ] Actions permissions and approval requirements for workflows from forks are appropriate.
 - [ ] Dependabot alerts, security updates, secret scanning, and push protection are enabled where available.
 - [ ] Private vulnerability reporting is enabled so `SECURITY.md` has a private reporting path.
-- [ ] Release-signing secrets remain scoped to the protected `release-signing` environment.
+- [ ] No code-signing secrets or certificate material are stored in the repository or unprotected Actions configuration.
 - [ ] Old branches, releases, tags, issues, pull requests, discussions, wiki pages, attachments, and project boards have been reviewed for publishable content.
 - [ ] Issue forms and support links work after the visibility change.
 
 ## First public release
 
 - [ ] The release version, tag, changelog entry, package manifests, and release title agree.
-- [ ] Public downloads are signed, checksummed, and clearly distinguish stable and prerelease builds.
+- [ ] Public downloads are checksummed, clearly distinguish stable and prerelease builds, and disclose their signing state.
 - [ ] Compatibility and known limitations are linked from the release notes.
 - [ ] Upgrade and uninstall behavior has been tested from the previous supported version.
 - [ ] A maintainer has explicitly approved the final visibility change and release publication.

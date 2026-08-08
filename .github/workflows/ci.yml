@@ -113,16 +113,3 @@ jobs:
             artifacts/rc/QuickPods/artifact-manifest.json
           if-no-files-found: error
           retention-days: 3
-
-      - name: Upload per-user MSI
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: quickpods-per-user-msi
-          path: |
-            artifacts/installer/QuickPods-*-win-x64.msi
-            artifacts/installer/SHA256SUMS.txt
-            artifacts/installer/installer-manifest.json
-            artifacts/installer/payload-artifact-manifest.json
-          if-no-files-found: error
-          retention-days: 3

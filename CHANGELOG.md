@@ -4,6 +4,14 @@ All notable changes to QuickPods will be documented in this file. The format fol
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-08
+
+### Changed
+
+- Made the self-contained Windows x64 ZIP the official public distribution format.
+- Stopped publishing unsigned MSI artifacts while code signing is unavailable.
+- Added portable installation, update, removal, checksum, and unsigned-app guidance.
+
 ## [0.1.0] - 2026-08-08
 
 ### Added
@@ -20,5 +28,6 @@ All notable changes to QuickPods will be documented in this file. The format fol
 
 - Kept device mutation fail-closed and excluded raw device and account identifiers from normal diagnostics.
 
-[Unreleased]: https://github.com/rimtty/QuickPods/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/rimtty/QuickPods/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/rimtty/QuickPods/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/rimtty/QuickPods/releases/tag/v0.1.0

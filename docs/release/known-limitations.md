@@ -8,5 +8,6 @@
 - The taskbar integration uses Windows shell behavior that is not a supported public taskbar extension API. QuickPods hides the surface whenever its placement proof is incomplete.
 - Third-party taskbar replacements and extensive shell modifications are not supported.
 - Automatic application updates are not implemented.
-- Current development installers are unsigned. A stable public release requires a valid timestamped Authenticode signature.
+- Public portable releases are unsigned and can trigger Microsoft Defender SmartScreen warnings. Verify the GitHub Release source and published SHA-256 checksum before running them.
+- MSI installers are not publicly distributed until a valid timestamped Authenticode signing option is available.
 - Uninstall preserves `%LocalAppData%\QuickPods` settings and logs by design.

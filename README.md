@@ -23,7 +23,7 @@
 </p>
 
 > [!IMPORTANT]
-> QuickPods is under active development. There is not yet a signed public release. CI and locally built installers are unsigned test artifacts and may trigger Windows security warnings.
+> The public portable ZIP is currently unsigned and may trigger a Microsoft Defender SmartScreen warning. Download it only from this repository's Releases page and verify its published SHA-256 checksum. An MSI installer is not distributed until code signing is available.
 
 ## Features
 
@@ -46,17 +46,14 @@ QuickPods continues to work from the notification area when the taskbar is left-
 
 ## Install and run
 
-Signed public binaries are not available yet. Until the first signed release, build QuickPods from source:
+1. Download `QuickPods-<version>-win-x64.zip` and `SHA256SUMS.txt` from the [latest release](https://github.com/rimtty/QuickPods/releases/latest).
+2. Verify the ZIP's SHA-256 checksum against `SHA256SUMS.txt`.
+3. Extract the complete `QuickPods` folder to a permanent location owned by your Windows user.
+4. Run `QuickPods.exe` from that folder.
 
-```powershell
-git clone https://github.com/rimtty/QuickPods.git
-Set-Location QuickPods
-dotnet restore QuickPods.sln --locked-mode
-dotnet build src/QuickPods.App/QuickPods.App.csproj -c Release --no-restore
-./src/QuickPods.App/bin/Release/net10.0-windows10.0.26100.0/QuickPods.exe
-```
+The package is self-contained and does not require a separate .NET installation. Because it is unsigned, Windows may display a SmartScreen warning on first launch. Confirm the download source and checksum before deciding whether to run it. Keep the extracted files together and do not move the folder after enabling start at sign-in.
 
-For packaging, test artifacts, and installer signing requirements, see the [release guide](docs/release/README.md).
+For portable updates, removal, source builds, and packaging details, see the [user guide](docs/user-guide.md), [update policy](docs/release/update-policy.md), and [release guide](docs/release/README.md).
 
 ## How it works
 
@@ -94,7 +91,7 @@ See [Development](docs/development.md) for Visual Studio, hardware-dependent val
 
 ## Project status and support
 
-QuickPods currently targets Windows 11 x64 and is preparing for its first public signed release. Review the [known limitations](docs/release/known-limitations.md) before filing a defect.
+QuickPods currently targets Windows 11 x64 and distributes an unsigned portable ZIP while a sustainable code-signing option is evaluated. Review the [known limitations](docs/release/known-limitations.md) before filing a defect.
 
 - Use [GitHub Issues](https://github.com/rimtty/QuickPods/issues) for reproducible bugs and focused feature requests.
 - Read [SUPPORT.md](SUPPORT.md) for support expectations.
