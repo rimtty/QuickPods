@@ -66,6 +66,94 @@
             <Setter Property="BorderBrush" Value="Transparent" />
         </Style>
 
+        <Style x:Key="QuickPodsScrollBarPageButtonStyle" TargetType="RepeatButton">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RepeatButton">
+                        <Border Background="{TemplateBinding Background}" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="QuickPodsScrollBarThumbStyle" TargetType="Thumb">
+            <Setter Property="MinHeight" Value="24" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Grid Background="Transparent">
+                            <Border x:Name="ThumbSurface"
+                                    Width="4"
+                                    Margin="2,2"
+                                    HorizontalAlignment="Center"
+                                    Background="{DynamicResource SecondaryTextBrush}"
+                                    CornerRadius="2"
+                                    Opacity="0.62" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ThumbSurface" Property="Width" Value="6" />
+                                <Setter TargetName="ThumbSurface" Property="Margin" Value="1,2" />
+                                <Setter TargetName="ThumbSurface" Property="CornerRadius" Value="3" />
+                                <Setter TargetName="ThumbSurface" Property="Opacity" Value="0.9" />
+                            </Trigger>
+                            <Trigger Property="IsDragging" Value="True">
+                                <Setter TargetName="ThumbSurface" Property="Width" Value="6" />
+                                <Setter TargetName="ThumbSurface" Property="Margin" Value="1,2" />
+                                <Setter TargetName="ThumbSurface" Property="Background" Value="{DynamicResource AccentBrush}" />
+                                <Setter TargetName="ThumbSurface" Property="CornerRadius" Value="3" />
+                                <Setter TargetName="ThumbSurface" Property="Opacity" Value="1" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ThumbSurface" Property="Opacity" Value="0.3" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="QuickPodsModernVerticalScrollBarStyle" TargetType="ScrollBar">
+            <Setter Property="Width" Value="8" />
+            <Setter Property="MinWidth" Value="8" />
+            <Setter Property="Orientation" Value="Vertical" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid Width="{TemplateBinding Width}"
+                              Margin="0,2,1,2"
+                              Background="{TemplateBinding Background}">
+                            <Track x:Name="PART_Track"
+                                   IsDirectionReversed="True"
+                                   Orientation="Vertical">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static ScrollBar.PageUpCommand}"
+                                                  Style="{StaticResource QuickPodsScrollBarPageButtonStyle}" />
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource QuickPodsScrollBarThumbStyle}" />
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static ScrollBar.PageDownCommand}"
+                                                  Style="{StaticResource QuickPodsScrollBarPageButtonStyle}" />
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="QuickPodsLinkButtonStyle" TargetType="Button">
             <Setter Property="Padding" Value="4" />
             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
