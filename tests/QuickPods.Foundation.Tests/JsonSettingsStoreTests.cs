@@ -64,6 +64,7 @@ public sealed class JsonSettingsStoreTests
                 Theme: QuickPodsThemeMode.Light,
                 Language: QuickPodsLanguageMode.Japanese,
                 ConfirmBluetoothDisconnect: true,
+                TaskbarPlacement: QuickPodsTaskbarPlacement.NotificationAreaLeft,
                 CheckForUpdatesAtStartup: true,
                 LastUpdateCheckUtc: new DateTimeOffset(2026, 8, 8, 6, 30, 0, TimeSpan.Zero),
                 LastKnownLatestVersion: "0.2.0",
@@ -109,13 +110,16 @@ public sealed class JsonSettingsStoreTests
 
             QuickPodsSettings migrated = await settings.LoadSettingsAsync();
 
-            Assert.Equal(1, migrated.SchemaVersion);
+            Assert.Equal(2, migrated.SchemaVersion);
             Assert.Equal(QuickPodsDisplayMode.Auto, migrated.DisplayMode);
             Assert.True(migrated.SetConnectedDeviceAsDefault);
             Assert.Equal(2, migrated.MouseWheelStepPercent);
             Assert.Equal(QuickPodsThemeMode.System, migrated.Theme);
             Assert.Equal(QuickPodsLanguageMode.System, migrated.Language);
             Assert.False(migrated.ConfirmBluetoothDisconnect);
+            Assert.Equal(
+                QuickPodsTaskbarPlacement.NotificationAreaLeft,
+                migrated.TaskbarPlacement);
             Assert.False(migrated.CheckForUpdatesAtStartup);
             Assert.Null(migrated.LastUpdateCheckUtc);
             Assert.Null(migrated.LastKnownLatestVersion);
@@ -152,6 +156,7 @@ public sealed class JsonSettingsStoreTests
                 Theme: QuickPodsThemeMode.Dark,
                 Language: QuickPodsLanguageMode.English,
                 ConfirmBluetoothDisconnect: true,
+                TaskbarPlacement: QuickPodsTaskbarPlacement.NotificationAreaLeft,
                 CheckForUpdatesAtStartup: true,
                 LastUpdateCheckUtc: new DateTimeOffset(2026, 8, 8, 6, 30, 0, TimeSpan.Zero),
                 LastKnownLatestVersion: "0.2.0",
@@ -172,6 +177,9 @@ public sealed class JsonSettingsStoreTests
             Assert.Equal(QuickPodsThemeMode.Dark, actual.Theme);
             Assert.Equal(QuickPodsLanguageMode.English, actual.Language);
             Assert.True(actual.ConfirmBluetoothDisconnect);
+            Assert.Equal(
+                QuickPodsTaskbarPlacement.NotificationAreaLeft,
+                actual.TaskbarPlacement);
             Assert.True(actual.CheckForUpdatesAtStartup);
             Assert.Equal(
                 new DateTimeOffset(2026, 8, 8, 6, 30, 0, TimeSpan.Zero),

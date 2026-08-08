@@ -62,6 +62,7 @@ internal sealed record TaskbarLayoutObservation(
     TaskbarOrientation Orientation,
     PixelRect? StartButtonBounds,
     PixelRect? WidgetsButtonBounds,
+    PixelRect? NotificationAreaBounds,
     IReadOnlyList<PixelRect> Obstacles,
     bool IsComplete);
 

@@ -2,12 +2,12 @@
 
 ## The taskbar surface is not visible
 
-- Confirm that the Windows 11 taskbar is center-aligned.
+- For the default position, confirm that the horizontal Windows 11 taskbar has enough free space immediately left of the notification area. The alternative taskbar-left position requires center-aligned taskbar buttons.
 - Check QuickPods Settings and use **Automatic** taskbar display.
 - Look for QuickPods in the notification area; the app intentionally falls back there when safe taskbar placement cannot be verified.
 - Restart QuickPods after Explorer, display, or DPI changes if the surface does not recover.
 
-Left-aligned taskbars are not supported for the embedded surface.
+Both center- and left-aligned taskbar buttons are supported by the default **Left of notification area** placement.
 
 ## A Bluetooth device is missing
 

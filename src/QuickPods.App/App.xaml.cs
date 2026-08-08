@@ -457,6 +457,7 @@ public partial class App : WpfApplication, IDisposable
             new Dictionary<string, object?>
             {
                 ["DisplayMode"] = productSettings.DisplayMode.ToString(),
+                ["TaskbarPlacement"] = productSettings.TaskbarPlacement.ToString(),
                 ["Theme"] = productSettings.Theme.ToString(),
                 ["Language"] = productSettings.Language.ToString(),
                 ["MouseWheelStepPercent"] = productSettings.MouseWheelStepPercent,
@@ -1334,7 +1335,10 @@ public partial class App : WpfApplication, IDisposable
             resolvedTaskbarTheme,
             localizer.Language == ProductLanguage.Japanese
                 ? TaskbarLanguage.Japanese
-                : TaskbarLanguage.English);
+                : TaskbarLanguage.English,
+            productSettings.TaskbarPlacement == QuickPodsTaskbarPlacement.NotificationAreaLeft
+                ? TaskbarPlacementMode.NotificationAreaLeft
+                : TaskbarPlacementMode.TaskbarLeft);
     }
 
     private void ApplyTheme(QuickPodsThemeMode theme)

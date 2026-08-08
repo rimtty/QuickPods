@@ -11,6 +11,7 @@ All notable changes to QuickPods will be documented in this file. The format fol
 
 ### Changed
 
+- Added a taskbar-placement setting. The verified notification-area-adjacent position remains the default, with the previous taskbar-left position available as an alternative.
 - Reorganized the portable package around an obvious root `QuickPods.exe` launcher.
 - Moved the application runtime and helper executables into an internal `app` directory.
 - Collected license and third-party notice files in a dedicated `licenses` directory.

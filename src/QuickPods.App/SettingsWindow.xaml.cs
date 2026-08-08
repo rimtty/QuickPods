@@ -77,6 +77,7 @@ public partial class SettingsWindow : Window
         {
             QuickPodsSettings normalized = settings.Normalize();
             DisplayModeComboBox.SelectedValue = normalized.DisplayMode;
+            TaskbarPlacementComboBox.SelectedValue = normalized.TaskbarPlacement;
             ThemeComboBox.SelectedValue = normalized.Theme;
             LanguageComboBox.SelectedValue = normalized.Language;
             MouseWheelStepComboBox.SelectedValue = normalized.MouseWheelStepPercent;
@@ -149,6 +150,7 @@ public partial class SettingsWindow : Window
     {
         if (applyingSettings || updatePending ||
             DisplayModeComboBox.SelectedValue is not QuickPodsDisplayMode displayMode ||
+            TaskbarPlacementComboBox.SelectedValue is not QuickPodsTaskbarPlacement taskbarPlacement ||
             ThemeComboBox.SelectedValue is not QuickPodsThemeMode theme ||
             LanguageComboBox.SelectedValue is not QuickPodsLanguageMode language ||
             MouseWheelStepComboBox.SelectedValue is not int wheelStep)
@@ -160,6 +162,7 @@ public partial class SettingsWindow : Window
         QuickPodsSettings requested = current with
         {
             DisplayMode = displayMode,
+            TaskbarPlacement = taskbarPlacement,
             Theme = theme,
             Language = language,
             MouseWheelStepPercent = wheelStep,
@@ -274,6 +277,7 @@ public partial class SettingsWindow : Window
         return await updateSettings(current with
         {
             DisplayMode = defaults.DisplayMode,
+            TaskbarPlacement = defaults.TaskbarPlacement,
             Theme = defaults.Theme,
             Language = defaults.Language,
             MouseWheelStepPercent = defaults.MouseWheelStepPercent,
@@ -309,6 +313,7 @@ public partial class SettingsWindow : Window
     private void SetSettingsControlsEnabled(bool enabled)
     {
         DisplayModeComboBox.IsEnabled = enabled;
+        TaskbarPlacementComboBox.IsEnabled = enabled;
         ThemeComboBox.IsEnabled = enabled;
         LanguageComboBox.IsEnabled = enabled;
         MouseWheelStepComboBox.IsEnabled = enabled;
@@ -331,6 +336,13 @@ public partial class SettingsWindow : Window
             {
                 new(QuickPodsDisplayMode.Auto, localizer["ChoiceAuto"]),
                 new(QuickPodsDisplayMode.TrayOnly, localizer["ChoiceTrayOnly"]),
+            };
+            TaskbarPlacementComboBox.ItemsSource = new SettingChoice<QuickPodsTaskbarPlacement>[]
+            {
+                new(
+                    QuickPodsTaskbarPlacement.NotificationAreaLeft,
+                    localizer["ChoiceNotificationAreaLeftDefault"]),
+                new(QuickPodsTaskbarPlacement.TaskbarLeft, localizer["ChoiceTaskbarLeft"]),
             };
             ThemeComboBox.ItemsSource = new SettingChoice<QuickPodsThemeMode>[]
             {

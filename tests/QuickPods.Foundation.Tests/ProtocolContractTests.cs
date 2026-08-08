@@ -11,6 +11,8 @@ public sealed class ProtocolContractTests
     {
         var snapshot = new TaskbarStateSnapshot(TaskbarSurfaceMode.Hidden, 0, false, null);
 
+        Assert.Equal(TaskbarPlacementMode.NotificationAreaLeft, snapshot.PlacementMode);
+
         Assert.Throws<ArgumentOutOfRangeException>(
             () => new HostStateEnvelope(QuickPodsProtocol.Version + 1, 0, snapshot));
     }
@@ -58,7 +60,8 @@ public sealed class ProtocolContractTests
                 "接続済み・既定",
                 IsConnected: true),
             TaskbarThemeMode.Light,
-            TaskbarLanguage.Japanese);
+            TaskbarLanguage.Japanese,
+            TaskbarPlacementMode.NotificationAreaLeft);
         var state = new HostStateEnvelope(QuickPodsProtocol.Version, 7, snapshot);
         var interaction = new HostInteractionEnvelope(
             QuickPodsProtocol.Version,
@@ -74,6 +77,9 @@ public sealed class ProtocolContractTests
         Assert.Equal(state, restoredState);
         Assert.Equal(TaskbarThemeMode.Light, restoredState.Snapshot.Theme);
         Assert.Equal(TaskbarLanguage.Japanese, restoredState.Snapshot.Language);
+        Assert.Equal(
+            TaskbarPlacementMode.NotificationAreaLeft,
+            restoredState.Snapshot.PlacementMode);
         Assert.True(restoredState.Snapshot.SelectedDevice?.IsConnected);
         Assert.Equal(interaction, restoredInteraction);
         Assert.Equal(250d, restoredInteraction.Anchor?.CenterXDip);
