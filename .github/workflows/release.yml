@@ -55,7 +55,9 @@ jobs:
           }
 
       - name: Restore
-        run: dotnet restore QuickPods.sln --locked-mode
+        run: |
+          dotnet restore QuickPods.sln --locked-mode
+          dotnet restore installer/QuickPods.Setup/QuickPods.Setup.wixproj --locked-mode
 
       - name: Audit, format, build, and test
         run: |
