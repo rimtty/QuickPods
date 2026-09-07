@@ -4,9 +4,16 @@ All notable changes to QuickPods will be documented in this file. The format fol
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-07
+
 ### Changed
 
 - The taskbar observer now uses Win32 shell hooks, window event hooks, and registry notifications instead of a UI Automation event subscription, so browsers no longer detect QuickPods as an assistive-technology client or enable accessibility mode because of it.
+- The taskbar observer no longer depends on the Windows Desktop framework.
+
+### Fixed
+
+- Restored locked-mode restore on the current .NET SDK patch by updating the launcher lock file.
 
 ## [1.0.0] - 2026-08-08
 
@@ -48,7 +55,8 @@ All notable changes to QuickPods will be documented in this file. The format fol
 
 - Kept device mutation fail-closed and excluded raw device and account identifiers from normal diagnostics.
 
-[Unreleased]: https://github.com/rimtty/QuickPods/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/rimtty/QuickPods/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/rimtty/QuickPods/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/rimtty/QuickPods/compare/v0.1.1...v1.0.0
 [0.1.1]: https://github.com/rimtty/QuickPods/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/rimtty/QuickPods/releases/tag/v0.1.0
