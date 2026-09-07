@@ -14,7 +14,8 @@ QuickPods documentation is organized by audience. The current code and automated
 
 - [Development](development.md) — clone, restore, build, test, run, and package
 - [Architecture](architecture/README.md) — process boundaries, Windows integration, and fail-closed design
-- [ADR-0001](architecture/adr-0001-uia-watcher-process-boundary.md) — UI Automation observer process boundary
+- [ADR-0001](architecture/adr-0001-uia-watcher-process-boundary.md) — taskbar observer process boundary
+- [ADR-0002](architecture/adr-0002-shell-signal-observer.md) — shell-signal taskbar observer without UI Automation events
 - [Release guide](release/README.md) — versioning, packaging, signing, and publication checklist
 - [Public repository checklist](release/public-repository-checklist.md) — GitHub settings to review before changing visibility
 - [Installer guide](../installer/README.md) — WiX per-user MSI details

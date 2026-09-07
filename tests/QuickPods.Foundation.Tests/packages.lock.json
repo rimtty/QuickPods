@@ -111,27 +111,33 @@
       "quickpods.infrastructure": {
         "type": "Project",
         "dependencies": {
-          "QuickPods.Contracts": "[0.1.1, )",
-          "QuickPods.Core": "[0.1.1, )"
+          "QuickPods.Contracts": "[1.0.0, )",
+          "QuickPods.Core": "[1.0.0, )"
         }
       },
       "quickpods.presentation": {
         "type": "Project",
         "dependencies": {
-          "QuickPods.Contracts": "[0.1.1, )",
-          "QuickPods.Core": "[0.1.1, )"
+          "QuickPods.Contracts": "[1.0.0, )",
+          "QuickPods.Core": "[1.0.0, )"
         }
       },
       "quickpods.taskbarhost": {
         "type": "Project",
         "dependencies": {
-          "QuickPods.Contracts": "[0.1.1, )"
+          "QuickPods.Contracts": "[1.0.0, )"
+        }
+      },
+      "quickpods.taskbarobserver": {
+        "type": "Project",
+        "dependencies": {
+          "QuickPods.Contracts": "[1.0.0, )"
         }
       },
       "quickpods.windows": {
         "type": "Project",
         "dependencies": {
-          "QuickPods.Core": "[0.1.1, )"
+          "QuickPods.Core": "[1.0.0, )"
         }
       }
     }

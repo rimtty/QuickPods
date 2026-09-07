@@ -44,8 +44,7 @@ $runtimeConfigExpectations = [ordered]@{
         "Microsoft.WindowsDesktop.App"
     )
     "QuickPods.TaskbarObserver.runtimeconfig.json" = @(
-        "Microsoft.NETCore.App",
-        "Microsoft.WindowsDesktop.App"
+        "Microsoft.NETCore.App"
     )
     "QuickPods.BluetoothWorker.runtimeconfig.json" = @(
         "Microsoft.NETCore.App"
