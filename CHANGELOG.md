@@ -4,6 +4,10 @@ All notable changes to QuickPods will be documented in this file. The format fol
 
 ## [Unreleased]
 
+### Changed
+
+- The taskbar observer now uses Win32 shell hooks, window event hooks, and registry notifications instead of a UI Automation event subscription, so browsers no longer detect QuickPods as an assistive-technology client or enable accessibility mode because of it.
+
 ## [1.0.0] - 2026-08-08
 
 ### Added

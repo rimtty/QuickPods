@@ -12,7 +12,7 @@ QuickPods.exe (portable launcher)
    ├─ QuickPods.TaskbarHost.exe
    │  └─ taskbar discovery, native surface, rendering, input, and versioned IPC
    ├─ QuickPods.TaskbarObserver.exe
-   │  └─ short-lived UI Automation subscription for one Explorer generation
+   │  └─ short-lived Win32 shell-signal subscription for one Explorer generation
    └─ QuickPods.BluetoothWorker.exe
       └─ bounded Bluetooth capability or mutation call
 ```
@@ -31,7 +31,7 @@ The app owns settings, logs, startup registration, and child-process lifetime. H
 | `QuickPods.Infrastructure` | settings, logging, update metadata retrieval, single-instance, and host supervision |
 | `QuickPods.Windows` | Core Audio, Bluetooth, registry, and Windows Settings adapters |
 | `QuickPods.TaskbarHost` | out-of-process taskbar surface and placement policy |
-| `QuickPods.TaskbarObserver` | Explorer-generation UI Automation observation |
+| `QuickPods.TaskbarObserver` | Explorer-generation shell-signal observation without UI Automation events |
 | `QuickPods.BluetoothWorker` | isolated Bluetooth driver call boundary |
 
 ## Core Audio
@@ -52,7 +52,7 @@ Unsupported capability, partial state, stale generation, timeout, and RDP owners
 
 QuickPods uses a Win32 surface in verified empty taskbar space. The default policy chooses the nearest verified gap immediately left of the Windows notification area and supports center- and left-aligned horizontal taskbars. A user-selectable taskbar-left policy preserves the previous placement to the left of the center-aligned Start area. Neither policy reserves taskbar space or moves shell controls. Placement is permitted only after taskbar identity, notification-area geometry, monitor, DPI, landmarks, obstacles, and Explorer generation are verified.
 
-Incomplete evidence hides the embedded surface and leaves notification-area access available. A dedicated short-lived observer contains UI Automation provider lifetime across Explorer restarts; see [ADR-0001](adr-0001-uia-watcher-process-boundary.md).
+Incomplete evidence hides the embedded surface and leaves notification-area access available. A dedicated short-lived observer owns the per-Explorer-generation shell hook, window event hook, and registry notifications that drive re-discovery; see [ADR-0001](adr-0001-uia-watcher-process-boundary.md) for the process boundary and [ADR-0002](adr-0002-shell-signal-observer.md) for why the observer does not register UI Automation events.
 
 ## Settings and diagnostics
 

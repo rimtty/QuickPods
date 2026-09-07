@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted, 2026-08-06.
+Accepted, 2026-08-06. Rationale superseded by [ADR-0002](adr-0002-shell-signal-observer.md) on 2026-09-07; the observer process boundary remains, but the observer no longer registers a UI Automation subscription.
 
 ## Context
 

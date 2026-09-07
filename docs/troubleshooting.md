@@ -9,6 +9,14 @@
 
 Both center- and left-aligned taskbar buttons are supported by the default **Left of notification area** placement.
 
+## Google Chrome reports an accessibility client or uses more CPU
+
+Releases up to 1.0.0 subscribed to Windows UI Automation events to follow taskbar changes. Chrome treats any UI Automation event client as an assistive technology, enables its accessibility mode, and lists `quickpods.taskbarobserver.exe` under **UIA clients** on `chrome://accessibility`. Later releases use Win32 shell hooks, window event hooks, and registry notifications instead and do not register a UI Automation client.
+
+- Update QuickPods, then restart Chrome once; Chrome keeps accessibility enabled until it restarts.
+- Confirm that `chrome://accessibility` no longer lists `quickpods.taskbarobserver.exe`.
+- If you cannot update, exit QuickPods and restart Chrome to release the accessibility mode.
+
 ## A Bluetooth device is missing
 
 1. Confirm that the device is paired in Windows Settings.

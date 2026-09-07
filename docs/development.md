@@ -8,7 +8,7 @@
 - Optional: Visual Studio 2022 with the .NET desktop development workload
 - Optional for MSI packaging: the WiX SDK is restored through the installer project
 
-QuickPods is Windows-specific. WPF, Win32, Core Audio, Configuration Manager, UI Automation, registry, and MSI behavior cannot be validated on Linux or macOS.
+QuickPods is Windows-specific. WPF, Win32, shell hooks and window event hooks, Core Audio, Configuration Manager, UI Automation, registry, and MSI behavior cannot be validated on Linux or macOS.
 
 ## Clone and restore
 
